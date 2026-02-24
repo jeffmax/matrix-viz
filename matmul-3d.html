@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Matrix Multiplication — 3D Outer Product</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  background: #fff; color: #333;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 24px 16px 60px; min-height: 100vh;
+}
+h1 { font-size: 1.2rem; font-weight: 400; color: #555; margin-bottom: 3px; }
+.subtitle { font-size: 0.75rem; color: #aaa; margin-bottom: 20px; text-align: center; }
+
+.top-controls { display: flex; gap: 14px; align-items: flex-end; margin-bottom: 18px; flex-wrap: wrap; justify-content: center; }
+.dim-group { display: flex; flex-direction: column; gap: 3px; align-items: center; }
+.dim-group label { font-size: 0.65rem; color: #aaa; text-transform: uppercase; letter-spacing: .08em; }
+.dim-group input[type=number] { width: 44px; height: 30px; border: 1px solid #ddd; border-radius: 4px; text-align: center; font-size: 0.9rem; outline: none; color: #333; }
+.ctrl-btn { height: 30px; padding: 0 12px; border: 1px solid #ddd; border-radius: 4px; background: #fff; font-size: 0.75rem; color: #555; cursor: pointer; }
+.ctrl-btn.primary { background: #333; color: #fff; border-color: #333; }
+
+.mode-tabs { display: flex; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; margin-bottom: 24px; }
+.mode-tab { padding: 8px 18px; font-size: 0.72rem; color: #aaa; cursor: pointer; background: #fff; border: none; border-right: 1px solid #ddd; letter-spacing: .03em; }
+.mode-tab:last-child { border-right: none; }
+.mode-tab.active { background: #333; color: #fff; }
+
+.scene-wrap { display: flex; gap: 20px; align-items: center; justify-content: center; flex-wrap: wrap; max-width: 1100px; }
+.canvas-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.canvas-title { font-size: 0.68rem; color: #aaa; text-transform: uppercase; letter-spacing: .08em; }
+.canvas-hint  { font-size: 0.68rem; color: #bbb; }
+#mainCanvas { border-radius: 6px; display: block; background: #fafafa; cursor: grab; }
+#mainCanvas:active { cursor: grabbing; }
+
+.side-panel { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.mat-title { font-size: 0.68rem; color: #aaa; text-transform: uppercase; letter-spacing: .08em; }
+.grid { display: grid; gap: 3px; }
+.cell { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 500; border-radius: 3px; transition: background .12s, opacity .12s; }
+.cell-a { background: #f5f5f5; color: #666; }
+.cell-b { background: #f5f5f5; color: #666; }
+.cell-a.hi  { background: #ff9a3c; color: #fff; }
+.cell-a.cur { background: #e06000; color: #fff; transform: scale(1.1); }
+.cell-a.dim { opacity: 0.13; }
+.cell-b.hi  { background: #4a90d9; color: #fff; }
+.cell-b.cur { background: #1a60b0; color: #fff; transform: scale(1.1); }
+.cell-b.dim { opacity: 0.13; }
+
+/* Outer-product display panel */
+.op-display {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; flex-wrap: wrap;
+  margin-top: 6px; min-height: 36px;
+}
+.op-vec { display: flex; flex-direction: column; gap: 3px; }
+.op-vec-row { display: flex; gap: 3px; }
+.op-cell {
+  width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+  font-size: 0.82rem; font-weight: 600; border-radius: 3px;
+  border: 2px solid transparent;
+}
+.op-cell-a { background: #fff3e8; color: #e06000; border-color: #ffd0a0; }
+.op-cell-a.op-cur { background: #e06000; color: #fff; border-color: #e06000; }
+.op-cell-b { background: #e8f2ff; color: #1a60b0; border-color: #b0d0f8; }
+.op-cell-b.op-cur { background: #1a60b0; color: #fff; border-color: #1a60b0; }
+.op-sym { font-size: 1.6rem; color: #bbb; font-weight: 300; line-height: 1; margin: 0 4px; }
+.op-eq { font-size: 0.9rem; color: #888; margin: 0 4px; }
+.op-result { font-size: 1.1rem; font-weight: 700; color: #1a9a40; }
+.op-grid { display: grid; gap: 2px; }
+.op-cell-r {
+  width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+  font-size: 0.78rem; font-weight: 600; border-radius: 3px;
+  background: #eafaef; color: #1a9a40; border: 2px solid #a0e8b8;
+  transition: background .12s, transform .12s;
+}
+.op-cell-r.op-cur { background: #1a9a40; color: #fff; border-color: #1a9a40; transform: scale(1.08); }
+@keyframes opSliceAppear {
+  0%   { opacity: 0; transform: scale(0.3); background: #ffe0c0; color: #e06000; border-color: #ffa060; }
+  40%  { opacity: 1; transform: scale(1.06); background: #ff9a3c; color: #fff; border-color: #e06000; }
+  100% { opacity: 1; transform: scale(1); background: #eafaef; color: #1a9a40; border-color: #a0e8b8; }
+}
+.op-cell-r.op-anim {
+  opacity: 0;
+  animation: opSliceAppear 0.45s ease-out forwards;
+}
+
+.formula-bar { margin-top: 10px; min-height: 38px; width: 100%; max-width: 860px; text-align: center; }
+.formula-text { font-size: 0.88rem; color: #444; line-height: 1.8; }
+.fa { color: #e06000; font-weight: 700; }
+.fb { color: #1a60b0; font-weight: 700; }
+.fc { color: #1a9a40; font-weight: 700; }
+.fr { color: #5a4fcf; font-weight: 700; }
+.op { color: #bbb; }
+
+.step-dots { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; justify-content: center; max-width: 600px; }
+.step-dot { width: 8px; height: 8px; border-radius: 50%; background: #eee; transition: background .2s; border: 2px solid transparent; }
+.step-dot.done { background: #b0e8c0; }
+.step-dot.cur  { background: #50c878; border-color: #1a9a40; transform: scale(1.25); }
+
+.playback { margin-top: 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.play-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid #ddd; background: #fff; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.play-btn.big { width: 44px; height: 44px; border: 2px solid #333; font-size: 1.05rem; }
+.slider-wrap { display: flex; align-items: center; gap: 6px; font-size: 0.65rem; color: #aaa; text-transform: uppercase; letter-spacing: .06em; }
+input[type=range] { width: 88px; accent-color: #333; }
+
+.check-wrap { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: #777; cursor: pointer; user-select: none; padding: 4px 8px; border: 1px solid #eee; border-radius: 4px; }
+.check-wrap input { accent-color: #333; cursor: pointer; width: 14px; height: 14px; }
+
+.legend { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.67rem; color: #888; }
+.legend-swatch { width: 11px; height: 11px; border-radius: 2px; }
+
+.hidden { display: none !important; }
+
+/* ── Intro tab: outer product a ⊗ b ── */
+.intro-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 18px;
+  padding: 10px 0; max-width: 900px; margin: 0 auto;
+}
+.intro-stage {
+  display: flex; align-items: center; justify-content: center;
+  gap: 18px; flex-wrap: wrap;
+}
+.intro-block {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.intro-block-label {
+  font-size: 0.65rem; color: #aaa; text-transform: uppercase; letter-spacing: .07em;
+}
+.intro-grid {
+  display: grid; gap: 3px;
+}
+.intro-cell {
+  width: 46px; height: 46px; display: flex; align-items: center; justify-content: center;
+  font-size: 0.92rem; font-weight: 600; border-radius: 4px;
+  transition: background .15s, transform .15s, box-shadow .15s;
+  cursor: default;
+}
+.intro-cell-a {
+  background: #fff3e8; color: #e06000; border: 2px solid #ffd0a0;
+}
+.intro-cell-b {
+  background: #e8f2ff; color: #1a60b0; border: 2px solid #b0d0f8;
+}
+.intro-cell-r {
+  background: #eafaef; color: #1a9a40; border: 2px solid #a0e8b8;
+  cursor: pointer;
+}
+.intro-cell-a.hi-cell {
+  background: #ff9a3c; color: #fff; border-color: #e06000; transform: scale(1.12);
+  box-shadow: 0 0 10px rgba(224,96,0,0.4);
+}
+.intro-cell-b.hi-cell {
+  background: #4a90d9; color: #fff; border-color: #1a60b0; transform: scale(1.12);
+  box-shadow: 0 0 10px rgba(26,96,176,0.4);
+}
+.intro-cell-r.hi-res {
+  background: #50c878; color: #fff; border-color: #1a9a40; transform: scale(1.12);
+  box-shadow: 0 0 10px rgba(80,200,120,0.4);
+}
+.intro-sym {
+  font-size: 1.8rem; color: #bbb; font-weight: 300; line-height: 1;
+}
+.intro-shape {
+  font-size: 0.62rem; color: #bbb; margin-top: 2px; font-family: monospace;
+}
+.intro-stretch-arrow {
+  font-size: 0.62rem; color: #ccc; text-align: center; letter-spacing: .04em;
+}
+.intro-code {
+  background: #f7f7f7; border: 1px solid #e8e8e8; border-radius: 5px;
+  padding: 8px 14px; font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.78rem; line-height: 1.6; color: #444; white-space: pre;
+  text-align: left; width: fit-content; margin: 0 auto 6px;
+}
+@keyframes introCopyRight {
+  from { opacity: 0; transform: scale(0.4) translateX(-18px); }
+  to   { opacity: 1; transform: scale(1) translateX(0); }
+}
+@keyframes introCopyDown {
+  from { opacity: 0; transform: scale(0.4) translateY(-18px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes introMulAppear {
+  from { opacity: 0; transform: scale(0.5); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.intro-anim-right {
+  opacity: 0;
+  animation: introCopyRight 0.4s ease-out forwards;
+}
+.intro-anim-down {
+  opacity: 0;
+  animation: introCopyDown 0.4s ease-out forwards;
+}
+.intro-anim-appear {
+  opacity: 0;
+  animation: introMulAppear 0.35s ease-out forwards;
+}
+</style>
+</head>
+<body>
+
+<h1>Matrix Multiplication — The 3D Hidden Step</h1>
+<p class="subtitle">einsum: <em>ij, jk → ik</em> &nbsp;·&nbsp; outer products A[:,j]⊗B[j,:] stack into a cube, then Σⱼ collapses it</p>
+
+<div class="top-controls">
+  <div class="dim-group"><label>i rows</label><input type="number" id="dimI" value="3" min="1" max="4"></div>
+  <div class="dim-group" id="dimJGroup"><label>j shared</label><input type="number" id="dimJ" value="4" min="1" max="4"></div>
+  <div class="dim-group"><label>k cols</label><input type="number" id="dimK" value="3" min="1" max="4"></div>
+  <button class="ctrl-btn primary" onclick="rebuild(true)">Randomize</button>
+  <button class="ctrl-btn" onclick="rebuild(false)">Reset (1s)</button>
+</div>
+
+<div class="mode-tabs">
+  <button class="mode-tab active" id="tab-intro" onclick="setMode('intro')">⓪ Outer Product — a ⊗ b</button>
+  <button class="mode-tab"        id="tab-matmul" onclick="setMode('matmul')">① Matrix Multiply — Build & Collapse</button>
+</div>
+
+<div class="scene-wrap hidden">
+  <div class="side-panel" id="panelA">
+    <div class="mat-title">A &nbsp;<span style="color:#e06000;font-weight:600">← col j</span></div>
+    <div class="grid" id="gridA"></div>
+  </div>
+  <div class="canvas-col">
+    <div class="canvas-title" id="canvasTitle">Cube[i, j, k] = A[i,j] × B[j,k]</div>
+    <canvas id="mainCanvas" width="420" height="380"></canvas>
+    <div class="canvas-hint">Drag to rotate</div>
+  </div>
+  <div class="side-panel" id="panelB">
+    <div class="mat-title">B &nbsp;<span style="color:#1a60b0;font-weight:600">row j →</span></div>
+    <div class="grid" id="gridB"></div>
+  </div>
+</div>
+
+<!-- TAB 0 — Intro: outer product a ⊗ b -->
+<div id="ctrl-intro">
+  <div class="intro-code" id="introCode"></div>
+  <div id="introDisplay" class="intro-wrap"></div>
+  <div class="formula-bar">
+    <div class="formula-text" id="fIntro"></div>
+  </div>
+  <div class="playback">
+    <button class="play-btn" onclick="stepBackIntro()" title="Step back">◀</button>
+    <button class="play-btn big" id="pbIntro" onclick="togglePlayIntro()">▶</button>
+    <button class="play-btn" onclick="stepFwdIntro()" title="Step forward">▶|</button>
+    <button class="play-btn" onclick="resetIntro()" title="Reset">↺</button>
+    <div class="slider-wrap">
+      <span>slow</span>
+      <input type="range" id="spIntro" min="200" max="1200" value="600" step="50">
+      <span>fast</span>
+    </div>
+    <button class="ctrl-btn" onclick="randomizeIntroVecs()">Randomize</button>
+  </div>
+  <div class="step-dots" id="dIntro"></div>
+</div>
+
+<!-- TAB 1 — Matrix Multiply: Build & Collapse (unified) -->
+<div id="ctrl-matmul" class="hidden">
+  <!-- Outer-product visual display — shown only in elem-by-elem mode -->
+  <div id="opDisplay" class="op-display hidden"></div>
+
+  <div class="formula-bar">
+    <div class="formula-text" id="fMM">Press ▶ to build the cube slice by slice, then collapse into the result</div>
+    <div class="step-dots" id="dMM"></div>
+  </div>
+  <div class="playback">
+    <button class="play-btn" onclick="mmBack()" title="Step back / reverse">◀</button>
+    <button class="play-btn big" id="pbMM" onclick="mmToggle()">▶</button>
+    <button class="play-btn" onclick="mmFwd()" title="Step forward">▶|</button>
+    <button class="play-btn" onclick="mmReset()" title="Reset">↺</button>
+    <div class="slider-wrap">
+      <span>slow</span>
+      <input type="range" id="spMM" min="100" max="1800" value="700" step="50">
+      <span>fast</span>
+    </div>
+    <label class="check-wrap">
+      <input type="checkbox" id="chkElem" checked>
+      Show outer products element by element
+    </label>
+    <div class="slider-wrap" id="collapseSliderWrap" style="display:none">
+      <span>stacked</span>
+      <input type="range" id="spCollapse" min="0" max="1000" value="0" step="1"
+             oninput="mmScrubCollapse(this.value/1000)">
+      <span>summed</span>
+    </div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-swatch" style="background:#ff9a3c"></div>A[:,j] column</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#4a90d9"></div>B[j,:] row</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#50c878"></div>Filled slice</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#e06000"></div>Active cell</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ══════════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════════
+let I=3, J=4, K=3;
+let A=[], B=[], Cube=[], Res=[];
+let currentMode='intro';
+
+function rand(){ return Math.floor(Math.random()*9)+1; }
+function computeData(rnd){
+  A   = Array.from({length:I}, ()=>Array.from({length:J}, ()=>rnd?rand():1));
+  B   = Array.from({length:J}, ()=>Array.from({length:K}, ()=>rnd?rand():1));
+  Cube= Array.from({length:I}, (_,i)=>Array.from({length:J}, (_,j)=>Array.from({length:K}, (_,k)=>A[i][j]*B[j][k])));
+  Res = Array.from({length:I}, (_,i)=>Array.from({length:K}, (_,k)=>A[i].reduce((s,_,j)=>s+A[i][j]*B[j][k],0)));
+}
+
+// ══════════════════════════════════════════════════
+// THREE.JS — ONE SCENE, ONE CANVAS
+// ══════════════════════════════════════════════════
+const CELL=0.78, GAP=0.13, STEP=CELL+GAP;
+const FIXED_THETA=0.50, FIXED_PHI=0.62;
+
+let sc=null, orb=null;
+let boxes=[];
+let plusSprites=[];
+
+function makeTex(text, color){
+  const S=128, cv=document.createElement('canvas'); cv.width=S; cv.height=S;
+  const ctx=cv.getContext('2d');
+  ctx.fillStyle=color||'#fff';
+  ctx.font=`bold ${Math.round(S*0.40)}px Helvetica Neue,Helvetica,Arial,sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(String(text),S/2,S/2);
+  const t=new THREE.CanvasTexture(cv); t.needsUpdate=true; return t;
+}
+function makePlusTex(){
+  const S=128, cv=document.createElement('canvas'); cv.width=S; cv.height=S;
+  const ctx=cv.getContext('2d');
+  ctx.fillStyle='#999';
+  ctx.font=`bold ${Math.round(S*0.65)}px sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('+',S/2,S/2);
+  const t=new THREE.CanvasTexture(cv); t.needsUpdate=true; return t;
+}
+
+function initScene(){
+  const canvas=document.getElementById('mainCanvas');
+  const W=canvas.width, H=canvas.height;
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  renderer.setSize(W,H); renderer.setClearColor(0xfafafa,1);
+  const scene=new THREE.Scene();
+  const camera=new THREE.PerspectiveCamera(38,W/H,0.1,200);
+  scene.add(new THREE.AmbientLight(0xffffff,0.82));
+  const d1=new THREE.DirectionalLight(0xffffff,0.48); d1.position.set(6,9,7); scene.add(d1);
+  const d2=new THREE.DirectionalLight(0xffffff,0.18); d2.position.set(-4,2,-4); scene.add(d2);
+  const o={theta:FIXED_THETA, phi:FIXED_PHI, dragging:false, lx:0, ly:0};
+  canvas.addEventListener('mousedown',e=>{o.dragging=true;o.lx=e.clientX;o.ly=e.clientY;});
+  window.addEventListener('mouseup',()=>{o.dragging=false;});
+  window.addEventListener('mousemove',e=>{
+    if(!o.dragging)return;
+    o.theta-=(e.clientX-o.lx)*0.015; o.phi-=(e.clientY-o.ly)*0.015;
+    o.phi=Math.max(0.08,Math.min(Math.PI-0.08,o.phi));
+    o.lx=e.clientX; o.ly=e.clientY;
+  });
+  canvas.addEventListener('touchstart',e=>{o.dragging=true;o.lx=e.touches[0].clientX;o.ly=e.touches[0].clientY;e.preventDefault();},{passive:false});
+  canvas.addEventListener('touchend',()=>{o.dragging=false;});
+  canvas.addEventListener('touchmove',e=>{
+    if(!o.dragging)return;
+    o.theta-=(e.touches[0].clientX-o.lx)*0.015;
+    o.phi-=(e.touches[0].clientY-o.ly)*0.015;
+    o.phi=Math.max(0.08,Math.min(Math.PI-0.08,o.phi));
+    o.lx=e.touches[0].clientX; o.ly=e.touches[0].clientY; e.preventDefault();
+  },{passive:false});
+  sc={scene,camera,renderer}; orb=o;
+  (function loop(){
+    requestAnimationFrame(loop);
+    const r=Math.max(I,J,K)*STEP*2.2+1.4;
+    camera.position.set(r*Math.sin(o.phi)*Math.sin(o.theta), r*Math.cos(o.phi), r*Math.sin(o.phi)*Math.cos(o.theta));
+    camera.lookAt(0,0,0);
+    renderer.render(scene,camera);
+  })();
+}
+
+function rebuildBoxes(){
+  if(!sc) initScene();
+  boxes.forEach(l=>l.forEach(r=>r.forEach(b=>{sc.scene.remove(b.mesh);sc.scene.remove(b.edges);sc.scene.remove(b.spr);})));
+  plusSprites.forEach(s=>sc.scene.remove(s));
+  boxes=[]; plusSprites=[];
+  // Axes: k→X (horizontal, matches grid columns), j→Y (vertical, for collapse), i→Z (depth, matches grid rows from above)
+  const ox=-(K-1)*STEP/2, oy=-(J-1)*STEP/2, oz=-(I-1)*STEP/2;
+  for(let i=0;i<I;i++){
+    const layer=[];
+    for(let j=0;j<J;j++){
+      const row=[];
+      for(let k=0;k<K;k++){
+        const geo=new THREE.BoxGeometry(CELL,CELL,CELL);
+        const mat=new THREE.MeshPhongMaterial({color:0xeeeeee,transparent:true,opacity:0.10,shininess:15});
+        const mesh=new THREE.Mesh(geo,mat);
+        const px=ox+k*STEP, py=oy+j*STEP, pz=oz+i*STEP;
+        mesh.position.set(px,py,pz); sc.scene.add(mesh);
+        const eg=new THREE.EdgesGeometry(geo);
+        const em=new THREE.LineBasicMaterial({color:0xcccccc,transparent:true,opacity:0.22});
+        const edges=new THREE.LineSegments(eg,em); edges.position.copy(mesh.position); sc.scene.add(edges);
+        const spr=new THREE.Sprite(new THREE.SpriteMaterial({transparent:true,depthTest:false}));
+        spr.scale.set(CELL*0.65,CELL*0.65,1); spr.position.set(px,py,pz); spr.visible=false; sc.scene.add(spr);
+        row.push({mesh,mat,edges,em,spr,px,py,pz});
+      }
+      layer.push(row);
+    }
+    boxes.push(layer);
+  }
+  orb.theta=FIXED_THETA; orb.phi=FIXED_PHI;
+}
+
+function paintBox(i,j,k,col,opacity,emissive,val){
+  const b=boxes[i][j][k];
+  b.mat.color.setHex(col); b.mat.opacity=opacity; b.mat.emissive.setHex(emissive||0);
+  b.em.color.setHex(col===0xeeeeee?0xcccccc:col); b.em.opacity=opacity<0.2?0.18:0.65;
+  b.mesh.visible=true; b.edges.visible=true;
+  if(val!=null){ b.spr.material.map=makeTex(val,'#ffffff'); b.spr.material.needsUpdate=true; b.spr.material.opacity=1; b.spr.visible=true; }
+  else { b.spr.visible=false; }
+}
+function paintSlice(j,state){
+  for(let i=0;i<I;i++) for(let k=0;k<K;k++){
+    if(state==='empty') paintBox(i,j,k,0xeeeeee,0.10,0,null);
+    else if(state==='active') paintBox(i,j,k,0xe06000,0.95,0x2a0e00,Cube[i][j][k]);
+    else paintBox(i,j,k,0x50c878,0.78,0,Cube[i][j][k]);
+  }
+}
+function ensureAllGreen(){ for(let j=0;j<J;j++) paintSlice(j,'done'); }
+
+// ══════════════════════════════════════════════════
+// TAB 0 — INTRO: OUTER PRODUCT a ⊗ b
+// Step 0: show vectors a (column) and b (row)
+// Step 1: a broadcasts rightward — columns appear one by one
+// Step 2: b broadcasts downward — rows appear one by one
+// Step 3: element-wise multiply = outer product result
+// ══════════════════════════════════════════════════
+let introA=[], introB=[];
+let introStep=-1, introPlaying=false, introTm=null;
+const INTRO_STEPS=3;
+
+function initIntroVecs(rnd){
+  introA=Array.from({length:I},()=>rnd?rand():1);
+  introB=Array.from({length:K},()=>rnd?rand():1);
+}
+
+// Speed slider: left=slow (1200ms/copy), right=fast (200ms/copy)
+// Slider value 200..1200 maps to delay 1200..200 (inverted)
+function introDelay(){ return 1400-parseInt(document.getElementById('spIntro').value||600); }
+
+function renderIntro(){
+  const wrap=document.getElementById('introDisplay');
+  if(!wrap) return;
+  renderIntroCode();
+  if(introStep<=0) renderIntroStep0(wrap);
+  else if(introStep===1) renderIntroStep1(wrap);
+  else renderIntroStep2(wrap);
+  updateIntroDots();
+  updateIntroFormula();
+}
+
+// Helper: PyTorch-style shape annotation
+function shapeTag(text){ return `<div class="intro-shape">${text}</div>`; }
+
+// Persistent code block — always visible in sidebar
+function renderIntroCode(){
+  const el=document.getElementById('introCode');
+  if(!el) return;
+  const aVals=introA.map(v=>String(v)).join(', ');
+  const bVals=introB.map(v=>String(v)).join(', ');
+  el.innerHTML=
+    `<span class="fa">a</span> = torch.tensor([${aVals}])  <span style="color:#999"># shape (${I},)</span>\n`
+    +`<span class="fb">b</span> = torch.tensor([${bVals}])  <span style="color:#999"># shape (${K},)</span>`;
+}
+
+function renderIntroStep0(wrap){
+  // Show column vector a and row vector b
+  let html='<div class="intro-stage">';
+
+  // Vector a — column (I, 1)
+  html+='<div class="intro-block">';
+  html+='<div class="intro-block-label"><span style="color:#e06000;font-weight:700">a</span><span style="color:#aaa">[:, None]</span></div>';
+  html+='<div class="intro-grid" style="grid-template-columns:46px">';
+  for(let i=0;i<I;i++){
+    html+=`<div class="intro-cell intro-cell-a">${introA[i]}</div>`;
+  }
+  html+='</div>';
+  html+=shapeTag(`shape (${I}, <strong>1</strong>) — the <strong>1</strong> stretches →`);
+  html+='</div>';
+
+  // outer product symbol
+  html+='<div class="intro-sym">⊗</div>';
+
+  // Vector b — row (1, K)
+  html+='<div class="intro-block">';
+  html+='<div class="intro-block-label"><span style="color:#1a60b0;font-weight:700">b</span><span style="color:#aaa">[None, :]</span></div>';
+  html+=`<div class="intro-grid" style="grid-template-columns:repeat(${K},46px)">`;
+  for(let k=0;k<K;k++){
+    html+=`<div class="intro-cell intro-cell-b">${introB[k]}</div>`;
+  }
+  html+='</div>';
+  html+=shapeTag(`shape (<strong>1</strong>, ${K}) — the <strong>1</strong> stretches ↓`);
+  html+='</div>';
+
+  html+='</div>';
+  wrap.innerHTML=html;
+}
+
+function renderIntroStep1(wrap){
+  // Both broadcast simultaneously: a copies rightward, b copies downward
+  const delay=introDelay();
+  let html='<div class="intro-stage">';
+
+  // a broadcast: column 0 is original, columns 1+ animate in from left
+  html+='<div class="intro-block">';
+  html+='<div class="intro-block-label"><span style="color:#e06000;font-weight:700">a</span><span style="color:#aaa">[:, None]</span> broadcast →</div>';
+  html+=`<div class="intro-grid" style="grid-template-columns:repeat(${K},46px)">`;
+  for(let i=0;i<I;i++) for(let k=0;k<K;k++){
+    if(k===0){
+      html+=`<div class="intro-cell intro-cell-a">${introA[i]}</div>`;
+    } else {
+      html+=`<div class="intro-cell intro-cell-a intro-anim-right" style="animation-delay:${(k-1)*delay}ms">${introA[i]}</div>`;
+    }
+  }
+  html+='</div>';
+  html+=shapeTag(`(${I}, <strong>1</strong>) → (${I}, ${K})`);
+  html+='</div>';
+
+  html+='<div class="intro-sym">*</div>';
+
+  // b broadcast: row 0 is original, rows 1+ animate in from top
+  html+='<div class="intro-block">';
+  html+='<div class="intro-block-label"><span style="color:#1a60b0;font-weight:700">b</span><span style="color:#aaa">[None, :]</span> broadcast ↓</div>';
+  html+=`<div class="intro-grid" style="grid-template-columns:repeat(${K},46px)">`;
+  for(let i=0;i<I;i++) for(let k=0;k<K;k++){
+    if(i===0){
+      html+=`<div class="intro-cell intro-cell-b">${introB[k]}</div>`;
+    } else {
+      html+=`<div class="intro-cell intro-cell-b intro-anim-down" style="animation-delay:${(i-1)*delay}ms">${introB[k]}</div>`;
+    }
+  }
+  html+='</div>';
+  html+=shapeTag(`(<strong>1</strong>, ${K}) → (${I}, ${K})`);
+  html+='</div>';
+
+  html+='</div>';
+  wrap.innerHTML=html;
+}
+
+function renderIntroStep2(wrap){
+  // Show broadcast grids + result with hover interaction
+  const delay=introDelay();
+  let html='<div class="intro-stage">';
+
+  // Broadcast a (static)
+  html+='<div class="intro-block">';
+  html+=`<div class="intro-block-label">(${I}, ${K})</div>`;
+  html+=`<div class="intro-grid" style="grid-template-columns:repeat(${K},46px)">`;
+  for(let i=0;i<I;i++) for(let k=0;k<K;k++){
+    html+=`<div class="intro-cell intro-cell-a" data-ba-i="${i}" data-ba-k="${k}">${introA[i]}</div>`;
+  }
+  html+='</div></div>';
+
+  html+='<div class="intro-sym">*</div>';
+
+  // Broadcast b (static)
+  html+='<div class="intro-block">';
+  html+=`<div class="intro-block-label">(${I}, ${K})</div>`;
+  html+=`<div class="intro-grid" style="grid-template-columns:repeat(${K},46px)">`;
+  for(let i=0;i<I;i++) for(let k=0;k<K;k++){
+    html+=`<div class="intro-cell intro-cell-b" data-bb-i="${i}" data-bb-k="${k}">${introB[k]}</div>`;
+  }
+  html+='</div></div>';
+
+  html+='<div class="intro-sym">=</div>';
+
+  // Result grid — cells appear with staggered animation
+  html+='<div class="intro-block">';
+  html+='<div class="intro-block-label"><span style="color:#1a9a40;font-weight:700">a ⊗ b</span> <span style="color:#aaa">= a[:, None] * b[None, :]</span></div>';
+  html+=`<div class="intro-grid" style="grid-template-columns:repeat(${K},46px)">`;
+  for(let i=0;i<I;i++) for(let k=0;k<K;k++){
+    const val=introA[i]*introB[k];
+    const cellDelay=(i*K+k)*Math.max(delay*0.3,60);
+    html+=`<div class="intro-cell intro-cell-r intro-anim-appear" data-ri="${i}" data-rk="${k}" `
+      +`onmouseenter="introHover(${i},${k})" onmouseleave="introClearHover()" `
+      +`style="animation-delay:${cellDelay}ms">${val}</div>`;
+  }
+  html+='</div></div>';
+
+  html+='</div>';
+  wrap.innerHTML=html;
+}
+
+function introHover(hi,hk){
+  // Highlight only the exact source cell [hi,hk] in each broadcast grid, plus the result cell
+  document.querySelectorAll('[data-ba-i]').forEach(el=>{
+    el.classList.toggle('hi-cell',+el.dataset.baI===hi && +el.dataset.baK===hk);
+  });
+  document.querySelectorAll('[data-bb-i]').forEach(el=>{
+    el.classList.toggle('hi-cell',+el.dataset.bbI===hi && +el.dataset.bbK===hk);
+  });
+  document.querySelectorAll('[data-ri]').forEach(el=>{
+    el.classList.toggle('hi-res',+el.dataset.ri===hi && +el.dataset.rk===hk);
+  });
+  const f=document.getElementById('fIntro');
+  f.innerHTML=`Cell [${hi}, ${hk}]: `
+    +`<span class="fa">a[${hi}]</span> = <span class="fa">${introA[hi]}</span> &nbsp;× &nbsp;`
+    +`<span class="fb">b[${hk}]</span> = <span class="fb">${introB[hk]}</span> &nbsp;= &nbsp;`
+    +`<span class="fc">${introA[hi]*introB[hk]}</span>`;
+}
+function introClearHover(){
+  document.querySelectorAll('.hi-cell').forEach(el=>el.classList.remove('hi-cell'));
+  document.querySelectorAll('.hi-res').forEach(el=>el.classList.remove('hi-res'));
+  updateIntroFormula();
+}
+
+function codeSpan(text){ return `<code style="background:#f5f5f5;padding:2px 5px;border-radius:3px;font-size:0.82em">${text}</code>`; }
+
+function updateIntroFormula(){
+  const f=document.getElementById('fIntro');
+  if(introStep<0||introStep===0){
+    f.innerHTML=`PyTorch: ${codeSpan('a[:, None] * b[None, :]')} &nbsp;=&nbsp; `
+      +`${codeSpan("torch.einsum('i,k-&gt;ik', a, b)")} &nbsp;— `
+      +`the size-<strong>1</strong> dims stretch to match. Press ▶`;
+  } else if(introStep===1){
+    f.innerHTML=`Both broadcast simultaneously: <span class="fa">a</span>'s column copies → across ${K} cols, `
+      +`<span class="fb">b</span>'s row copies ↓ across ${I} rows. Both become (${I}, ${K}).`;
+  } else {
+    f.innerHTML=`Element-wise multiply gives the outer product. Each cell [i,k] = `
+      +`<span class="fa">a[i]</span> × <span class="fb">b[k]</span>. `
+      +`Hover to inspect.`;
+  }
+}
+
+function updateIntroDots(){
+  const el=document.getElementById('dIntro'); el.innerHTML='';
+  for(let d=0;d<INTRO_STEPS;d++){
+    const dot=document.createElement('div'); dot.className='step-dot';
+    if(introStep>d) dot.classList.add('done');
+    else if(introStep===d) dot.classList.add('cur');
+    el.appendChild(dot);
+  }
+}
+
+// Compute how long the current step's animation takes, so autoplay waits
+function introAnimDuration(){
+  const delay=introDelay();
+  if(introStep===1) return Math.max((K-2)*delay,(I-2)*delay)+500; // both broadcast simultaneously
+  if(introStep===2) return (I*K-1)*Math.max(delay*0.3,60)+500;    // result cells
+  return 600; // step 0 — brief pause
+}
+
+function stepFwdIntro(){
+  pauseIntro();
+  if(introStep<INTRO_STEPS-1){ introStep++; renderIntro(); }
+}
+function stepBackIntro(){
+  pauseIntro();
+  if(introStep>0){ introStep--; renderIntro(); }
+  else if(introStep<=0){ introStep=-1; renderIntro(); }
+}
+function togglePlayIntro(){
+  if(introPlaying) pauseIntro();
+  else playIntro();
+}
+function playIntro(){
+  if(introStep>=INTRO_STEPS-1) introStep=-1;
+  introPlaying=true;
+  document.getElementById('pbIntro').textContent='⏸';
+  tickIntro();
+}
+function pauseIntro(){
+  introPlaying=false;
+  clearTimeout(introTm);
+  document.getElementById('pbIntro').textContent='▶';
+}
+function tickIntro(){
+  if(!introPlaying) return;
+  if(introStep<INTRO_STEPS-1){
+    introStep++;
+    renderIntro();
+    introTm=setTimeout(tickIntro, introAnimDuration()+300);
+  } else {
+    pauseIntro();
+  }
+}
+function resetIntro(){
+  pauseIntro();
+  introStep=-1;
+  renderIntro();
+}
+function randomizeIntroVecs(){
+  pauseIntro();
+  initIntroVecs(true);
+  introStep=-1;
+  renderIntro();
+}
+
+// ══════════════════════════════════════════════════
+// TAB 1 — OUTER PRODUCTS, SLICE BY SLICE
+//
+// Step encoding when elemByElem=true:
+//   For each j in 0..J-1, I*K cell steps, then slice done.
+//   Total = J * I * K steps (each step = one cell of one slice)
+//   Step s: j = floor(s / (I*K)), cell = s % (I*K)
+//
+// When elemByElem=false:
+//   Total = J steps (each step = one whole slice)
+// ══════════════════════════════════════════════════
+let t1=-1, pl1=false, tm1=null, lastOpJ=-1;
+
+function elemByElem(){ return document.getElementById('chkElem').checked; }
+function totalSteps1(){ return elemByElem() ? J*I*K : J; }
+
+function decodeS1(s){
+  if(s<0) return {j:-1,cellI:-1,cellK:-1};
+  if(elemByElem()){
+    const sliceSize=I*K;
+    const j=Math.floor(s/sliceSize);
+    if(j>=J) return {j:J,cellI:-1,cellK:-1}; // past end
+    const cell=s%sliceSize;
+    return {j, cellI:Math.floor(cell/K), cellK:cell%K};
+  } else {
+    if(s>=J) return {j:J,cellI:-1,cellK:-1};
+    return {j:s, cellI:-1, cellK:-1};
+  }
+}
+
+function applyS1(s){
+  if(!boxes.length) return;
+  const {j,cellI,cellK}=decodeS1(s);
+
+  // All slices before j: green
+  for(let jj=0;jj<J;jj++){
+    if(jj<j) paintSlice(jj,'done');
+    else paintSlice(jj,'empty');
+  }
+
+  if(j<0){ renderA(-1,-1,-1); renderB(-1,-1,-1); setF1(s); setD1(s); updateOpDisplay(s); return; }
+  if(j>=J){ ensureAllGreen(); renderA(-1,-1,-1); renderB(-1,-1,-1); setF1(s); setD1(s); updateOpDisplay(s); return; }
+
+  if(cellI<0){
+    // Whole slice
+    paintSlice(j,'active');
+    renderA(j,-1,-1); renderB(j,-1,-1);
+  } else {
+    // Element by element within slice j
+    const cur=cellI*K+cellK;
+    for(let ii=0;ii<I;ii++) for(let kk=0;kk<K;kk++){
+      const flat=ii*K+kk;
+      if(flat<cur) paintBox(ii,j,kk,0x50c878,0.78,0,Cube[ii][j][kk]);
+      else if(flat===cur) paintBox(ii,j,kk,0xe06000,0.95,0x2a0e00,Cube[ii][j][kk]);
+      else paintBox(ii,j,kk,0xeeeeee,0.10,0,null);
+    }
+    renderA(j,cellI,-1);
+    renderB(j,-1,cellK);
+  }
+
+  setF1(s); setD1(s); updateOpDisplay(s);
+}
+
+// ── Outer product visual display ──
+// Shows A[:,j] ⊗ B[j,:] = result grid for the active slice j.
+// Whole-slice mode: broadcast animation (A broadcasts →, B broadcasts ↓, then multiply).
+// Elem-by-elem mode: cell highlighting in column, row, and result grid.
+function updateOpDisplay(s){
+  const panel=document.getElementById('opDisplay');
+  const {j,cellI,cellK}=decodeS1(s);
+  if(j<0||j>=J){ panel.classList.add('hidden'); panel.innerHTML=''; lastOpJ=-1; return; }
+  panel.classList.remove('hidden');
+
+  const ebe=elemByElem() && cellI>=0;
+  const sz=32; // cell size for broadcast grids
+
+  if(!ebe){
+    // ── Broadcast mode: show A[:,j] broadcast → × B[j,:] broadcast ↓ = result ──
+    const animate=j!==lastOpJ;
+    lastOpJ=j;
+    const bDelay=120, rDelay=70;
+    const rBase=animate?Math.max(K-1,I-1)*bDelay+200:0;
+
+    // Broadcast A grid: col 0 = A[:,j] static, cols 1+ copy rightward
+    let aGrid=`<div class="op-grid" style="grid-template-columns:repeat(${K},${sz}px)">`;
+    for(let i=0;i<I;i++) for(let k=0;k<K;k++){
+      const cls=animate&&k>0?'op-cell op-cell-a intro-anim-right':'op-cell op-cell-a';
+      const dly=animate&&k>0?`animation-delay:${(k-1)*bDelay}ms;`:'';
+      aGrid+=`<div class="${cls}" style="width:${sz}px;height:${sz}px;${dly}">${A[i][j]}</div>`;
+    }
+    aGrid+='</div>';
+
+    // Broadcast B grid: row 0 = B[j,:] static, rows 1+ copy downward
+    let bGrid=`<div class="op-grid" style="grid-template-columns:repeat(${K},${sz}px)">`;
+    for(let i=0;i<I;i++) for(let k=0;k<K;k++){
+      const cls=animate&&i>0?'op-cell op-cell-b intro-anim-down':'op-cell op-cell-b';
+      const dly=animate&&i>0?`animation-delay:${(i-1)*bDelay}ms;`:'';
+      bGrid+=`<div class="${cls}" style="width:${sz}px;height:${sz}px;${dly}">${B[j][k]}</div>`;
+    }
+    bGrid+='</div>';
+
+    // Result grid with staggered broadcast-style animation (column-major for rightward feel)
+    let rGrid=`<div class="op-grid" style="grid-template-columns:repeat(${K},${sz+4}px)">`;
+    for(let i=0;i<I;i++) for(let k=0;k<K;k++){
+      if(animate){
+        const dly=rBase+(k*I+i)*rDelay;
+        rGrid+=`<div class="op-cell-r op-anim" style="width:${sz+4}px;height:${sz+4}px;animation-delay:${dly}ms">${Cube[i][j][k]}</div>`;
+      } else {
+        rGrid+=`<div class="op-cell-r" style="width:${sz+4}px;height:${sz+4}px">${Cube[i][j][k]}</div>`;
+      }
+    }
+    rGrid+='</div>';
+
+    panel.innerHTML=
+      `<div style="font-size:0.7rem;color:#aaa;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;width:100%;text-align:center">Slice j = <span style="color:#1a9a40;font-weight:700">${j}</span>: &nbsp;<span style="color:#e06000">A[:,${j}]</span> ⊗ <span style="color:#1a60b0">B[${j},:]</span></div>`+
+      `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center">`+
+      `<div style="text-align:center"><div style="font-size:0.58rem;color:#aaa;margin-bottom:3px">A[:,${j}] broadcast →</div>${aGrid}</div>`+
+      `<div class="op-sym">×</div>`+
+      `<div style="text-align:center"><div style="font-size:0.58rem;color:#aaa;margin-bottom:3px">B[${j},:] broadcast ↓</div>${bGrid}</div>`+
+      `<div class="op-sym">=</div>`+
+      `<div style="text-align:center"><div style="font-size:0.58rem;color:#aaa;margin-bottom:3px">outer product</div>${rGrid}</div>`+
+      `</div>`;
+    return;
+  }
+
+  // ── Elem-by-elem mode: column, row, result grid with cell highlighting ──
+  lastOpJ=j;
+
+  let aVec='<div class="op-vec">';
+  for(let i=0;i<I;i++){
+    aVec+=`<div class="op-cell op-cell-a${i===cellI?' op-cur':''}">${A[i][j]}</div>`;
+  }
+  aVec+='</div>';
+
+  let bVec='<div class="op-vec"><div class="op-vec-row">';
+  for(let k=0;k<K;k++){
+    bVec+=`<div class="op-cell op-cell-b${k===cellK?' op-cur':''}">${B[j][k]}</div>`;
+  }
+  bVec+='</div></div>';
+
+  let rGrid=`<div class="op-grid" style="grid-template-columns:repeat(${K},36px)">`;
+  for(let i=0;i<I;i++) for(let k=0;k<K;k++){
+    rGrid+=`<div class="op-cell-r${i===cellI&&k===cellK?' op-cur':''}">${Cube[i][j][k]}</div>`;
+  }
+  rGrid+='</div>';
+
+  const detail=`<div style="font-size:0.82rem;color:#666;margin-top:4px;text-align:center">`
+    +`[<span style="color:#e06000;font-weight:700">${cellI}</span>, <span style="color:#1a60b0;font-weight:700">${cellK}</span>]: `
+    +`<span style="color:#e06000;font-weight:700">${A[cellI][j]}</span>`
+    +` × <span style="color:#1a60b0;font-weight:700">${B[j][cellK]}</span>`
+    +` = <span style="color:#1a9a40;font-weight:700">${Cube[cellI][j][cellK]}</span></div>`;
+
+  panel.innerHTML=
+    `<div style="font-size:0.7rem;color:#aaa;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;width:100%;text-align:center">Slice j = <span style="color:#1a9a40;font-weight:700">${j}</span> &nbsp;outer product</div>`+
+    `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center">`+
+    `${aVec}`+
+    `<div class="op-sym">⊗</div>`+
+    `${bVec}`+
+    `<div class="op-sym">=</div>`+
+    `${rGrid}`+
+    `</div>`+
+    detail;
+}
+
+function setF1(s){
+  const el=document.getElementById('fMM');
+  const {j,cellI,cellK}=decodeS1(s);
+  if(s<0){
+    el.innerHTML=elemByElem()
+      ? `Press ▶ — each slice fills element by element, showing A[:,j] ⊗ B[j,:]`
+      : `Press ▶ — each j-slice fills all at once as A[:,j] ⊗ B[j,:]`;
+    return;
+  }
+  if(j>=J){ el.innerHTML=`All <span class="fc">${J}</span> outer-product slices built — collapsing…`; return; }
+  if(cellI>=0){
+    // Compact formula line (the big visual is in opDisplay)
+    el.innerHTML=`Slice j=<span class="fc">${j}</span>, entry [<span class="fa">${cellI}</span>,<span class="fb">${cellK}</span>]: `
+      +`<span class="fa">${A[cellI][j]}</span> × <span class="fb">${B[j][cellK]}</span> = <span class="fc">${Cube[cellI][j][cellK]}</span>`;
+  } else {
+    const aCol=Array.from({length:I},(_,i)=>`<span class="fa">${A[i][j]}</span>`).join(', ');
+    const bRow=Array.from({length:K},(_,k)=>`<span class="fb">${B[j][k]}</span>`).join(', ');
+    el.innerHTML=`Slice j=<span class="fc">${j}</span>: &nbsp;[${aCol}] &nbsp;<span style="font-size:1.1em">⊗</span>&nbsp; [${bRow}]`;
+  }
+}
+function setD1(s){
+  const el=document.getElementById('dMM'); el.innerHTML='';
+  const total=totalSteps1();
+  // Show one dot per slice (not per cell — too many dots)
+  const dotCount=J;
+  for(let d=0;d<dotCount;d++){
+    const dot=document.createElement('div'); dot.className='step-dot';
+    const doneThresh=elemByElem()?(d+1)*I*K-1:d;
+    const curThresh=elemByElem()?d*I*K:d;
+    if(s>doneThresh) dot.classList.add('done');
+    else if(s>=curThresh) dot.classList.add('cur');
+    el.appendChild(dot);
+  }
+}
+
+// Speed: slider left=slow, right=fast. Map 100..1800 → delay 1800..100ms
+function spdMM(){ return 1900-parseInt(document.getElementById('spMM').value||700); }
+
+// ── Unified playback state machine ──
+let mmPhase='build'; // 'build' | 'collapse' | 'done'
+
+function mmPauseBuild(){ pl1=false; clearTimeout(tm1); }
+function mmPauseAll(){
+  mmPauseBuild();
+  stopColAnim();
+  document.getElementById('pbMM').textContent='▶';
+}
+
+function mmToggle(){
+  if(mmPhase==='build'){
+    if(pl1){ mmPauseAll(); return; }
+    // Start/resume build playback
+    if(t1>=totalSteps1()-1) t1=-1;
+    pl1=true;
+    document.getElementById('pbMM').textContent='⏸';
+    mmTickBuild();
+  } else if(mmPhase==='collapse'){
+    if(colDir!==0){ mmPauseAll(); return; }
+    if(collapseT>=1) collapseT=0;
+    if(plusSprites.length===0) addPlusSprites();
+    document.getElementById('pbMM').textContent='⏸';
+    runColAnim(+1);
+  } else { // done
+    mmReset();
+    mmToggle();
+  }
+}
+
+function mmTickBuild(){
+  if(!pl1) return;
+  if(t1<totalSteps1()-1){
+    t1++; applyS1(t1);
+    if(t1>=totalSteps1()-1){ mmBuildDone(); return; }
+    tm1=setTimeout(mmTickBuild, spdMM());
+  }
+}
+
+function mmBuildDone(){
+  mmPauseBuild();
+  document.getElementById('pbMM').textContent='⏸';
+  document.getElementById('collapseSliderWrap').style.display='';
+  // Brief pause then auto-start collapse
+  tm1=setTimeout(()=>{
+    mmPhase='collapse';
+    collapseT=0;
+    addPlusSprites();
+    mmUpdateCanvasTitle();
+    runColAnim(+1);
+  }, 600);
+}
+
+function mmFwd(){
+  if(mmPhase==='build'){
+    mmPauseAll();
+    if(t1<totalSteps1()-1){
+      t1++; applyS1(t1);
+      if(t1>=totalSteps1()-1) mmBuildDone();
+    }
+  }
+  // In collapse/done phases, step forward is a no-op (continuous animation)
+}
+
+function mmBack(){
+  if(mmPhase==='build'){
+    mmPauseAll();
+    if(t1>-1){ t1--; applyS1(t1); }
+  } else if(mmPhase==='collapse'){
+    if(colDir!==0){ mmPauseAll(); return; }
+    if(collapseT<=0){
+      // Transition back to build phase at last step
+      mmPhase='build';
+      removePlusSprites();
+      document.getElementById('collapseSliderWrap').style.display='none';
+      collapseT=0;
+      t1=totalSteps1()-1;
+      ensureAllGreen();
+      // Restore box positions to packed cube
+      for(let j=0;j<J;j++){
+        const py=packedY(j);
+        for(let i=0;i<I;i++) for(let k=0;k<K;k++){
+          const b=boxes[i][j][k];
+          b.mesh.position.y=py; b.edges.position.y=py; b.spr.position.y=py;
+        }
+      }
+      applyS1(t1);
+      mmUpdateCanvasTitle();
+      return;
+    }
+    if(plusSprites.length===0) addPlusSprites();
+    document.getElementById('pbMM').textContent='⏸';
+    runColAnim(-1);
+  } else { // done
+    mmPhase='collapse';
+    collapseT=1;
+    if(plusSprites.length===0) addPlusSprites();
+    document.getElementById('pbMM').textContent='⏸';
+    runColAnim(-1);
+  }
+}
+
+function mmReset(){
+  mmPauseAll();
+  mmPhase='build';
+  t1=-1; collapseT=0; lastOpJ=-1;
+  removePlusSprites();
+  document.getElementById('collapseSliderWrap').style.display='none';
+  document.getElementById('spCollapse').value=0;
+  if(boxes.length){
+    // Restore box positions to packed cube
+    for(let j=0;j<J;j++){
+      const py=packedY(j);
+      for(let i=0;i<I;i++) for(let k=0;k<K;k++){
+        const b=boxes[i][j][k];
+        b.mesh.position.y=py; b.edges.position.y=py; b.spr.position.y=py;
+      }
+    }
+  }
+  applyS1(-1);
+  mmUpdateCanvasTitle();
+}
+
+function mmScrubCollapse(t){
+  stopColAnim();
+  if(mmPhase==='build'){
+    // If scrubbing during build, complete build first
+    ensureAllGreen();
+    t1=totalSteps1()-1;
+  }
+  mmPhase='collapse';
+  collapseT=t;
+  if(t>0 && plusSprites.length===0) addPlusSprites();
+  applyCollapse(collapseT);
+  document.getElementById('collapseSliderWrap').style.display='';
+  document.getElementById('pbMM').textContent='▶';
+  if(collapseT>=1) mmPhase='done';
+  mmUpdateCanvasTitle();
+}
+
+function carryIntroToMatmul(){
+  // The intro's outer product introA ⊗ introB is an I×K matrix. Make it the A matrix.
+  // This means J (shared dim) = K_intro, so A is I×J where J = length of introB.
+  J=introB.length;
+  document.getElementById('dimJ').value=J;
+  // A[i][j] = introA[i] * introB[j]  (the outer product)
+  A=Array.from({length:I},(_,i)=>Array.from({length:J},(_,j)=>introA[i]*introB[j]));
+  // Randomize B (J×K)
+  B=Array.from({length:J},()=>Array.from({length:K},()=>rand()));
+  Cube=Array.from({length:I},(_,i)=>Array.from({length:J},(_,j)=>Array.from({length:K},(_,k)=>A[i][j]*B[j][k])));
+  Res=Array.from({length:I},(_,i)=>Array.from({length:K},(_,k)=>A[i].reduce((s,_,j)=>s+A[i][j]*B[j][k],0)));
+}
+
+function mmUpdateCanvasTitle(){
+  const el=document.getElementById('canvasTitle');
+  if(!el) return;
+  if(mmPhase==='build') el.textContent='Cube[i, j, k] = A[i,j] × B[j,k]';
+  else el.textContent='Summing out j — slices collapse to result';
+}
+
+// ══════════════════════════════════════════════════
+// 2D SIDE GRIDS
+// ══════════════════════════════════════════════════
+function renderA(j,curI,curK){
+  const el=document.getElementById('gridA'); if(!el||!A.length) return;
+  el.style.gridTemplateColumns=`repeat(${J},42px)`; el.innerHTML='';
+  for(let i=0;i<I;i++) for(let jj=0;jj<J;jj++){
+    const d=document.createElement('div'); d.className='cell cell-a';
+    if(j>=0){ if(jj===j){ if(i===curI) d.classList.add('cur'); else d.classList.add('hi'); } else d.classList.add('dim'); }
+    d.textContent=A[i][jj]; el.appendChild(d);
+  }
+}
+function renderB(j,curI,curK){
+  const el=document.getElementById('gridB'); if(!el||!B.length) return;
+  el.style.gridTemplateColumns=`repeat(${K},42px)`; el.innerHTML='';
+  for(let jj=0;jj<J;jj++) for(let k=0;k<K;k++){
+    const d=document.createElement('div'); d.className='cell cell-b';
+    if(j>=0){ if(jj===j){ if(k===curK) d.classList.add('cur'); else d.classList.add('hi'); } else d.classList.add('dim'); }
+    d.textContent=B[jj][k]; el.appendChild(d);
+  }
+}
+
+// ══════════════════════════════════════════════════
+// TAB 2 — SCRUBABLE COLLAPSE
+// collapseT in [0,1]: 0=cube packed, 1=fully merged flat slab
+// applyCollapse(t) is a pure function that sets all box positions/colors
+// for any t. This makes scrubbing, reversing, and replay trivial.
+// ══════════════════════════════════════════════════
+let collapseT=0;           // current position (0..1)
+let colAnimId=null;        // rAF id
+let colDir=0;              // +1 forward, -1 reverse, 0 stopped
+const COL_SPEED=0.0005;    // t units per ms (total ~2000ms for full run)
+
+function packedY(j){ return -(J-1)*STEP/2 + j*STEP; }
+
+function addPlusSprites(){
+  plusSprites.forEach(s=>sc.scene.remove(s)); plusSprites=[];
+  for(let j=0;j<J-1;j++){
+    const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:makePlusTex(),transparent:true,depthTest:false}));
+    spr.scale.set(0.5,0.5,1);
+    spr.position.set(-(K-1)*STEP/2-0.8, (packedY(j)+packedY(j+1))/2, 0);
+    sc.scene.add(spr); plusSprites.push(spr);
+  }
+}
+function removePlusSprites(){ if(sc) plusSprites.forEach(s=>sc.scene.remove(s)); plusSprites=[]; }
+
+const grColor=new THREE.Color(0x50c878), puColor=new THREE.Color(0x7c6ff5);
+
+// Apply collapse state t∈[0,1] to scene.
+// Does not touch plusSprites — caller manages those.
+function applyCollapse(t){
+  // easeInOutSine on t
+  const e=-(Math.cos(Math.PI*t)-1)/2;
+  const col=grColor.clone().lerp(puColor,e);
+
+  for(let j=0;j<J;j++){
+    const startY=packedY(j);
+    const y=startY*(1-e);
+    const showJ=(t<1)||(j===0); // at t=1 only show j=0
+    for(let i=0;i<I;i++) for(let k=0;k<K;k++){
+      const b=boxes[i][j][k];
+      b.mesh.visible=showJ; b.edges.visible=showJ; b.spr.visible=showJ;
+      if(!showJ) continue;
+      b.mesh.position.y=y; b.edges.position.y=y; b.spr.position.y=y;
+      b.mat.color.copy(col); b.em.color.copy(col);
+      // At t=1, j=0 shows result values
+      if(t>=1 && j===0){
+        b.spr.material.map=makeTex(Res[i][k],'#ffffff'); b.spr.material.needsUpdate=true;
+      }
+    }
+    if(j<J-1 && plusSprites[j]){
+      const y2=packedY(j+1)*(1-e);
+      plusSprites[j].position.y=(y+y2)/2;
+      plusSprites[j].material.opacity=Math.max(0,1-e*3);
+    }
+  }
+
+  // Sync slider
+  const colSlider=document.getElementById('spCollapse');
+  if(colSlider) colSlider.value=Math.round(t*1000);
+
+  // Update formula
+  const fEl=document.getElementById('fMM');
+  if(fEl){
+    if(t<=0) fEl.innerHTML=`The <span class="fc">${J}</span> slices are each A[:,j]⊗B[j,:]. Drag the slider or press ▶ to merge them.`;
+    else if(t>=1) fEl.innerHTML=`Done — <span class="fc">${J}</span> slices collapsed into one <span class="fr">${I}×${K}</span> result matrix = A @ B.`;
+    else fEl.innerHTML=`Collapsing… (${Math.round(t*100)}%)`;
+  }
+}
+
+function stopColAnim(){ cancelAnimationFrame(colAnimId); colDir=0; }
+
+function runColAnim(dir){
+  stopColAnim(); colDir=dir;
+  document.getElementById('pbMM').textContent='⏸';
+  let last=null;
+  function frame(now){
+    if(!last){ last=now; colAnimId=requestAnimationFrame(frame); return; } // skip first frame (dt=0)
+    const dt=now-last; last=now;
+    collapseT=Math.max(0,Math.min(1,collapseT+colDir*COL_SPEED*dt));
+    applyCollapse(collapseT);
+    if(collapseT<=0||collapseT>=1){
+      stopColAnim();
+      document.getElementById('pbMM').textContent='▶';
+      if(collapseT>=1) mmPhase='done';
+      return;
+    }
+    colAnimId=requestAnimationFrame(frame);
+  }
+  colAnimId=requestAnimationFrame(frame);
+}
+
+
+// ══════════════════════════════════════════════════
+// MODE TABS
+// ══════════════════════════════════════════════════
+function setMode(m){
+  const prev=currentMode;
+  currentMode=m;
+  document.getElementById('tab-intro').classList.toggle('active',m==='intro');
+  document.getElementById('tab-matmul').classList.toggle('active',m==='matmul');
+  document.getElementById('ctrl-intro').classList.toggle('hidden',m!=='intro');
+  document.getElementById('ctrl-matmul').classList.toggle('hidden',m!=='matmul');
+  // Hide J dimension control on intro tab (not relevant — intro only uses I and K)
+  document.getElementById('dimJGroup').classList.toggle('hidden',m==='intro');
+  // Hide 3D scene and side panels when in intro mode (pure 2D)
+  const show3d=m==='matmul';
+  document.querySelector('.scene-wrap').classList.toggle('hidden',!show3d);
+  document.getElementById('panelA').classList.toggle('hidden',m!=='matmul');
+  document.getElementById('panelB').classList.toggle('hidden',m!=='matmul');
+  if(show3d){
+    // Carry over intro's outer product so slice j=0 matches
+    if(prev==='intro' && introA.length>0){
+      carryIntroToMatmul();
+      mmPauseAll();
+      mmPhase='build'; t1=-1; collapseT=0; lastOpJ=-1;
+      document.getElementById('collapseSliderWrap').style.display='none';
+      document.getElementById('spCollapse').value=0;
+      rebuildBoxes(); removePlusSprites();
+      applyS1(-1);
+      renderA(-1,-1,-1); renderB(-1,-1,-1);
+    } else if(!boxes.length){
+      // Lazy-init 3D scene when first switching to a 3D tab
+      rebuildBoxes(); removePlusSprites();
+      applyS1(t1);
+      renderA(-1,-1,-1); renderB(-1,-1,-1);
+    }
+    mmUpdateCanvasTitle();
+  }
+  if(m==='intro') renderIntro();
+}
+
+// ══════════════════════════════════════════════════
+// REBUILD
+// ══════════════════════════════════════════════════
+function rebuild(rnd){
+  mmPauseAll();
+  mmPhase='build';
+  t1=-1; collapseT=0; lastOpJ=-1;
+  pauseIntro(); introStep=-1;
+
+  I=Math.max(1,Math.min(4,+document.getElementById('dimI').value||3));
+  J=Math.max(1,Math.min(4,+document.getElementById('dimJ').value||4));
+  K=Math.max(1,Math.min(4,+document.getElementById('dimK').value||3));
+
+  computeData(rnd);
+  initIntroVecs(rnd);
+
+  // Only build 3D scene if we're not on intro tab (lazy init)
+  if(currentMode!=='intro'){
+    rebuildBoxes();
+    removePlusSprites();
+  } else {
+    // Clear stale boxes so lazy init triggers on tab switch
+    if(sc) boxes.forEach(l=>l.forEach(r=>r.forEach(b=>{sc.scene.remove(b.mesh);sc.scene.remove(b.edges);sc.scene.remove(b.spr);})));
+    removePlusSprites();
+    boxes=[];
+  }
+
+  document.getElementById('spCollapse').value=0;
+  document.getElementById('collapseSliderWrap').style.display='none';
+  setF1(-1);
+
+  renderA(-1,-1,-1); renderB(-1,-1,-1);
+  applyS1(-1);
+  if(currentMode==='intro') renderIntro();
+}
+
+rebuild(true);
+setMode('intro');
+</script>
+</body>
+</html>
