@@ -153,7 +153,7 @@ input[type=range] { width: 88px; accent-color: #333; }
   display: flex; flex-direction: column; align-items: center; gap: 4px;
 }
 .intro-block-label {
-  font-size: 0.65rem; color: #aaa; text-transform: uppercase; letter-spacing: .07em;
+  font-size: 0.65rem; color: #aaa; letter-spacing: .07em;
 }
 .intro-grid {
   display: grid; gap: 3px;
@@ -167,6 +167,9 @@ input[type=range] { width: 88px; accent-color: #333; }
 .intro-cell-a {
   background: #fff3e8; color: #e06000; border: 2px solid #ffd0a0;
 }
+.intro-cell-a.editable, .intro-cell-b.editable { cursor: text; }
+.intro-cell-a.editable:hover { border-color: #e06000; }
+.intro-cell-b.editable:hover { border-color: #1a60b0; }
 .intro-cell-b {
   background: #e8f2ff; color: #1a60b0; border: 2px solid #b0d0f8;
 }
@@ -195,6 +198,12 @@ input[type=range] { width: 88px; accent-color: #333; }
 .intro-stretch-arrow {
   font-size: 0.62rem; color: #ccc; text-align: center; letter-spacing: .04em;
 }
+.intro-orig-vec {
+  border: 2px dashed rgba(0,0,0,0.15); border-radius: 6px;
+  padding: 2px; position: relative;
+}
+.intro-orig-a { border-color: rgba(224,96,0,0.35); }
+.intro-orig-b { border-color: rgba(26,96,176,0.35); }
 @keyframes introCopyRight {
   from { opacity: 0; transform: scale(0.4) translateX(-18px); }
   to   { opacity: 1; transform: scale(1) translateX(0); }
@@ -250,7 +259,8 @@ input[type=range] { width: 88px; accent-color: #333; }
   font-size: 0.70rem; line-height: 1.7; color: #444; white-space: pre;
   text-align: left; width: max-content;
 }
-.intro-block:hover .vec-tip { display: block; }
+.intro-block:hover > .vec-tip { display: block; }
+.intro-orig-vec:hover > .vec-tip { display: block; }
 .vec-tip::before {
   content: ''; position: absolute; top: -6px; left: 50%; transform: translateX(-50%);
   border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 6px solid #ddd;
@@ -683,23 +693,19 @@ function shapeTag(text){ return `<div class="intro-shape">${text}</div>`; }
 // Persistent code block — always visible in sidebar (dual notation: broadcasting + einsum)
 function vecTipA(){
   const vals=introA.map(v=>String(v)).join(', ');
-  const col=introA.map(v=>`[${v}]`).join(', ');
   return `<div class="vec-tip">`
-    +`<span class="fa">a</span> = torch.tensor([${vals}])\n`
-    +`<span class="fa">a</span>[:, None]  <span style="color:#999"># [${col}]</span>`
+    +`<span class="fa">a</span> = torch.tensor([${vals}])`
     +`</div>`;
 }
 function vecTipB(){
   const vals=introB.map(v=>String(v)).join(', ');
-  const row=introB.map(v=>String(v)).join(', ');
   return `<div class="vec-tip">`
-    +`<span class="fb">b</span> = torch.tensor([${vals}])\n`
-    +`<span class="fb">b</span>[None, :]  <span style="color:#999"># [[${row}]]</span>`
+    +`<span class="fb">b</span> = torch.tensor([${vals}])`
     +`</div>`;
 }
 
 function renderIntroStep0(wrap){
-  // Show column vector a and row vector b
+  // Show column vector a and row vector b — cells are editable
   let html='<div class="intro-stage">';
 
   // Vector a — column (I, 1)
@@ -707,7 +713,7 @@ function renderIntroStep0(wrap){
   html+='<div class="intro-block-label"><span style="color:#e06000;font-weight:700">a</span><span style="color:#aaa">[:, None]</span></div>';
   html+='<div class="intro-grid" style="grid-template-columns:46px">';
   for(let i=0;i<I;i++){
-    html+=`<div class="intro-cell intro-cell-a">${introA[i]}</div>`;
+    html+=`<div class="intro-cell intro-cell-a editable" onclick="introEditCell('a',${i})">${introA[i]}</div>`;
   }
   html+='</div>';
   html+=shapeTag(`shape (${I}, <strong>1</strong>) — the <strong>1</strong> stretches →`);
@@ -722,7 +728,7 @@ function renderIntroStep0(wrap){
   html+='<div class="intro-block-label"><span style="color:#1a60b0;font-weight:700">b</span><span style="color:#aaa">[None, :]</span></div>';
   html+=`<div class="intro-grid" style="grid-template-columns:repeat(${K},46px)">`;
   for(let k=0;k<K;k++){
-    html+=`<div class="intro-cell intro-cell-b">${introB[k]}</div>`;
+    html+=`<div class="intro-cell intro-cell-b editable" onclick="introEditCell('b',${k})">${introB[k]}</div>`;
   }
   html+='</div>';
   html+=shapeTag(`shape (<strong>1</strong>, ${K}) — the <strong>1</strong> stretches ↓`);
@@ -738,38 +744,48 @@ function renderIntroStep1(wrap){
   const delay=introDelay();
   let html='<div class="intro-stage">';
 
-  // a broadcast: column 0 is original, columns 1+ animate in from left
+  // a broadcast: original column in bordered wrapper + copies animate right
   html+='<div class="intro-block">';
   html+='<div class="intro-block-label"><span style="color:#e06000;font-weight:700">a</span><span style="color:#aaa">[:, None]</span> broadcast →</div>';
-  html+=`<div class="intro-grid" style="grid-template-columns:repeat(${K},46px)">`;
-  for(let i=0;i<I;i++) for(let k=0;k<K;k++){
-    if(k===0){
-      html+=`<div class="intro-cell intro-cell-a">${introA[i]}</div>`;
-    } else {
+  html+='<div style="display:flex;gap:3px">';
+  html+='<div class="intro-orig-vec intro-orig-a">';
+  html+='<div style="display:flex;flex-direction:column;gap:3px">';
+  for(let i=0;i<I;i++) html+=`<div class="intro-cell intro-cell-a">${introA[i]}</div>`;
+  html+='</div>';
+  html+=vecTipA();
+  html+='</div>';
+  if(K>1){
+    html+=`<div style="display:grid;grid-template-columns:repeat(${K-1},46px);gap:3px">`;
+    for(let i=0;i<I;i++) for(let k=1;k<K;k++){
       html+=`<div class="intro-cell intro-cell-a intro-anim-right" style="animation-delay:${(k-1)*delay}ms">${introA[i]}</div>`;
     }
+    html+='</div>';
   }
   html+='</div>';
   html+=shapeTag(`(${I}, <strong>1</strong>) → (${I}, ${K})`);
-  html+=vecTipA();
   html+='</div>';
 
   html+='<div class="intro-sym">*</div>';
 
-  // b broadcast: row 0 is original, rows 1+ animate in from top
+  // b broadcast: original row in bordered wrapper + copies animate down
   html+='<div class="intro-block">';
   html+='<div class="intro-block-label"><span style="color:#1a60b0;font-weight:700">b</span><span style="color:#aaa">[None, :]</span> broadcast ↓</div>';
-  html+=`<div class="intro-grid" style="grid-template-columns:repeat(${K},46px)">`;
-  for(let i=0;i<I;i++) for(let k=0;k<K;k++){
-    if(i===0){
-      html+=`<div class="intro-cell intro-cell-b">${introB[k]}</div>`;
-    } else {
+  html+='<div style="display:flex;flex-direction:column;gap:3px">';
+  html+='<div class="intro-orig-vec intro-orig-b">';
+  html+='<div style="display:flex;gap:3px">';
+  for(let k=0;k<K;k++) html+=`<div class="intro-cell intro-cell-b">${introB[k]}</div>`;
+  html+='</div>';
+  html+=vecTipB();
+  html+='</div>';
+  if(I>1){
+    html+=`<div style="display:grid;grid-template-columns:repeat(${K},46px);gap:3px">`;
+    for(let i=1;i<I;i++) for(let k=0;k<K;k++){
       html+=`<div class="intro-cell intro-cell-b intro-anim-down" style="animation-delay:${(i-1)*delay}ms">${introB[k]}</div>`;
     }
+    html+='</div>';
   }
   html+='</div>';
   html+=shapeTag(`(<strong>1</strong>, ${K}) → (${I}, ${K})`);
-  html+=vecTipB();
   html+='</div>';
 
   html+='</div>';
@@ -781,29 +797,47 @@ function renderIntroStep2(wrap){
   const delay=introDelay();
   let html='<div class="intro-stage">';
 
-  // Broadcast a (static)
+  // Broadcast a (static) — original column in bordered wrapper
   html+='<div class="intro-block">';
   html+=`<div class="intro-block-label">(${I}, ${K})</div>`;
-  html+=`<div class="intro-grid" style="grid-template-columns:repeat(${K},46px)">`;
-  for(let i=0;i<I;i++) for(let k=0;k<K;k++){
-    html+=`<div class="intro-cell intro-cell-a" data-ba-i="${i}" data-ba-k="${k}">${introA[i]}</div>`;
-  }
-  html+='</div>'; // close grid
+  html+='<div style="display:flex;gap:3px">';
+  html+='<div class="intro-orig-vec intro-orig-a">';
+  html+='<div style="display:flex;flex-direction:column;gap:3px">';
+  for(let i=0;i<I;i++) html+=`<div class="intro-cell intro-cell-a" data-ba-i="${i}" data-ba-k="0">${introA[i]}</div>`;
+  html+='</div>';
   html+=vecTipA();
-  html+='</div>'; // close block
+  html+='</div>';
+  if(K>1){
+    html+=`<div style="display:grid;grid-template-columns:repeat(${K-1},46px);gap:3px">`;
+    for(let i=0;i<I;i++) for(let k=1;k<K;k++){
+      html+=`<div class="intro-cell intro-cell-a" data-ba-i="${i}" data-ba-k="${k}">${introA[i]}</div>`;
+    }
+    html+='</div>';
+  }
+  html+='</div>';
+  html+='</div>';
 
   html+='<div class="intro-sym">*</div>';
 
-  // Broadcast b (static)
+  // Broadcast b (static) — original row in bordered wrapper
   html+='<div class="intro-block">';
   html+=`<div class="intro-block-label">(${I}, ${K})</div>`;
-  html+=`<div class="intro-grid" style="grid-template-columns:repeat(${K},46px)">`;
-  for(let i=0;i<I;i++) for(let k=0;k<K;k++){
-    html+=`<div class="intro-cell intro-cell-b" data-bb-i="${i}" data-bb-k="${k}">${introB[k]}</div>`;
-  }
-  html+='</div>'; // close grid
+  html+='<div style="display:flex;flex-direction:column;gap:3px">';
+  html+='<div class="intro-orig-vec intro-orig-b">';
+  html+='<div style="display:flex;gap:3px">';
+  for(let k=0;k<K;k++) html+=`<div class="intro-cell intro-cell-b" data-bb-i="0" data-bb-k="${k}">${introB[k]}</div>`;
+  html+='</div>';
   html+=vecTipB();
-  html+='</div>'; // close block
+  html+='</div>';
+  if(I>1){
+    html+=`<div style="display:grid;grid-template-columns:repeat(${K},46px);gap:3px">`;
+    for(let i=1;i<I;i++) for(let k=0;k<K;k++){
+      html+=`<div class="intro-cell intro-cell-b" data-bb-i="${i}" data-bb-k="${k}">${introB[k]}</div>`;
+    }
+    html+='</div>';
+  }
+  html+='</div>';
+  html+='</div>';
 
   html+='<div class="intro-sym">=</div>';
 
@@ -861,6 +895,29 @@ function introRunHiAnim(){
     else introHiTm=setTimeout(()=>{ introClearHover(); },cellDelay);
   }
   tick();
+}
+
+function introEditCell(vec, idx){
+  const cur = vec==='a' ? introA[idx] : introB[idx];
+  const el = event.target;
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.value = cur;
+  input.min = 1; input.max = 9;
+  input.style.cssText = 'width:36px;height:36px;text-align:center;font-size:0.92rem;font-weight:600;border:2px solid '
+    +(vec==='a'?'#e06000':'#1a60b0')+';border-radius:4px;outline:none;background:#fff;color:'
+    +(vec==='a'?'#e06000':'#1a60b0');
+  el.textContent = '';
+  el.appendChild(input);
+  input.focus();
+  input.select();
+  function commit(){
+    const v = Math.max(1, Math.min(9, parseInt(input.value)||cur));
+    if(vec==='a') introA[idx]=v; else introB[idx]=v;
+    renderIntro();
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e=>{ if(e.key==='Enter') input.blur(); });
 }
 
 function codeSpan(text){ return `<code style="background:#f5f5f5;padding:2px 5px;border-radius:3px;font-size:0.82em">${text}</code>`; }
