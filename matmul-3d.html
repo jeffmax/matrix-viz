@@ -617,14 +617,14 @@ function changeDim(dim, delta){
   dpPause(); dpStep=-1;
 
   if(currentMode==='matmul'){
-    rebuildBoxes(); removePlusSprites();
+    rebuildBoxes(); removePlusPlanes();
     applyS1(-1); renderA(-1,-1,-1); renderB(-1,-1,-1);
     document.getElementById('spCollapse').value=0;
     document.getElementById('collapseSliderWrap').style.display='none';
     renderEinsumBadge('einsumMatmul','matmul');
   } else {
     if(sc) boxes.forEach(l=>l.forEach(r=>r.forEach(b=>{sc.scene.remove(b.mesh);sc.scene.remove(b.edges);sc.scene.remove(b.spr);})));
-    removePlusSprites(); boxes=[];
+    removePlusPlanes(); boxes=[];
   }
   if(currentMode==='intro'){ renderIntro(); renderEinsumBadge('einsumIntro','intro'); }
   if(currentMode==='dotprod'){ dpRenderAll(); renderEinsumBadge('einsumDotprod','dotprod'); }
@@ -638,7 +638,7 @@ const FIXED_THETA=0.50, FIXED_PHI=0.62;
 
 let sc=null, orb=null;
 let boxes=[];
-let plusSprites=[];
+let plusPlanes=[]; // plusPlanes[g] = array of I*K sprites for gap between slice g and g+1
 
 function makeTex(text, color){
   const S=128, cv=document.createElement('canvas'); cv.width=S; cv.height=S;
@@ -652,8 +652,12 @@ function makeTex(text, color){
 function makePlusTex(){
   const S=128, cv=document.createElement('canvas'); cv.width=S; cv.height=S;
   const ctx=cv.getContext('2d');
-  ctx.fillStyle='#999';
-  ctx.font=`bold ${Math.round(S*0.65)}px sans-serif`;
+  // Subtle circular background for contrast
+  ctx.beginPath(); ctx.arc(S/2,S/2,S*0.38,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,255,255,0.25)'; ctx.fill();
+  // Bold green "+"
+  ctx.fillStyle='#50c878';
+  ctx.font=`bold ${Math.round(S*0.75)}px sans-serif`;
   ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText('+',S/2,S/2);
   const t=new THREE.CanvasTexture(cv); t.needsUpdate=true; return t;
@@ -701,8 +705,8 @@ function initScene(){
 function rebuildBoxes(){
   if(!sc) initScene();
   boxes.forEach(l=>l.forEach(r=>r.forEach(b=>{sc.scene.remove(b.mesh);sc.scene.remove(b.edges);sc.scene.remove(b.spr);})));
-  plusSprites.forEach(s=>sc.scene.remove(s));
-  boxes=[]; plusSprites=[];
+  plusPlanes.forEach(pl=>pl.forEach(s=>sc.scene.remove(s)));
+  boxes=[]; plusPlanes=[];
   // Axes: k→X (horizontal, matches grid columns), j→Y (vertical, for collapse), i→Z (depth, matches grid rows from above)
   const ox=-(K-1)*STEP/2, oy=-(J-1)*STEP/2, oz=-(I-1)*STEP/2;
   for(let i=0;i<I;i++){
@@ -755,7 +759,7 @@ function ensureAllGreen(){ for(let j=0;j<J;j++) paintSlice(j,'done'); }
 // ══════════════════════════════════════════════════
 let introA=[], introB=[];
 let introStep=0, introPlaying=false, introTm=null, introHiTm=null;
-const INTRO_STEPS=2;
+const INTRO_STEPS=3;
 
 function initIntroVecs(rnd){
   introA=Array.from({length:I},()=>rnd?rand():1);
@@ -770,7 +774,8 @@ function renderIntro(){
   const wrap=document.getElementById('introDisplay');
   if(!wrap) return;
   if(introStep===0) renderIntroStep0(wrap);
-  else renderIntroStep1(wrap);
+  else if(introStep===1) renderIntroStep1(wrap);
+  else renderIntroStep2(wrap);
   updateIntroDots();
   updateIntroFormula();
 }
@@ -899,7 +904,6 @@ function renderIntroStep1(wrap){
 
   html+='</div>';
   wrap.innerHTML=html;
-  introRunHiAnim();
 }
 
 function renderIntroStep2(wrap){
@@ -1052,7 +1056,7 @@ function recomputeFromMatrices(){
   Res=Array.from({length:I},(_,i)=>Array.from({length:K},(_,k)=>A[i].reduce((s,_,j)=>s+A[i][j]*B[j][k],0)));
   if(currentMode==='matmul'){
     mmReset();
-    rebuildBoxes(); removePlusSprites();
+    rebuildBoxes(); removePlusPlanes();
     applyS1(-1);
     renderA(-1,-1,-1); renderB(-1,-1,-1);
   } else if(currentMode==='dotprod'){
@@ -1086,9 +1090,11 @@ function updateIntroFormula(){
   const f=document.getElementById('fIntro');
   if(introStep===0){
     f.innerHTML=`<span class="fa">a</span> is (${I},1) and <span class="fb">b</span> is (1,${K}). Press ▶ to broadcast and multiply.`;
+  } else if(introStep===1){
+    f.innerHTML=`Broadcasting <span class="fa">a</span> across columns and <span class="fb">b</span> across rows, then multiplying element-wise, computes the outer product <span class="fc">a ⊗ b</span>.`;
   } else {
-    f.innerHTML=`Broadcast and multiply element-wise → outer product. Hover to inspect. `
-      +`<em style="color:#999">This outer product is one slice of a matrix multiply. In tab ①, we stack J of these and sum along j.</em>`;
+    f.innerHTML=`Each cell [i,k] = <span class="fa">a[i]</span> × <span class="fb">b[k]</span>. Hover to inspect. `
+      +`<em style="color:#999">This outer product is one slice of a matrix multiply. In tab ①, we sum <span class="fc">${J}</span> such slices — one per shared dimension j — to get A @ B.</em>`;
   }
 }
 
@@ -1110,6 +1116,11 @@ function introAnimDuration(){
     const broadcastTime=Math.max((K-2)*delay,(I-2)*delay)+400;
     const resultTime=(I*K-1)*Math.max(delay*0.3,60);
     return broadcastTime+resultTime+500;
+  }
+  if(introStep===2){
+    // static view with hover cycling — wait for result cells to appear
+    const resultTime=(I*K-1)*Math.max(delay*0.3,60);
+    return resultTime+I*K*Math.max(delay*0.3,60)+500;
   }
   return 600; // step 0 — brief pause
 }
@@ -1383,7 +1394,7 @@ function mmToggle(){
   } else if(mmPhase==='collapse'){
     if(colDir!==0){ mmPauseAll(); return; }
     if(collapseT>=1) collapseT=0;
-    if(plusSprites.length===0) addPlusSprites();
+    if(plusPlanes.length===0) addPlusPlanes();
     document.getElementById('pbMM').textContent='⏸';
     runColAnim(+1);
   } else { // done
@@ -1405,7 +1416,7 @@ function mmBuildDone(){
   mmPauseBuild();
   mmPhase='collapse';
   collapseT=0;
-  addPlusSprites();
+  addPlusPlanes();
   document.getElementById('collapseSliderWrap').style.display='';
   document.getElementById('pbMM').textContent='▶';
   mmUpdateCanvasTitle();
@@ -1438,7 +1449,7 @@ function mmBack(){
     if(collapseT<=0){
       // Transition back to build phase at last step
       mmPhase='build';
-      removePlusSprites();
+      removePlusPlanes();
       document.getElementById('collapseSliderWrap').style.display='none';
       collapseT=0;
       t1=totalSteps1()-1;
@@ -1462,7 +1473,7 @@ function mmBack(){
     mmPauseAll();
     mmPhase='collapse';
     collapseT=Math.max(0, 1-0.1);
-    if(plusSprites.length===0) addPlusSprites();
+    if(plusPlanes.length===0) addPlusPlanes();
     applyCollapse(collapseT);
     mmUpdateCanvasTitle();
   }
@@ -1472,7 +1483,7 @@ function mmReset(){
   mmPauseAll();
   mmPhase='build';
   t1=-1; collapseT=0; lastOpJ=-1;
-  removePlusSprites();
+  removePlusPlanes();
   document.getElementById('collapseSliderWrap').style.display='none';
   document.getElementById('spCollapse').value=0;
   if(boxes.length){
@@ -1498,7 +1509,7 @@ function mmScrubCollapse(t){
   }
   mmPhase='collapse';
   collapseT=t;
-  if(t>0 && plusSprites.length===0) addPlusSprites();
+  if(t>0 && plusPlanes.length===0) addPlusPlanes();
   applyCollapse(collapseT);
   document.getElementById('collapseSliderWrap').style.display='';
   document.getElementById('pbMM').textContent='▶';
@@ -1573,21 +1584,28 @@ const COL_SPEED=0.0005;    // t units per ms (total ~2000ms for full run)
 
 function packedY(j){ return -(J-1)*STEP/2 + j*STEP; }
 
-function addPlusSprites(){
-  plusSprites.forEach(s=>sc.scene.remove(s)); plusSprites=[];
-  for(let j=0;j<J-1;j++){
-    const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:makePlusTex(),transparent:true,depthTest:false}));
-    spr.scale.set(0.5,0.5,1);
-    spr.position.set(-(K-1)*STEP/2-0.8, (packedY(j)+packedY(j+1))/2, 0);
-    sc.scene.add(spr); plusSprites.push(spr);
+function addPlusPlanes(){
+  removePlusPlanes();
+  const tex=makePlusTex();
+  for(let g=0;g<J-1;g++){
+    const midY=(packedY(g)+packedY(g+1))/2;
+    const plane=[];
+    for(let i=0;i<I;i++) for(let k=0;k<K;k++){
+      const b=boxes[i][g][k];
+      const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}));
+      spr.scale.set(0.35,0.35,1);
+      spr.position.set(b.px, midY, b.pz);
+      sc.scene.add(spr);
+      plane.push(spr);
+    }
+    plusPlanes.push(plane);
   }
 }
-function removePlusSprites(){ if(sc) plusSprites.forEach(s=>sc.scene.remove(s)); plusSprites=[]; }
+function removePlusPlanes(){ if(sc) plusPlanes.forEach(pl=>pl.forEach(s=>sc.scene.remove(s))); plusPlanes=[]; }
 
 const grColor=new THREE.Color(0x50c878), puColor=new THREE.Color(0x7c6ff5);
 
 // Apply collapse state t∈[0,1] to scene.
-// Does not touch plusSprites — caller manages those.
 function applyCollapse(t){
   // easeInOutSine on t
   const e=-(Math.cos(Math.PI*t)-1)/2;
@@ -1603,16 +1621,26 @@ function applyCollapse(t){
       if(!showJ) continue;
       b.mesh.position.y=y; b.edges.position.y=y; b.spr.position.y=y;
       b.mat.color.copy(col); b.em.color.copy(col);
-      // At t=1, j=0 shows result values
-      if(t>=1 && j===0){
-        b.spr.material.map=makeTex(Res[i][k],'#ffffff'); b.spr.material.needsUpdate=true;
+      // Value crossfade: j=0 interpolates from Cube[i][0][k] toward Res[i][k]
+      if(j===0 && t>0){
+        const displayVal=Math.round(Cube[i][0][k]+(Res[i][k]-Cube[i][0][k])*e);
+        b.spr.material.map=makeTex(displayVal,'#ffffff'); b.spr.material.needsUpdate=true;
       }
     }
-    if(j<J-1 && plusSprites[j]){
-      const y2=packedY(j+1)*(1-e);
-      plusSprites[j].position.y=(y+y2)/2;
-      plusSprites[j].material.opacity=Math.max(0,1-e*3);
-    }
+  }
+
+  // Position and fade plus-sign planes
+  for(let g=0;g<J-1;g++){
+    if(!plusPlanes[g]) continue;
+    const y1=packedY(g)*(1-e);
+    const y2=packedY(g+1)*(1-e);
+    const midY=(y1+y2)/2;
+    const opacity=Math.max(0,1-e*1.8);
+    plusPlanes[g].forEach(spr=>{
+      spr.position.y=midY;
+      spr.material.opacity=opacity;
+      spr.visible=opacity>0.01;
+    });
   }
 
   // Sync slider
@@ -1691,7 +1719,7 @@ function setMode(m){
     mmPhase='build'; t1=-1; collapseT=0; lastOpJ=-1;
     document.getElementById('collapseSliderWrap').style.display='none';
     document.getElementById('spCollapse').value=0;
-    rebuildBoxes(); removePlusSprites();
+    rebuildBoxes(); removePlusPlanes();
     applyS1(-1);
     renderA(-1,-1,-1); renderB(-1,-1,-1);
     mmUpdateCanvasTitle();
@@ -1711,7 +1739,7 @@ function setMode(m){
       // Preserve collapse state from matmul tab
       dpCollapseT=collapseT;
     }
-    removePlusSprites();
+    removePlusPlanes();
     // Set the collapse slider to match current state
     const dpSlider=document.getElementById('dpCollapseSlider');
     if(dpSlider) dpSlider.value=Math.round(dpCollapseT*1000);
@@ -1742,12 +1770,12 @@ function rebuild(rnd){
   // Build 3D scene if on matmul or dotprod tab
   if(currentMode==='matmul'||currentMode==='dotprod'){
     rebuildBoxes();
-    removePlusSprites();
+    removePlusPlanes();
     if(currentMode==='dotprod') ensureAllGreen();
   } else {
     // Clear stale boxes so lazy init triggers on tab switch
     if(sc) boxes.forEach(l=>l.forEach(r=>r.forEach(b=>{sc.scene.remove(b.mesh);sc.scene.remove(b.edges);sc.scene.remove(b.spr);})));
-    removePlusSprites();
+    removePlusPlanes();
     boxes=[];
   }
 
