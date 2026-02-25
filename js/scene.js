@@ -5,7 +5,7 @@ import { I, J, K } from './shared.js';
 
 const THREE = window.THREE;
 
-export const CELL = 0.78, GAP = 0.13, STEP = CELL + GAP;
+export const CELL = 0.78, GAP = 0.35, STEP = CELL + GAP;
 export const FIXED_THETA = 0.50, FIXED_PHI = 0.62;
 
 export let sc = null, orb = null;

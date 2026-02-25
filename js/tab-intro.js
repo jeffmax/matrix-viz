@@ -138,7 +138,9 @@ function renderIntroStep1(wrap) {
       + `onmouseenter="introHover(${i},${k})" onmouseleave="introClearHover()" `
       + `style="animation-delay:${cellDelay}ms;cursor:pointer">${val}</div>`;
   }
-  html += '</div></div>';
+  html += '</div>';
+  html += shapeTag(`(${I}, ${K})`);
+  html += '</div>';
   html += '</div>';
   wrap.innerHTML = html;
 }

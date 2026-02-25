@@ -2,7 +2,7 @@
 // TAB 2 — DOT PRODUCT: ROW · COLUMN
 // ══════════════════════════════════════════════════
 import { I, J, K, A, B, Cube, Res, currentMode, editCellInline, recomputeFromMatrices, dimBtnsH, dimBtnsV } from './shared.js';
-import { boxes, paintBox, packedY } from './cube-manager.js';
+import { boxes, paintBox, packedY, plusPlanes, addPlusPlanes, removePlusPlanes } from './cube-manager.js';
 
 let dpStep = -1, dpPlaying = false, dpTm = null;
 export let dpCollapseT = 0;
@@ -30,6 +30,23 @@ export function dpApplyCollapse(t) {
       b.mesh.position.y = y; b.edges.position.y = y; b.spr.position.y = y;
     }
   }
+
+  // Handle plus planes (same logic as matmul collapse)
+  if (t < 1 && plusPlanes.length === 0 && J > 1) addPlusPlanes();
+  for (let g = 0; g < J - 1; g++) {
+    if (!plusPlanes[g]) continue;
+    const y1 = packedY(g) * (1 - e);
+    const y2 = packedY(g + 1) * (1 - e);
+    const midY = (y1 + y2) / 2;
+    const opacity = Math.max(0, 1 - e * 1.8);
+    plusPlanes[g].forEach(spr => {
+      spr.position.y = midY;
+      spr.material.opacity = opacity;
+      spr.visible = opacity > 0.01;
+    });
+  }
+  if (t >= 1) removePlusPlanes();
+
   dpHighlightCubeColumn();
 }
 
@@ -405,6 +422,23 @@ export function dpReset() {
   dpPause();
   dpStep = -1;
   dpSelectedI = -1; dpSelectedK = -1;
+  // Reset collapse and restore plus planes
+  dpCollapseT = 0;
+  const dpSlider = document.getElementById('dpCollapseSlider');
+  if (dpSlider) dpSlider.value = 0;
+  if (boxes.length) {
+    // Restore box positions to stacked
+    for (let j = 0; j < J; j++) {
+      const py = packedY(j);
+      for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
+        const b = boxes[i][j][k];
+        b.mesh.position.y = py; b.edges.position.y = py; b.spr.position.y = py;
+        b.mesh.visible = true; b.edges.visible = true;
+      }
+    }
+    removePlusPlanes();
+    if (J > 1) addPlusPlanes();
+  }
   dpRenderAll();
 }
 

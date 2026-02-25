@@ -233,7 +233,7 @@ function mmBuildDone() {
   mmPhase = 'collapse';
   collapseT = 0;
   addPlusPlanes();
-  document.getElementById('collapseSliderWrap').style.display = '';
+  document.getElementById('spCollapse').disabled = false;
   document.getElementById('pbMM').textContent = '▶';
   mmUpdateCanvasTitle();
   const fEl = document.getElementById('fMM');
@@ -265,7 +265,7 @@ export function mmBack() {
     if (collapseT <= 0) {
       mmPhase = 'build';
       removePlusPlanes();
-      document.getElementById('collapseSliderWrap').style.display = 'none';
+      document.getElementById('spCollapse').disabled = true;
       collapseT = 0;
       t1 = totalSteps1() - 1;
       ensureAllGreen();
@@ -298,7 +298,7 @@ export function mmReset() {
   mmPhase = 'build';
   t1 = -1; collapseT = 0; lastOpJ = -1;
   removePlusPlanes();
-  document.getElementById('collapseSliderWrap').style.display = 'none';
+  document.getElementById('spCollapse').disabled = true;
   document.getElementById('spCollapse').value = 0;
   if (boxes.length) {
     for (let j = 0; j < J; j++) {
@@ -323,7 +323,7 @@ export function mmScrubCollapse(t) {
   collapseT = t;
   if (t > 0 && plusPlanes.length === 0) addPlusPlanes();
   applyCollapse(collapseT);
-  document.getElementById('collapseSliderWrap').style.display = '';
+  document.getElementById('spCollapse').disabled = false;
   document.getElementById('pbMM').textContent = '▶';
   if (collapseT >= 1) mmPhase = 'done';
   mmUpdateCanvasTitle();

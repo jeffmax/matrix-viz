@@ -236,8 +236,8 @@ input[type=range] { width: 88px; accent-color: #333; }
   padding: 2px; position: relative;
   margin: -4px; /* compensate border+padding so cells align with non-wrapped cells */
 }
-.intro-orig-a { border-color: rgba(224,96,0,0.35); }
-.intro-orig-b { border-color: rgba(26,96,176,0.35); }
+.intro-orig-a { border-color: rgba(224,96,0,0.35); margin-right: 0; }
+.intro-orig-b { border-color: rgba(26,96,176,0.35); margin-bottom: 0; }
 @keyframes introCopyRight {
   from { opacity: 0; transform: scale(0.4) translateX(-18px); }
   to   { opacity: 1; transform: scale(1) translateX(0); }
@@ -514,12 +514,6 @@ input[type=range] { width: 88px; accent-color: #333; }
         <input type="checkbox" id="chkElem">
         Show outer products element by element
       </label>
-      <div class="slider-wrap" id="collapseSliderWrap" style="display:none">
-        <span>stacked</span>
-        <input type="range" id="spCollapse" min="0" max="1000" value="0" step="1"
-               oninput="mmScrubCollapse(this.value/1000)">
-        <span>summed</span>
-      </div>
     </div>
     <div class="einsum-badge" id="einsumMatmul"></div>
   </div>
@@ -548,6 +542,12 @@ input[type=range] { width: 88px; accent-color: #333; }
         <canvas id="mainCanvas" width="420" height="380"></canvas>
       </div>
       <div class="canvas-hint">Drag to rotate</div>
+      <div class="slider-wrap" id="collapseSliderWrap" style="margin-top:6px">
+        <span>stacked</span>
+        <input type="range" id="spCollapse" min="0" max="1000" value="0" step="1"
+               oninput="mmScrubCollapse(this.value/1000)" disabled>
+        <span>summed</span>
+      </div>
     </div>
   </div>
   <!-- Outer-product visual display — shown only in elem-by-elem mode -->

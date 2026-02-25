@@ -47,6 +47,11 @@ tab-dotprod.js   ← app.js
 - **Window globals**: HTML onclick handlers call `window.functionName`. app.js assigns all needed functions to `window`.
 - **Three.js as global**: Loaded via `<script>` tag before the ES module. Accessed as `THREE` (global).
 
+## Workflow rules
+
+- **Always commit after any non-trivial change** before telling the user you're done. Don't leave uncommitted work.
+- **Run syntax checks** before committing — the pre-commit hook will catch JS errors, but verify manually if making broad changes.
+
 ## Pre-commit hook
 
 `.git/hooks/pre-commit` validates all `js/*.js` files with `node --input-type=module --check`. Catches syntax errors before commit.

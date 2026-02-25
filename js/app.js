@@ -4,7 +4,7 @@
 import { I, J, K, currentMode, setCurrentMode, computeData, changeDim,
          registerCallbacks, applyInfoState, toggleInfo, recomputeFromMatrices } from './shared.js';
 import { sc, initScene, moveCanvasTo } from './scene.js';
-import { boxes, rebuildBoxes, removePlusPlanes, ensureAllGreen, clearBoxes } from './cube-manager.js';
+import { boxes, rebuildBoxes, addPlusPlanes, removePlusPlanes, ensureAllGreen, clearBoxes } from './cube-manager.js';
 import { introA, introB, initIntroVecs, renderIntro, pauseIntro, resetIntroStep,
          resizeIntroVecs, stepFwdIntro, stepBackIntro, togglePlayIntro, resetIntro,
          introEditCell, introHover, introClearHover } from './tab-intro.js';
@@ -33,14 +33,17 @@ registerCallbacks({
       rebuildBoxes(); removePlusPlanes();
       applyS1(-1); renderA(-1, -1, -1); renderB(-1, -1, -1);
       document.getElementById('spCollapse').value = 0;
-      document.getElementById('collapseSliderWrap').style.display = 'none';
+      document.getElementById('spCollapse').disabled = true;
       renderEinsumBadge('einsumMatmul', 'matmul');
+    } else if (currentMode === 'dotprod') {
+      rebuildBoxes(); removePlusPlanes();
+      ensureAllGreen(); addPlusPlanes();
+      dpRenderAll(); renderEinsumBadge('einsumDotprod', 'dotprod');
     } else {
       clearBoxes();
       removePlusPlanes();
     }
     if (currentMode === 'intro') { renderIntro(); renderEinsumBadge('einsumIntro', 'intro'); }
-    if (currentMode === 'dotprod') { dpRenderAll(); renderEinsumBadge('einsumDotprod', 'dotprod'); }
   },
 
   onRecompute: () => {
@@ -82,7 +85,7 @@ function setMode(m) {
     moveCanvasTo('mmCanvasHost');
     mmPauseAll();
     resetMmBuildState();
-    document.getElementById('collapseSliderWrap').style.display = 'none';
+    document.getElementById('spCollapse').disabled = true;
     document.getElementById('spCollapse').value = 0;
     rebuildBoxes(); removePlusPlanes();
     applyS1(-1);
@@ -103,12 +106,12 @@ function setMode(m) {
     } else {
       savedCollapseT = collapseT;
     }
-    removePlusPlanes();
+    removePlusPlanes(); // clear matmul's plus planes before rebuilding for dotprod
     const dpSlider = document.getElementById('dpCollapseSlider');
     if (dpSlider) dpSlider.value = Math.round(savedCollapseT * 1000);
     ensureAllGreen();
     setDpCollapseT(savedCollapseT);
-    dpApplyCollapse(savedCollapseT);
+    dpApplyCollapse(savedCollapseT); // this will add plus planes if t < 1
     resetDpState();
     // resetDpState clears dpCollapseT, restore it
     setDpCollapseT(savedCollapseT);
@@ -132,14 +135,14 @@ function rebuild(rnd) {
   if (currentMode === 'matmul' || currentMode === 'dotprod') {
     rebuildBoxes();
     removePlusPlanes();
-    if (currentMode === 'dotprod') ensureAllGreen();
+    if (currentMode === 'dotprod') { ensureAllGreen(); addPlusPlanes(); }
   } else {
     clearBoxes();
     removePlusPlanes();
   }
 
   document.getElementById('spCollapse').value = 0;
-  document.getElementById('collapseSliderWrap').style.display = 'none';
+  document.getElementById('spCollapse').disabled = true;
 
   renderA(-1, -1, -1); renderB(-1, -1, -1);
   applyS1(-1);
