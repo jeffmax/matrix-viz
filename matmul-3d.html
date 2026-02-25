@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Matrix Multiplication — 3D Outer Product</title>
+<title>Matrix Multiplication: Multiple Perspectives</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -11,13 +11,9 @@ body {
   display: flex; flex-direction: column; align-items: center;
   padding: 24px 16px 60px; min-height: 100vh;
 }
-h1 { font-size: 1.2rem; font-weight: 400; color: #555; margin-bottom: 3px; }
-.subtitle { font-size: 0.75rem; color: #aaa; margin-bottom: 20px; text-align: center; }
+h1 { font-size: 1.2rem; font-weight: 400; color: #555; margin-bottom: 14px; }
 
 .top-controls { display: flex; gap: 14px; align-items: flex-end; margin-bottom: 18px; flex-wrap: wrap; justify-content: center; }
-.dim-group { display: flex; flex-direction: column; gap: 3px; align-items: center; }
-.dim-group label { font-size: 0.65rem; color: #aaa; text-transform: uppercase; letter-spacing: .08em; }
-.dim-group input[type=number] { width: 44px; height: 30px; border: 1px solid #ddd; border-radius: 4px; text-align: center; font-size: 0.9rem; outline: none; color: #333; }
 .ctrl-btn { height: 30px; padding: 0 12px; border: 1px solid #ddd; border-radius: 4px; background: #fff; font-size: 0.75rem; color: #555; cursor: pointer; }
 .ctrl-btn.primary { background: #333; color: #fff; border-color: #333; }
 
@@ -26,25 +22,83 @@ h1 { font-size: 1.2rem; font-weight: 400; color: #555; margin-bottom: 3px; }
 .mode-tab:last-child { border-right: none; }
 .mode-tab.active { background: #333; color: #fff; }
 
-.scene-wrap { display: flex; gap: 20px; align-items: center; justify-content: center; flex-wrap: wrap; max-width: 1100px; }
-.canvas-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .canvas-title { font-size: 0.68rem; color: #aaa; text-transform: uppercase; letter-spacing: .08em; }
 .canvas-hint  { font-size: 0.68rem; color: #bbb; }
 #mainCanvas { border-radius: 6px; display: block; background: #fafafa; cursor: grab; }
 #mainCanvas:active { cursor: grabbing; }
 
-.side-panel { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .mat-title { font-size: 0.68rem; color: #aaa; text-transform: uppercase; letter-spacing: .08em; }
+
+/* ── Dimension +/- buttons ── */
+.dim-btn {
+  width: 22px; height: 22px; border: 1px solid #ddd; border-radius: 3px;
+  background: #fff; color: #999; font-size: 0.75rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; line-height: 1; transition: background .1s;
+}
+.dim-btn:hover { background: #f0f0f0; color: #666; }
+.dim-btn:disabled { opacity: 0.3; cursor: default; }
+/* Horizontal row: − label + (for columns, placed below grid) */
+.dim-btns-h { display: flex; gap: 2px; align-items: center; justify-content: center; margin-top: 3px; }
+/* Vertical column: + label − (for rows, placed to the right of grid) */
+.dim-btns-v { display: flex; flex-direction: column; gap: 2px; align-items: center; justify-content: center; margin-left: 4px; }
+.dim-label { font-size: 0.55rem; color: #bbb; text-transform: uppercase; letter-spacing: .05em; }
+/* Wraps a grid + row buttons side by side */
+.grid-with-row-btns { display: flex; align-items: center; gap: 0; }
+
+/* ── Matrix Multiply tab: left-to-right flow ── */
+.mm-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 16px; flex-wrap: wrap;
+}
+.mm-mat-area {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  min-width: 220px; min-height: 240px; /* reserve space for max 4×4 grid + buttons */
+}
+.mm-sym { font-size: 1.4rem; color: #bbb; font-weight: 300; }
+.mm-cube-area {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  flex: 0 0 auto;
+  min-height: 410px; /* prevent layout shift as cube builds */
+}
 .grid { display: grid; gap: 3px; }
-.cell { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 500; border-radius: 3px; transition: background .12s, opacity .12s; }
-.cell-a { background: #f5f5f5; color: #666; }
-.cell-b { background: #f5f5f5; color: #666; }
-.cell-a.hi  { background: #ff9a3c; color: #fff; }
-.cell-a.cur { background: #e06000; color: #fff; transform: scale(1.1); }
-.cell-a.dim { opacity: 0.13; }
-.cell-b.hi  { background: #4a90d9; color: #fff; }
-.cell-b.cur { background: #1a60b0; color: #fff; transform: scale(1.1); }
-.cell-b.dim { opacity: 0.13; }
+
+/* ── Unified cell classes ── */
+.mat-cell {
+  width: 44px; height: 44px; display: flex; align-items: center;
+  justify-content: center; font-size: 0.88rem; font-weight: 600;
+  border-radius: 4px; border: 2px solid transparent;
+  transition: background .12s, transform .12s, box-shadow .12s;
+  cursor: default;
+}
+.mat-cell.a  { background: #fff3e8; color: #e06000; border-color: #ffd0a0; }
+.mat-cell.b  { background: #e8f2ff; color: #1a60b0; border-color: #b0d0f8; }
+.mat-cell.r  { background: #eafaef; color: #1a9a40; border-color: #a0e8b8; }
+.mat-cell.a.hi  { background: #ff9a3c; color: #fff; border-color: #e06000; }
+.mat-cell.a.cur { background: #e06000; color: #fff; border-color: #e06000; transform: scale(1.08); box-shadow: 0 0 6px rgba(224,96,0,0.3); }
+.mat-cell.a.dim { opacity: 0.13; }
+.mat-cell.a.hi-cell { background: #ff9a3c; color: #fff; border-color: #e06000; transform: scale(1.12); box-shadow: 0 0 10px rgba(224,96,0,0.4); }
+.mat-cell.b.hi  { background: #4a90d9; color: #fff; border-color: #1a60b0; }
+.mat-cell.b.cur { background: #1a60b0; color: #fff; border-color: #1a60b0; transform: scale(1.08); box-shadow: 0 0 6px rgba(26,96,176,0.3); }
+.mat-cell.b.dim { opacity: 0.13; }
+.mat-cell.b.hi-cell { background: #4a90d9; color: #fff; border-color: #1a60b0; transform: scale(1.12); box-shadow: 0 0 10px rgba(26,96,176,0.4); }
+.mat-cell.r.done { background: #eafaef; color: #1a9a40; border-color: #a0e8b8; }
+.mat-cell.r.cur  { background: #50c878; color: #fff; border-color: #1a9a40; transform: scale(1.08); box-shadow: 0 0 8px rgba(80,200,120,0.4); }
+.mat-cell.r.hi-res { background: #50c878; color: #fff; border-color: #1a9a40; transform: scale(1.12); box-shadow: 0 0 10px rgba(80,200,120,0.4); }
+.mat-cell.r.empty { background: #f5f5f5; color: #ccc; border-color: transparent; }
+.mat-cell.r.anim { opacity: 0; animation: introMulAppear 0.35s ease-out forwards; }
+.mat-cell.editable { cursor: text; }
+.mat-cell.editable:hover { border-width: 2px; border-style: solid; }
+.mat-cell.a.editable:hover { border-color: #e06000; }
+.mat-cell.b.editable:hover { border-color: #1a60b0; }
+.mat-cell.neutral { background: #f5f5f5; color: #666; border-color: transparent; }
+.mat-cell.neutral.hi  { background: #ff9a3c; color: #fff; }
+.mat-cell.neutral.cur { background: #e06000; color: #fff; transform: scale(1.08); box-shadow: 0 0 6px rgba(224,96,0,0.3); }
+.mat-cell.neutral.dim { opacity: 0.13; }
+.mat-cell.neutral-b { background: #f5f5f5; color: #666; border-color: transparent; }
+.mat-cell.neutral-b.hi  { background: #4a90d9; color: #fff; }
+.mat-cell.neutral-b.cur { background: #1a60b0; color: #fff; transform: scale(1.08); box-shadow: 0 0 6px rgba(26,96,176,0.3); }
+.mat-cell.neutral-b.dim { opacity: 0.13; }
 
 /* Outer-product display panel */
 .op-display {
@@ -97,6 +151,8 @@ h1 { font-size: 1.2rem; font-weight: 400; color: #555; margin-bottom: 3px; }
 .step-dot.done { background: #b0e8c0; }
 .step-dot.cur  { background: #50c878; border-color: #1a9a40; transform: scale(1.25); }
 
+.controls-row { display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 10px; flex-wrap: wrap; }
+.controls-row .playback { margin-top: 0; }
 .playback { margin-top: 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .play-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid #ddd; background: #fff; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .play-btn.big { width: 44px; height: 44px; border: 2px solid #333; font-size: 1.05rem; }
@@ -158,37 +214,6 @@ input[type=range] { width: 88px; accent-color: #333; }
 .intro-grid {
   display: grid; gap: 3px;
 }
-.intro-cell {
-  width: 46px; height: 46px; display: flex; align-items: center; justify-content: center;
-  font-size: 0.92rem; font-weight: 600; border-radius: 4px;
-  transition: background .15s, transform .15s, box-shadow .15s;
-  cursor: default;
-}
-.intro-cell-a {
-  background: #fff3e8; color: #e06000; border: 2px solid #ffd0a0;
-}
-.intro-cell-a.editable, .intro-cell-b.editable { cursor: text; }
-.intro-cell-a.editable:hover { border-color: #e06000; }
-.intro-cell-b.editable:hover { border-color: #1a60b0; }
-.intro-cell-b {
-  background: #e8f2ff; color: #1a60b0; border: 2px solid #b0d0f8;
-}
-.intro-cell-r {
-  background: #eafaef; color: #1a9a40; border: 2px solid #a0e8b8;
-  cursor: pointer;
-}
-.intro-cell-a.hi-cell {
-  background: #ff9a3c; color: #fff; border-color: #e06000; transform: scale(1.12);
-  box-shadow: 0 0 10px rgba(224,96,0,0.4);
-}
-.intro-cell-b.hi-cell {
-  background: #4a90d9; color: #fff; border-color: #1a60b0; transform: scale(1.12);
-  box-shadow: 0 0 10px rgba(26,96,176,0.4);
-}
-.intro-cell-r.hi-res {
-  background: #50c878; color: #fff; border-color: #1a9a40; transform: scale(1.12);
-  box-shadow: 0 0 10px rgba(80,200,120,0.4);
-}
 .intro-sym {
   font-size: 1.8rem; color: #bbb; font-weight: 300; line-height: 1;
 }
@@ -201,6 +226,7 @@ input[type=range] { width: 88px; accent-color: #333; }
 .intro-orig-vec {
   border: 2px dashed rgba(0,0,0,0.15); border-radius: 6px;
   padding: 2px; position: relative;
+  margin: -4px; /* compensate border+padding so cells align with non-wrapped cells */
 }
 .intro-orig-a { border-color: rgba(224,96,0,0.35); }
 .intro-orig-b { border-color: rgba(26,96,176,0.35); }
@@ -288,20 +314,6 @@ input[type=range] { width: 88px; accent-color: #333; }
 .dp-grid {
   display: grid; gap: 3px;
 }
-.dp-cell {
-  width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;
-  font-size: 0.85rem; font-weight: 500; border-radius: 3px;
-  transition: background .12s, transform .12s, box-shadow .12s;
-}
-.dp-cell-a { background: #f5f5f5; color: #666; }
-.dp-cell-a.hi { background: #ff9a3c; color: #fff; }
-.dp-cell-a.cur { background: #e06000; color: #fff; transform: scale(1.08); box-shadow: 0 0 6px rgba(224,96,0,0.3); }
-.dp-cell-b { background: #f5f5f5; color: #666; }
-.dp-cell-b.hi { background: #4a90d9; color: #fff; }
-.dp-cell-b.cur { background: #1a60b0; color: #fff; transform: scale(1.08); box-shadow: 0 0 6px rgba(26,96,176,0.3); }
-.dp-cell-r { background: #f5f5f5; color: #ccc; cursor: pointer; border: 2px solid transparent; }
-.dp-cell-r.done { background: #eafaef; color: #1a9a40; border-color: #a0e8b8; }
-.dp-cell-r.cur { background: #50c878; color: #fff; border-color: #1a9a40; transform: scale(1.08); box-shadow: 0 0 8px rgba(80,200,120,0.4); }
 
 .dp-detail {
   background: #fafafa; border: 1px solid #e8e8e8; border-radius: 6px;
@@ -333,6 +345,16 @@ input[type=range] { width: 88px; accent-color: #333; }
   text-align: center; margin-top: 4px;
 }
 
+/* ── Dot product top row: matrices + cube column ── */
+.dp-top-row {
+  display: flex; align-items: flex-start; justify-content: center;
+  gap: 24px; flex-wrap: wrap;
+}
+.dp-cube-col {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  flex: 0 0 auto;
+}
+
 /* ── Vector dot product intro (sidebar) ── */
 .dp-vector-intro {
   background: #f8f8f8; border: 1px solid #e8e8e8; border-radius: 6px;
@@ -360,38 +382,19 @@ input[type=range] { width: 88px; accent-color: #333; }
 </head>
 <body>
 
-<h1>Matrix Multiplication — The 3D Hidden Step</h1>
-<p class="subtitle">einsum: <em>ij, jk → ik</em> &nbsp;·&nbsp; outer products A[:,j]⊗B[j,:] stack into a cube, then Σⱼ collapses it</p>
+<h1>Matrix Multiplication: Multiple Perspectives</h1>
 
 <div class="top-controls">
-  <div class="dim-group"><label>i rows</label><input type="number" id="dimI" value="3" min="1" max="4"></div>
-  <div class="dim-group" id="dimJGroup"><label>j shared</label><input type="number" id="dimJ" value="4" min="1" max="4"></div>
-  <div class="dim-group"><label>k cols</label><input type="number" id="dimK" value="3" min="1" max="4"></div>
   <button class="ctrl-btn primary" onclick="rebuild(true)">Randomize</button>
   <button class="ctrl-btn" onclick="rebuild(false)">Reset (1s)</button>
 </div>
 
 <div class="mode-tabs">
-  <button class="mode-tab active" id="tab-intro" onclick="setMode('intro')">⓪ Broadcasting</button>
-  <button class="mode-tab"        id="tab-dotprod" onclick="setMode('dotprod')">① Dot Product</button>
-  <button class="mode-tab"        id="tab-matmul" onclick="setMode('matmul')">② 3D Cube</button>
+  <button class="mode-tab active" id="tab-intro" onclick="setMode('intro')">⓪ Outer Product</button>
+  <button class="mode-tab"        id="tab-matmul" onclick="setMode('matmul')">① MatMul: Outer Product Perspective</button>
+  <button class="mode-tab"        id="tab-dotprod" onclick="setMode('dotprod')">② MatMul: Dot Product Perspective</button>
 </div>
 
-<div class="scene-wrap hidden">
-  <div class="side-panel" id="panelA">
-    <div class="mat-title">A &nbsp;<span style="color:#e06000;font-weight:600">← col j</span></div>
-    <div class="grid" id="gridA"></div>
-  </div>
-  <div class="canvas-col">
-    <div class="canvas-title" id="canvasTitle">Cube[i, j, k] = A[i,j] × B[j,k]</div>
-    <canvas id="mainCanvas" width="420" height="380"></canvas>
-    <div class="canvas-hint">Drag to rotate</div>
-  </div>
-  <div class="side-panel" id="panelB">
-    <div class="mat-title">B &nbsp;<span style="color:#1a60b0;font-weight:600">row j →</span></div>
-    <div class="grid" id="gridB"></div>
-  </div>
-</div>
 
 <!-- TAB 0 — Broadcasting & Outer Product -->
 <div id="ctrl-intro" class="tab-container">
@@ -409,29 +412,30 @@ input[type=range] { width: 88px; accent-color: #333; }
       </div>
     </div>
     <div class="tab-main">
-      <div class="einsum-badge" id="einsumIntro"></div>
+      <div class="controls-row">
+        <div class="playback">
+          <button class="play-btn" onclick="stepBackIntro()" title="Step back">◀</button>
+          <button class="play-btn big" onclick="stepFwdIntro()" title="Step forward">▶|</button>
+          <button class="play-btn" id="pbIntro" onclick="togglePlayIntro()">▶</button>
+          <button class="play-btn" onclick="resetIntro()" title="Reset">↺</button>
+          <div class="slider-wrap">
+            <span>slow</span>
+            <input type="range" id="spIntro" min="200" max="1200" value="200" step="50">
+            <span>fast</span>
+          </div>
+        </div>
+        <div class="einsum-badge" id="einsumIntro"></div>
+      </div>
       <div id="introDisplay" class="intro-wrap"></div>
       <div class="formula-bar">
         <div class="formula-text" id="fIntro"></div>
-      </div>
-      <div class="playback">
-        <button class="play-btn" onclick="stepBackIntro()" title="Step back">◀</button>
-        <button class="play-btn big" onclick="stepFwdIntro()" title="Step forward">▶|</button>
-        <button class="play-btn" id="pbIntro" onclick="togglePlayIntro()">▶</button>
-        <button class="play-btn" onclick="resetIntro()" title="Reset">↺</button>
-        <div class="slider-wrap">
-          <span>slow</span>
-          <input type="range" id="spIntro" min="200" max="1200" value="600" step="50">
-          <span>fast</span>
-        </div>
-        <button class="ctrl-btn" onclick="randomizeIntroVecs()">Randomize</button>
       </div>
       <div class="step-dots" id="dIntro"></div>
     </div>
   </div>
 </div>
 
-<!-- TAB 1 — Dot Product: Row · Column (pure 2D) -->
+<!-- TAB 2 — Dot Product: Row · Column with cube-column visualization -->
 <div id="ctrl-dotprod" class="hidden tab-container">
   <button class="info-toggle active" onclick="toggleInfo()">ⓘ Info ◂</button>
   <div class="tab-with-drawer">
@@ -439,29 +443,45 @@ input[type=range] { width: 88px; accent-color: #333; }
       <div class="dp-vector-intro" id="dpVectorIntro"></div>
     </div>
     <div class="tab-main">
-      <div class="einsum-badge" id="einsumDotprod"></div>
-      <div class="dp-wrap">
+      <div class="controls-row">
+        <div class="playback">
+          <button class="play-btn" onclick="dpBack()" title="Step back">◀</button>
+          <button class="play-btn big" onclick="dpFwd()" title="Step forward">▶|</button>
+          <button class="play-btn" id="pbDP" onclick="dpToggle()">▶</button>
+          <button class="play-btn" onclick="dpReset()" title="Reset">↺</button>
+          <div class="slider-wrap">
+            <span>slow</span>
+            <input type="range" id="spDP" min="200" max="1200" value="200" step="50">
+            <span>fast</span>
+          </div>
+          <label class="check-wrap">
+            <input type="checkbox" id="chkDpTerm" checked onchange="dpTermToggle()">
+            Show terms one by one
+          </label>
+        </div>
+        <div class="einsum-badge" id="einsumDotprod"></div>
+      </div>
+      <div class="dp-top-row">
         <div class="dp-matrices" id="dpMatrices"></div>
+        <div class="dp-cube-col" id="dpCubeCol">
+          <div class="canvas-title" id="dpCanvasTitle">The same cube — click a result cell to select a column</div>
+          <div id="dpCanvasHost"></div>
+          <div class="canvas-hint">Drag to rotate · Click result cells to explore columns</div>
+          <div class="slider-wrap" id="dpCollapseWrap" style="margin-top:6px">
+            <span>stacked</span>
+            <input type="range" id="dpCollapseSlider" min="0" max="1000" value="0" step="1"
+                   oninput="dpScrubCollapse(this.value/1000)">
+            <span>summed</span>
+          </div>
+        </div>
       </div>
       <div class="formula-bar">
-        <div class="formula-text" id="fDP">Each result cell is a dot product: row of A · column of B. Press ▶</div>
-      </div>
-      <div class="playback">
-        <button class="play-btn" onclick="dpBack()" title="Step back">◀</button>
-        <button class="play-btn big" onclick="dpFwd()" title="Step forward">▶|</button>
-        <button class="play-btn" id="pbDP" onclick="dpToggle()">▶</button>
-        <button class="play-btn" onclick="dpReset()" title="Reset">↺</button>
-        <div class="slider-wrap">
-          <span>slow</span>
-          <input type="range" id="spDP" min="200" max="1200" value="600" step="50">
-          <span>fast</span>
-        </div>
-        <label class="check-wrap">
-          <input type="checkbox" id="chkDpTerm" checked onchange="dpTermToggle()">
-          Show terms one by one
-        </label>
+        <div class="formula-text" id="fDP">Click a result cell to see its dot product as a column through the cube</div>
       </div>
       <div class="step-dots" id="dDP"></div>
+      <div class="dp-connection">
+        The same cube from tab ① — but now each vertical column is a dot product (row of A · column of B) waiting to be summed.
+      </div>
       <div style="font-size:0.68rem;color:#bbb;margin-top:4px;text-align:center">
         See this as a full matrix multiply animation at <a href="http://matrixmultiplication.xyz" target="_blank" style="color:#999">matrixmultiplication.xyz</a>
       </div>
@@ -469,35 +489,64 @@ input[type=range] { width: 88px; accent-color: #333; }
   </div>
 </div>
 
-<!-- TAB 2 — Matrix Multiply: Build & Collapse (unified) -->
-<div id="ctrl-matmul" class="hidden" style="display:flex;flex-direction:column;align-items:center;gap:14px;max-width:1100px;width:100%">
-  <div class="einsum-badge" id="einsumMatmul"></div>
+<!-- TAB 1 — Matrix Multiply: Build & Collapse (unified) -->
+<div id="ctrl-matmul" class="hidden tab-container">
+  <div class="controls-row">
+    <div class="playback">
+      <button class="play-btn" onclick="mmBack()" title="Step back / reverse">◀</button>
+      <button class="play-btn big" onclick="mmFwd()" title="Step forward">▶|</button>
+      <button class="play-btn" id="pbMM" onclick="mmToggle()">▶</button>
+      <button class="play-btn" onclick="mmReset()" title="Reset">↺</button>
+      <div class="slider-wrap">
+        <span>slow</span>
+        <input type="range" id="spMM" min="100" max="1800" value="100" step="50">
+        <span>fast</span>
+      </div>
+      <label class="check-wrap">
+        <input type="checkbox" id="chkElem">
+        Show outer products element by element
+      </label>
+      <div class="slider-wrap" id="collapseSliderWrap" style="display:none">
+        <span>stacked</span>
+        <input type="range" id="spCollapse" min="0" max="1000" value="0" step="1"
+               oninput="mmScrubCollapse(this.value/1000)">
+        <span>summed</span>
+      </div>
+    </div>
+    <div class="einsum-badge" id="einsumMatmul"></div>
+  </div>
+  <div class="mm-row">
+    <div class="mm-mat-area" id="mmPanelA">
+      <div class="mat-title">A &nbsp;<span style="color:#e06000;font-weight:600">← col j</span></div>
+      <div class="grid-with-row-btns">
+        <div class="grid" id="gridA"></div>
+        <div id="dimRowBtnsA"></div>
+      </div>
+      <div id="dimColBtnsA"></div>
+    </div>
+    <div class="mm-sym">×</div>
+    <div class="mm-mat-area" id="mmPanelB">
+      <div class="mat-title">B &nbsp;<span style="color:#1a60b0;font-weight:600">row j →</span></div>
+      <div class="grid-with-row-btns">
+        <div class="grid" id="gridB"></div>
+        <div id="dimRowBtnsB"></div>
+      </div>
+      <div id="dimColBtnsB"></div>
+    </div>
+    <div class="mm-sym">=</div>
+    <div class="mm-cube-area">
+      <div class="canvas-title" id="canvasTitle">Cube[i, j, k] = A[i,j] × B[j,k]</div>
+      <div id="mmCanvasHost">
+        <canvas id="mainCanvas" width="420" height="380"></canvas>
+      </div>
+      <div class="canvas-hint">Drag to rotate</div>
+    </div>
+  </div>
   <!-- Outer-product visual display — shown only in elem-by-elem mode -->
   <div id="opDisplay" class="op-display hidden"></div>
   <div class="formula-bar">
     <div class="formula-text" id="fMM">Press ▶ to build the cube slice by slice, then collapse into the result</div>
     <div class="step-dots" id="dMM"></div>
-  </div>
-  <div class="playback">
-    <button class="play-btn" onclick="mmBack()" title="Step back / reverse">◀</button>
-    <button class="play-btn big" onclick="mmFwd()" title="Step forward">▶|</button>
-    <button class="play-btn" id="pbMM" onclick="mmToggle()">▶</button>
-    <button class="play-btn" onclick="mmReset()" title="Reset">↺</button>
-    <div class="slider-wrap">
-      <span>slow</span>
-      <input type="range" id="spMM" min="100" max="1800" value="700" step="50">
-      <span>fast</span>
-    </div>
-    <label class="check-wrap">
-      <input type="checkbox" id="chkElem" checked>
-      Show outer products element by element
-    </label>
-    <div class="slider-wrap" id="collapseSliderWrap" style="display:none">
-      <span>stacked</span>
-      <input type="range" id="spCollapse" min="0" max="1000" value="0" step="1"
-             oninput="mmScrubCollapse(this.value/1000)">
-      <span>summed</span>
-    </div>
   </div>
   <div class="legend">
     <div class="legend-item"><div class="legend-swatch" style="background:#ff9a3c"></div>A[:,j] column</div>
@@ -539,6 +588,46 @@ function computeData(rnd){
   B   = Array.from({length:J}, ()=>Array.from({length:K}, ()=>rnd?rand():1));
   Cube= Array.from({length:I}, (_,i)=>Array.from({length:J}, (_,j)=>Array.from({length:K}, (_,k)=>A[i][j]*B[j][k])));
   Res = Array.from({length:I}, (_,i)=>Array.from({length:K}, (_,k)=>A[i].reduce((s,_,j)=>s+A[i][j]*B[j][k],0)));
+}
+
+// Resize dimensions preserving existing values, new cells get random values
+function changeDim(dim, delta){
+  const oldI=I, oldJ=J, oldK=K;
+  if(dim==='I') I=Math.max(1,Math.min(4,I+delta));
+  else if(dim==='J') J=Math.max(1,Math.min(4,J+delta));
+  else if(dim==='K') K=Math.max(1,Math.min(4,K+delta));
+  if(I===oldI && J===oldJ && K===oldK) return; // no change
+
+  // Preserve existing A values, fill new cells
+  const newA=Array.from({length:I},(_,i)=>Array.from({length:J},(_,j)=>(i<oldI&&j<oldJ)?A[i][j]:rand()));
+  // Preserve existing B values, fill new cells
+  const newB=Array.from({length:J},(_,j)=>Array.from({length:K},(_,k)=>(j<oldJ&&k<oldK)?B[j][k]:rand()));
+  A=newA; B=newB;
+
+  // Resize intro vectors too
+  introA=Array.from({length:I},(_,i)=>i<introA.length?introA[i]:rand());
+  introB=Array.from({length:K},(_,k)=>k<introB.length?introB[k]:rand());
+
+  Cube=Array.from({length:I},(_,i)=>Array.from({length:J},(_,j)=>Array.from({length:K},(_,k)=>A[i][j]*B[j][k])));
+  Res=Array.from({length:I},(_,i)=>Array.from({length:K},(_,k)=>A[i].reduce((s,_,j)=>s+A[i][j]*B[j][k],0)));
+
+  // Reset animation state
+  mmPauseAll(); mmPhase='build'; t1=-1; collapseT=0; lastOpJ=-1;
+  pauseIntro(); introStep=0;
+  dpPause(); dpStep=-1;
+
+  if(currentMode==='matmul'){
+    rebuildBoxes(); removePlusSprites();
+    applyS1(-1); renderA(-1,-1,-1); renderB(-1,-1,-1);
+    document.getElementById('spCollapse').value=0;
+    document.getElementById('collapseSliderWrap').style.display='none';
+    renderEinsumBadge('einsumMatmul','matmul');
+  } else {
+    if(sc) boxes.forEach(l=>l.forEach(r=>r.forEach(b=>{sc.scene.remove(b.mesh);sc.scene.remove(b.edges);sc.scene.remove(b.spr);})));
+    removePlusSprites(); boxes=[];
+  }
+  if(currentMode==='intro'){ renderIntro(); renderEinsumBadge('einsumIntro','intro'); }
+  if(currentMode==='dotprod'){ dpRenderAll(); renderEinsumBadge('einsumDotprod','dotprod'); }
 }
 
 // ══════════════════════════════════════════════════
@@ -666,7 +755,7 @@ function ensureAllGreen(){ for(let j=0;j<J;j++) paintSlice(j,'done'); }
 // ══════════════════════════════════════════════════
 let introA=[], introB=[];
 let introStep=0, introPlaying=false, introTm=null, introHiTm=null;
-const INTRO_STEPS=3;
+const INTRO_STEPS=2;
 
 function initIntroVecs(rnd){
   introA=Array.from({length:I},()=>rnd?rand():1);
@@ -681,8 +770,7 @@ function renderIntro(){
   const wrap=document.getElementById('introDisplay');
   if(!wrap) return;
   if(introStep===0) renderIntroStep0(wrap);
-  else if(introStep===1) renderIntroStep1(wrap);
-  else renderIntroStep2(wrap);
+  else renderIntroStep1(wrap);
   updateIntroDots();
   updateIntroFormula();
 }
@@ -708,13 +796,16 @@ function renderIntroStep0(wrap){
   // Show column vector a and row vector b — cells are editable
   let html='<div class="intro-stage">';
 
-  // Vector a — column (I, 1)
+  // Vector a — column (I, 1): row +/- on the right side
   html+='<div class="intro-block">';
   html+='<div class="intro-block-label"><span style="color:#e06000;font-weight:700">a</span><span style="color:#aaa">[:, None]</span></div>';
-  html+='<div class="intro-grid" style="grid-template-columns:46px">';
+  html+='<div class="grid-with-row-btns">';
+  html+='<div class="intro-grid" style="grid-template-columns:44px">';
   for(let i=0;i<I;i++){
-    html+=`<div class="intro-cell intro-cell-a editable" onclick="introEditCell('a',${i})">${introA[i]}</div>`;
+    html+=`<div class="mat-cell a editable" onclick="introEditCell('a',${i})">${introA[i]}</div>`;
   }
+  html+='</div>';
+  html+=dimBtnsV('I');
   html+='</div>';
   html+=shapeTag(`shape (${I}, <strong>1</strong>) — the <strong>1</strong> stretches →`);
   html+=vecTipA();
@@ -723,14 +814,15 @@ function renderIntroStep0(wrap){
   // outer product symbol
   html+='<div class="intro-sym">⊗</div>';
 
-  // Vector b — row (1, K)
+  // Vector b — row (1, K): col +/- below
   html+='<div class="intro-block">';
   html+='<div class="intro-block-label"><span style="color:#1a60b0;font-weight:700">b</span><span style="color:#aaa">[None, :]</span></div>';
-  html+=`<div class="intro-grid" style="grid-template-columns:repeat(${K},46px)">`;
+  html+=`<div class="intro-grid" style="grid-template-columns:repeat(${K},44px)">`;
   for(let k=0;k<K;k++){
-    html+=`<div class="intro-cell intro-cell-b editable" onclick="introEditCell('b',${k})">${introB[k]}</div>`;
+    html+=`<div class="mat-cell b editable" onclick="introEditCell('b',${k})">${introB[k]}</div>`;
   }
   html+='</div>';
+  html+=dimBtnsH('K');
   html+=shapeTag(`shape (<strong>1</strong>, ${K}) — the <strong>1</strong> stretches ↓`);
   html+=vecTipB();
   html+='</div>';
@@ -740,8 +832,10 @@ function renderIntroStep0(wrap){
 }
 
 function renderIntroStep1(wrap){
-  // Both broadcast simultaneously: a copies rightward, b copies downward
+  // Both broadcast simultaneously + result grid appears alongside
   const delay=introDelay();
+  // Time offset for result: starts after broadcasts have begun
+  const broadcastTime=Math.max((K-2)*delay,(I-2)*delay)+400;
   let html='<div class="intro-stage">';
 
   // a broadcast: original column in bordered wrapper + copies animate right
@@ -750,14 +844,14 @@ function renderIntroStep1(wrap){
   html+='<div style="display:flex;gap:3px">';
   html+='<div class="intro-orig-vec intro-orig-a">';
   html+='<div style="display:flex;flex-direction:column;gap:3px">';
-  for(let i=0;i<I;i++) html+=`<div class="intro-cell intro-cell-a">${introA[i]}</div>`;
+  for(let i=0;i<I;i++) html+=`<div class="mat-cell a" data-ba-i="${i}" data-ba-k="0">${introA[i]}</div>`;
   html+='</div>';
   html+=vecTipA();
   html+='</div>';
   if(K>1){
-    html+=`<div style="display:grid;grid-template-columns:repeat(${K-1},46px);gap:3px">`;
+    html+=`<div style="display:grid;grid-template-columns:repeat(${K-1},44px);gap:3px">`;
     for(let i=0;i<I;i++) for(let k=1;k<K;k++){
-      html+=`<div class="intro-cell intro-cell-a intro-anim-right" style="animation-delay:${(k-1)*delay}ms">${introA[i]}</div>`;
+      html+=`<div class="mat-cell a intro-anim-right" data-ba-i="${i}" data-ba-k="${k}" style="animation-delay:${(k-1)*delay}ms">${introA[i]}</div>`;
     }
     html+='</div>';
   }
@@ -773,14 +867,14 @@ function renderIntroStep1(wrap){
   html+='<div style="display:flex;flex-direction:column;gap:3px">';
   html+='<div class="intro-orig-vec intro-orig-b">';
   html+='<div style="display:flex;gap:3px">';
-  for(let k=0;k<K;k++) html+=`<div class="intro-cell intro-cell-b">${introB[k]}</div>`;
+  for(let k=0;k<K;k++) html+=`<div class="mat-cell b" data-bb-i="0" data-bb-k="${k}">${introB[k]}</div>`;
   html+='</div>';
   html+=vecTipB();
   html+='</div>';
   if(I>1){
-    html+=`<div style="display:grid;grid-template-columns:repeat(${K},46px);gap:3px">`;
+    html+=`<div style="display:grid;grid-template-columns:repeat(${K},44px);gap:3px">`;
     for(let i=1;i<I;i++) for(let k=0;k<K;k++){
-      html+=`<div class="intro-cell intro-cell-b intro-anim-down" style="animation-delay:${(i-1)*delay}ms">${introB[k]}</div>`;
+      html+=`<div class="mat-cell b intro-anim-down" data-bb-i="${i}" data-bb-k="${k}" style="animation-delay:${(i-1)*delay}ms">${introB[k]}</div>`;
     }
     html+='</div>';
   }
@@ -788,8 +882,24 @@ function renderIntroStep1(wrap){
   html+=shapeTag(`(<strong>1</strong>, ${K}) → (${I}, ${K})`);
   html+='</div>';
 
+  html+='<div class="intro-sym">=</div>';
+
+  // Result grid — appears with staggered animation, delayed to overlap with broadcasts
+  html+='<div class="intro-block">';
+  html+='<div class="intro-block-label"><span style="color:#1a9a40;font-weight:700">a ⊗ b</span> <span style="color:#aaa">= a[:, None] * b[None, :]</span></div>';
+  html+=`<div class="intro-grid" style="grid-template-columns:repeat(${K},44px)">`;
+  for(let i=0;i<I;i++) for(let k=0;k<K;k++){
+    const val=introA[i]*introB[k];
+    const cellDelay=broadcastTime+(i*K+k)*Math.max(delay*0.3,60);
+    html+=`<div class="mat-cell r anim" data-ri="${i}" data-rk="${k}" `
+      +`onmouseenter="introHover(${i},${k})" onmouseleave="introClearHover()" `
+      +`style="animation-delay:${cellDelay}ms;cursor:pointer">${val}</div>`;
+  }
+  html+='</div></div>';
+
   html+='</div>';
   wrap.innerHTML=html;
+  introRunHiAnim();
 }
 
 function renderIntroStep2(wrap){
@@ -803,14 +913,14 @@ function renderIntroStep2(wrap){
   html+='<div style="display:flex;gap:3px">';
   html+='<div class="intro-orig-vec intro-orig-a">';
   html+='<div style="display:flex;flex-direction:column;gap:3px">';
-  for(let i=0;i<I;i++) html+=`<div class="intro-cell intro-cell-a" data-ba-i="${i}" data-ba-k="0">${introA[i]}</div>`;
+  for(let i=0;i<I;i++) html+=`<div class="mat-cell a" data-ba-i="${i}" data-ba-k="0">${introA[i]}</div>`;
   html+='</div>';
   html+=vecTipA();
   html+='</div>';
   if(K>1){
-    html+=`<div style="display:grid;grid-template-columns:repeat(${K-1},46px);gap:3px">`;
+    html+=`<div style="display:grid;grid-template-columns:repeat(${K-1},44px);gap:3px">`;
     for(let i=0;i<I;i++) for(let k=1;k<K;k++){
-      html+=`<div class="intro-cell intro-cell-a" data-ba-i="${i}" data-ba-k="${k}">${introA[i]}</div>`;
+      html+=`<div class="mat-cell a" data-ba-i="${i}" data-ba-k="${k}">${introA[i]}</div>`;
     }
     html+='</div>';
   }
@@ -825,14 +935,14 @@ function renderIntroStep2(wrap){
   html+='<div style="display:flex;flex-direction:column;gap:3px">';
   html+='<div class="intro-orig-vec intro-orig-b">';
   html+='<div style="display:flex;gap:3px">';
-  for(let k=0;k<K;k++) html+=`<div class="intro-cell intro-cell-b" data-bb-i="0" data-bb-k="${k}">${introB[k]}</div>`;
+  for(let k=0;k<K;k++) html+=`<div class="mat-cell b" data-bb-i="0" data-bb-k="${k}">${introB[k]}</div>`;
   html+='</div>';
   html+=vecTipB();
   html+='</div>';
   if(I>1){
-    html+=`<div style="display:grid;grid-template-columns:repeat(${K},46px);gap:3px">`;
+    html+=`<div style="display:grid;grid-template-columns:repeat(${K},44px);gap:3px">`;
     for(let i=1;i<I;i++) for(let k=0;k<K;k++){
-      html+=`<div class="intro-cell intro-cell-b" data-bb-i="${i}" data-bb-k="${k}">${introB[k]}</div>`;
+      html+=`<div class="mat-cell b" data-bb-i="${i}" data-bb-k="${k}">${introB[k]}</div>`;
     }
     html+='</div>';
   }
@@ -844,13 +954,13 @@ function renderIntroStep2(wrap){
   // Result grid — cells appear with staggered animation
   html+='<div class="intro-block">';
   html+='<div class="intro-block-label"><span style="color:#1a9a40;font-weight:700">a ⊗ b</span> <span style="color:#aaa">= a[:, None] * b[None, :]</span></div>';
-  html+=`<div class="intro-grid" style="grid-template-columns:repeat(${K},46px)">`;
+  html+=`<div class="intro-grid" style="grid-template-columns:repeat(${K},44px)">`;
   for(let i=0;i<I;i++) for(let k=0;k<K;k++){
     const val=introA[i]*introB[k];
     const cellDelay=(i*K+k)*Math.max(delay*0.3,60);
-    html+=`<div class="intro-cell intro-cell-r intro-anim-appear" data-ri="${i}" data-rk="${k}" `
+    html+=`<div class="mat-cell r anim" data-ri="${i}" data-rk="${k}" `
       +`onmouseenter="introHover(${i},${k})" onmouseleave="introClearHover()" `
-      +`style="animation-delay:${cellDelay}ms">${val}</div>`;
+      +`style="animation-delay:${cellDelay}ms;cursor:pointer">${val}</div>`;
   }
   html+='</div></div>';
 
@@ -881,6 +991,7 @@ function introClearHover(){
   document.querySelectorAll('.hi-res').forEach(el=>el.classList.remove('hi-res'));
   updateIntroFormula();
 }
+
 function introStopHiAnim(){ if(introHiTm){ clearTimeout(introHiTm); introHiTm=null; } }
 function introRunHiAnim(){
   introStopHiAnim();
@@ -899,40 +1010,85 @@ function introRunHiAnim(){
 
 function introEditCell(vec, idx){
   const cur = vec==='a' ? introA[idx] : introB[idx];
-  const el = event.target;
+  const el = event.target.closest('.mat-cell') || event.target;
+  editCellInline(el, cur, vec==='a'?'#e06000':'#1a60b0', function(v){
+    if(vec==='a') introA[idx]=v; else introB[idx]=v;
+    renderIntro();
+  });
+}
+
+// Shared inline cell editor: click a cell → replace with input → commit on blur/Enter, cancel on Escape
+function editCellInline(el, cur, color, onCommit){
+  if(el.querySelector('input')) return; // already editing
   const input = document.createElement('input');
-  input.type = 'number';
+  input.type = 'text';
+  input.inputMode = 'numeric';
   input.value = cur;
-  input.min = 1; input.max = 9;
-  input.style.cssText = 'width:36px;height:36px;text-align:center;font-size:0.92rem;font-weight:600;border:2px solid '
-    +(vec==='a'?'#e06000':'#1a60b0')+';border-radius:4px;outline:none;background:#fff;color:'
-    +(vec==='a'?'#e06000':'#1a60b0');
+  input.style.cssText = 'width:36px;height:36px;text-align:center;font-size:0.88rem;font-weight:600;border:2px solid '
+    +color+';border-radius:4px;outline:none;background:#fff;color:'+color+';padding:0;';
   el.textContent = '';
   el.appendChild(input);
   input.focus();
   input.select();
+  let committed=false;
   function commit(){
-    const v = Math.max(1, Math.min(9, parseInt(input.value)||cur));
-    if(vec==='a') introA[idx]=v; else introB[idx]=v;
-    renderIntro();
+    if(committed) return;
+    committed=true;
+    let v = parseInt(input.value);
+    if(isNaN(v)) v=0;
+    v = Math.max(-99, Math.min(99, v));
+    onCommit(v);
   }
   input.addEventListener('blur', commit);
-  input.addEventListener('keydown', e=>{ if(e.key==='Enter') input.blur(); });
+  input.addEventListener('keydown', e=>{
+    if(e.key==='Enter') input.blur();
+    if(e.key==='Escape'){ committed=true; el.textContent=cur; }
+  });
+}
+
+// Recompute Cube and Res from current A/B, then re-render current tab
+function recomputeFromMatrices(){
+  Cube=Array.from({length:I},(_,i)=>Array.from({length:J},(_,j)=>Array.from({length:K},(_,k)=>A[i][j]*B[j][k])));
+  Res=Array.from({length:I},(_,i)=>Array.from({length:K},(_,k)=>A[i].reduce((s,_,j)=>s+A[i][j]*B[j][k],0)));
+  if(currentMode==='matmul'){
+    mmReset();
+    rebuildBoxes(); removePlusSprites();
+    applyS1(-1);
+    renderA(-1,-1,-1); renderB(-1,-1,-1);
+  } else if(currentMode==='dotprod'){
+    dpReset();
+    dpRenderAll();
+  }
 }
 
 function codeSpan(text){ return `<code style="background:#f5f5f5;padding:2px 5px;border-radius:3px;font-size:0.82em">${text}</code>`; }
 
+// Horizontal +/- (for columns — placed below grid)
+function dimBtnsH(dim){
+  const val=dim==='I'?I:dim==='J'?J:K;
+  return `<div class="dim-btns-h">`
+    +`<button class="dim-btn" onclick="changeDim('${dim}',-1)"${val<=1?' disabled':''}>−</button>`
+    +`<span class="dim-label">${dim.toLowerCase()}=${val}</span>`
+    +`<button class="dim-btn" onclick="changeDim('${dim}',+1)"${val>=4?' disabled':''}>+</button>`
+    +`</div>`;
+}
+// Vertical +/- (for rows — placed to the right of grid)
+function dimBtnsV(dim){
+  const val=dim==='I'?I:dim==='J'?J:K;
+  return `<div class="dim-btns-v">`
+    +`<button class="dim-btn" onclick="changeDim('${dim}',-1)"${val<=1?' disabled':''}>−</button>`
+    +`<span class="dim-label">${dim.toLowerCase()}=${val}</span>`
+    +`<button class="dim-btn" onclick="changeDim('${dim}',+1)"${val>=4?' disabled':''}>+</button>`
+    +`</div>`;
+}
+
 function updateIntroFormula(){
   const f=document.getElementById('fIntro');
   if(introStep===0){
-    f.innerHTML=`<strong>Why no j?</strong> No shared index between a and b — nothing gets summed. `
-      +`Every input index appears in the output. Press ▶`;
-  } else if(introStep===1){
-    f.innerHTML=`Both broadcast simultaneously: <span class="fa">a</span>'s column copies → across ${K} cols, `
-      +`<span class="fb">b</span>'s row copies ↓ across ${I} rows. Both become (${I}, ${K}).`;
+    f.innerHTML=`<span class="fa">a</span> is (${I},1) and <span class="fb">b</span> is (1,${K}). Press ▶ to broadcast and multiply.`;
   } else {
-    f.innerHTML=`Element-wise multiply gives the outer product. Hover to inspect. `
-      +`<em style="color:#999">This outer product is one slice of a matrix multiply. In tab ②, we stack J of these and sum along j.</em>`;
+    f.innerHTML=`Broadcast and multiply element-wise → outer product. Hover to inspect. `
+      +`<em style="color:#999">This outer product is one slice of a matrix multiply. In tab ①, we stack J of these and sum along j.</em>`;
   }
 }
 
@@ -949,8 +1105,12 @@ function updateIntroDots(){
 // Compute how long the current step's animation takes, so autoplay waits
 function introAnimDuration(){
   const delay=introDelay();
-  if(introStep===1) return Math.max((K-2)*delay,(I-2)*delay)+500; // both broadcast simultaneously
-  if(introStep===2) return (I*K-1)*Math.max(delay*0.3,60)+500;    // result cells
+  if(introStep===1){
+    // broadcast + result appearing together
+    const broadcastTime=Math.max((K-2)*delay,(I-2)*delay)+400;
+    const resultTime=(I*K-1)*Math.max(delay*0.3,60);
+    return broadcastTime+resultTime+500;
+  }
   return 600; // step 0 — brief pause
 }
 
@@ -1243,16 +1403,14 @@ function mmTickBuild(){
 
 function mmBuildDone(){
   mmPauseBuild();
-  document.getElementById('pbMM').textContent='⏸';
+  mmPhase='collapse';
+  collapseT=0;
+  addPlusSprites();
   document.getElementById('collapseSliderWrap').style.display='';
-  // Brief pause then auto-start collapse
-  tm1=setTimeout(()=>{
-    mmPhase='collapse';
-    collapseT=0;
-    addPlusSprites();
-    mmUpdateCanvasTitle();
-    runColAnim(+1);
-  }, 600);
+  document.getElementById('pbMM').textContent='▶';
+  mmUpdateCanvasTitle();
+  const fEl=document.getElementById('fMM');
+  if(fEl) fEl.innerHTML=`All <span class="fc">${J}</span> slices built. Press ▶ to collapse them into the result, or drag the slider.`;
 }
 
 function mmFwd(){
@@ -1262,8 +1420,13 @@ function mmFwd(){
       t1++; applyS1(t1);
       if(t1>=totalSteps1()-1) mmBuildDone();
     }
+  } else if(mmPhase==='collapse'){
+    mmPauseAll();
+    collapseT=Math.min(1, collapseT+0.1);
+    applyCollapse(collapseT);
+    mmUpdateCanvasTitle();
+    if(collapseT>=1) mmPhase='done';
   }
-  // In collapse/done phases, step forward is a no-op (continuous animation)
 }
 
 function mmBack(){
@@ -1271,7 +1434,7 @@ function mmBack(){
     mmPauseAll();
     if(t1>-1){ t1--; applyS1(t1); }
   } else if(mmPhase==='collapse'){
-    if(colDir!==0){ mmPauseAll(); return; }
+    mmPauseAll();
     if(collapseT<=0){
       // Transition back to build phase at last step
       mmPhase='build';
@@ -1292,15 +1455,16 @@ function mmBack(){
       mmUpdateCanvasTitle();
       return;
     }
-    if(plusSprites.length===0) addPlusSprites();
-    document.getElementById('pbMM').textContent='⏸';
-    runColAnim(-1);
+    collapseT=Math.max(0, collapseT-0.1);
+    applyCollapse(collapseT);
+    mmUpdateCanvasTitle();
   } else { // done
+    mmPauseAll();
     mmPhase='collapse';
-    collapseT=1;
+    collapseT=Math.max(0, 1-0.1);
     if(plusSprites.length===0) addPlusSprites();
-    document.getElementById('pbMM').textContent='⏸';
-    runColAnim(-1);
+    applyCollapse(collapseT);
+    mmUpdateCanvasTitle();
   }
 }
 
@@ -1346,7 +1510,6 @@ function carryIntroToMatmul(){
   // The intro's outer product introA ⊗ introB is an I×K matrix. Make it the A matrix.
   // This means J (shared dim) = K_intro, so A is I×J where J = length of introB.
   J=introB.length;
-  document.getElementById('dimJ').value=J;
   // A[i][j] = introA[i] * introB[j]  (the outer product)
   A=Array.from({length:I},(_,i)=>Array.from({length:J},(_,j)=>introA[i]*introB[j]));
   // Randomize B (J×K)
@@ -1367,22 +1530,34 @@ function mmUpdateCanvasTitle(){
 // 2D SIDE GRIDS
 // ══════════════════════════════════════════════════
 function renderA(j,curI,curK){
-  const el=document.getElementById('gridA'); if(!el||!A.length) return;
-  el.style.gridTemplateColumns=`repeat(${J},42px)`; el.innerHTML='';
+  const el=document.getElementById('gridA');
+  if(!el||!A.length) return;
+  el.style.gridTemplateColumns=`repeat(${J},44px)`; el.innerHTML='';
   for(let i=0;i<I;i++) for(let jj=0;jj<J;jj++){
-    const d=document.createElement('div'); d.className='cell cell-a';
+    const d=document.createElement('div'); d.className='mat-cell neutral editable';
     if(j>=0){ if(jj===j){ if(i===curI) d.classList.add('cur'); else d.classList.add('hi'); } else d.classList.add('dim'); }
-    d.textContent=A[i][jj]; el.appendChild(d);
+    d.textContent=A[i][jj];
+    ((ci,cj)=>{ d.onclick=function(){ editCellInline(this, A[ci][cj], '#e06000', function(v){ A[ci][cj]=v; recomputeFromMatrices(); }); }; })(i,jj);
+    el.appendChild(d);
   }
+  // Rows (I) +/- on right side, Cols (J) +/- below
+  const rb=document.getElementById('dimRowBtnsA'); if(rb) rb.innerHTML=dimBtnsV('I');
+  const cb=document.getElementById('dimColBtnsA'); if(cb) cb.innerHTML=dimBtnsH('J');
 }
 function renderB(j,curI,curK){
-  const el=document.getElementById('gridB'); if(!el||!B.length) return;
-  el.style.gridTemplateColumns=`repeat(${K},42px)`; el.innerHTML='';
+  const el=document.getElementById('gridB');
+  if(!el||!B.length) return;
+  el.style.gridTemplateColumns=`repeat(${K},44px)`; el.innerHTML='';
   for(let jj=0;jj<J;jj++) for(let k=0;k<K;k++){
-    const d=document.createElement('div'); d.className='cell cell-b';
+    const d=document.createElement('div'); d.className='mat-cell neutral-b editable';
     if(j>=0){ if(jj===j){ if(k===curK) d.classList.add('cur'); else d.classList.add('hi'); } else d.classList.add('dim'); }
-    d.textContent=B[jj][k]; el.appendChild(d);
+    d.textContent=B[jj][k];
+    ((cj,ck)=>{ d.onclick=function(){ editCellInline(this, B[cj][ck], '#1a60b0', function(v){ B[cj][ck]=v; recomputeFromMatrices(); }); }; })(jj,k);
+    el.appendChild(d);
   }
+  // Rows (J) +/- on right side, Cols (K) +/- below
+  const rb=document.getElementById('dimRowBtnsB'); if(rb) rb.innerHTML=dimBtnsV('J');
+  const cb=document.getElementById('dimColBtnsB'); if(cb) cb.innerHTML=dimBtnsH('K');
 }
 
 // ══════════════════════════════════════════════════
@@ -1479,6 +1654,14 @@ function runColAnim(dir){
 // ══════════════════════════════════════════════════
 // MODE TABS
 // ══════════════════════════════════════════════════
+function moveCanvasTo(hostId){
+  const canvas=document.getElementById('mainCanvas');
+  if(!canvas) return;
+  const host=document.getElementById(hostId);
+  if(!host) return;
+  if(canvas.parentElement!==host) host.appendChild(canvas);
+}
+
 function setMode(m){
   const prev=currentMode;
   currentMode=m;
@@ -1493,20 +1676,17 @@ function setMode(m){
   document.getElementById('ctrl-intro').classList.toggle('hidden',m!=='intro');
   document.getElementById('ctrl-dotprod').classList.toggle('hidden',m!=='dotprod');
   document.getElementById('ctrl-matmul').classList.toggle('hidden',m!=='matmul');
-  // Hide J dimension control on intro tab (not relevant — intro only uses I and K)
-  document.getElementById('dimJGroup').classList.toggle('hidden',m==='intro');
-  // Hide 3D scene and side panels when not in matmul mode (pure 2D for intro and dotprod)
-  const show3d=m==='matmul';
-  document.querySelector('.scene-wrap').classList.toggle('hidden',!show3d);
-  document.getElementById('panelA').classList.toggle('hidden',m!=='matmul');
-  document.getElementById('panelB').classList.toggle('hidden',m!=='matmul');
 
   // Carry intro data when leaving intro tab
   if(prev==='intro' && m!=='intro' && introA.length>0){
     carryIntroToMatmul();
   }
 
-  if(show3d){
+  // Both matmul and dotprod use the 3D scene
+  const needs3d=m==='matmul'||m==='dotprod';
+
+  if(m==='matmul'){
+    moveCanvasTo('mmCanvasHost');
     mmPauseAll();
     mmPhase='build'; t1=-1; collapseT=0; lastOpJ=-1;
     document.getElementById('collapseSliderWrap').style.display='none';
@@ -1522,7 +1702,23 @@ function setMode(m){
     renderEinsumBadge('einsumIntro','intro');
   }
   if(m==='dotprod'){
-    dpReset();
+    moveCanvasTo('dpCanvasHost');
+    if(!sc) initScene();
+    if(!boxes.length){
+      rebuildBoxes();
+      dpCollapseT=0;
+    } else {
+      // Preserve collapse state from matmul tab
+      dpCollapseT=collapseT;
+    }
+    removePlusSprites();
+    // Set the collapse slider to match current state
+    const dpSlider=document.getElementById('dpCollapseSlider');
+    if(dpSlider) dpSlider.value=Math.round(dpCollapseT*1000);
+    // Apply the cube state: all green, at current collapse position
+    ensureAllGreen();
+    dpApplyCollapse(dpCollapseT);
+    dpStep=-1; dpSelectedI=-1; dpSelectedK=-1;
     renderEinsumBadge('einsumDotprod','dotprod');
     dpRenderAll();
   }
@@ -1536,19 +1732,18 @@ function rebuild(rnd){
   mmPhase='build';
   t1=-1; collapseT=0; lastOpJ=-1;
   pauseIntro(); introStep=0;
-  dpPause(); dpStep=-1;
+  dpPause(); dpStep=-1; dpSelectedI=-1; dpSelectedK=-1; dpCollapseT=0;
 
-  I=Math.max(1,Math.min(4,+document.getElementById('dimI').value||3));
-  J=Math.max(1,Math.min(4,+document.getElementById('dimJ').value||4));
-  K=Math.max(1,Math.min(4,+document.getElementById('dimK').value||3));
+  // I, J, K are already set; rebuild just regenerates data at current dimensions
 
   computeData(rnd);
   initIntroVecs(rnd);
 
-  // Only build 3D scene if on matmul tab (lazy init)
-  if(currentMode==='matmul'){
+  // Build 3D scene if on matmul or dotprod tab
+  if(currentMode==='matmul'||currentMode==='dotprod'){
     rebuildBoxes();
     removePlusSprites();
+    if(currentMode==='dotprod') ensureAllGreen();
   } else {
     // Clear stale boxes so lazy init triggers on tab switch
     if(sc) boxes.forEach(l=>l.forEach(r=>r.forEach(b=>{sc.scene.remove(b.mesh);sc.scene.remove(b.edges);sc.scene.remove(b.spr);})));
@@ -1591,6 +1786,38 @@ function renderEinsumBadge(containerId, tab){
 // TAB 1 — DOT PRODUCT: ROW · COLUMN (pure 2D)
 // ══════════════════════════════════════════════════
 let dpStep=-1, dpPlaying=false, dpTm=null;
+let dpCollapseT=0, dpSelectedI=-1, dpSelectedK=-1;
+
+// Apply collapse to cube on the dot product tab (like applyCollapse but preserves dp highlighting)
+function dpApplyCollapse(t){
+  if(!boxes.length) return;
+  dpCollapseT=t;
+  const e=-(Math.cos(Math.PI*t)-1)/2;
+  for(let j=0;j<J;j++){
+    const startY=packedY(j);
+    const y=startY*(1-e);
+    const showJ=(t<1)||(j===0);
+    for(let i=0;i<I;i++) for(let k=0;k<K;k++){
+      const b=boxes[i][j][k];
+      b.mesh.visible=showJ; b.edges.visible=showJ; b.spr.visible=showJ;
+      if(!showJ) continue;
+      b.mesh.position.y=y; b.edges.position.y=y; b.spr.position.y=y;
+    }
+  }
+  // Re-apply dp column highlighting on top of the position changes
+  dpHighlightCubeColumn();
+}
+
+function dpScrubCollapse(t){
+  dpApplyCollapse(t);
+  // Update the canvas title based on collapse
+  const title=document.getElementById('dpCanvasTitle');
+  if(title){
+    if(t<=0) title.textContent='The same cube — click a result cell to select a column';
+    else if(t>=1) title.textContent='Collapsed — each cell is a dot product sum';
+    else title.textContent=`Collapsing… (${Math.round(t*100)}%) — click a result cell to explore`;
+  }
+}
 
 function dpTermByTerm(){ return document.getElementById('chkDpTerm').checked; }
 function dpTotalSteps(){ return dpTermByTerm() ? I*K*J : I*K; }
@@ -1627,6 +1854,8 @@ function dpRenderAll(){
   dpRenderMatrices();
   dpRenderDots();
   dpRenderFormula();
+  dpHighlightCubeColumn();
+  dpRenderColumnDetail();
 }
 
 function dpRenderVectorIntro(){
@@ -1663,50 +1892,68 @@ function dpRenderVectorIntro(){
 function dpRenderMatrices(){
   const container=document.getElementById('dpMatrices');
   if(!container) return;
-  const {i:curI,k:curK,j:curJ}=dpDecodeStep(dpStep);
+  // Determine selection: exploration click takes priority
+  let curI, curK, curJ;
+  if(dpSelectedI>=0 && dpSelectedK>=0 && dpStep<0){
+    curI=dpSelectedI; curK=dpSelectedK; curJ=-1; // exploration: highlight full row/col
+  } else {
+    const dec=dpDecodeStep(dpStep);
+    curI=dec.i; curK=dec.k; curJ=dec.j;
+  }
   const completedUpTo=dpStep<0?-1:(dpTermByTerm()?Math.floor((dpStep)/J)-((dpStep%J===J-1)?0:1):dpStep-1);
 
-  // Matrix A (I×J)
+  // Matrix A (I×J): rows (I) on right, cols (J) below
   let aHtml='<div class="dp-mat-block">';
   aHtml+=`<div class="dp-mat-label"><span style="color:#e06000;font-weight:600">A</span> (${I}×${J})</div>`;
-  aHtml+=`<div class="dp-grid" style="grid-template-columns:repeat(${J},42px)">`;
+  aHtml+=`<div class="grid-with-row-btns">`;
+  aHtml+=`<div class="dp-grid" style="grid-template-columns:repeat(${J},44px)">`;
   for(let i=0;i<I;i++) for(let j=0;j<J;j++){
-    let cls='dp-cell dp-cell-a';
+    let cls='mat-cell neutral editable';
     if(curI>=0 && i===curI){
       if(curJ>=0 && j===curJ) cls+=' cur';
       else cls+=' hi';
     }
-    aHtml+=`<div class="${cls}">${A[i][j]}</div>`;
+    aHtml+=`<div class="${cls}" data-edit-a="${i},${j}">${A[i][j]}</div>`;
   }
-  aHtml+='</div></div>';
+  aHtml+=`</div>${dimBtnsV('I')}</div>`;
+  aHtml+=dimBtnsH('J');
+  aHtml+='</div>';
 
-  // Matrix B (J×K)
+  // Matrix B (J×K): rows (J) on right, cols (K) below
   let bHtml='<div class="dp-mat-block">';
   bHtml+=`<div class="dp-mat-label"><span style="color:#1a60b0;font-weight:600">B</span> (${J}×${K})</div>`;
-  bHtml+=`<div class="dp-grid" style="grid-template-columns:repeat(${K},42px)">`;
+  bHtml+=`<div class="grid-with-row-btns">`;
+  bHtml+=`<div class="dp-grid" style="grid-template-columns:repeat(${K},44px)">`;
   for(let j=0;j<J;j++) for(let k=0;k<K;k++){
-    let cls='dp-cell dp-cell-b';
+    let cls='mat-cell neutral-b editable';
     if(curK>=0 && k===curK){
       if(curJ>=0 && j===curJ) cls+=' cur';
       else cls+=' hi';
     }
-    bHtml+=`<div class="${cls}">${B[j][k]}</div>`;
+    bHtml+=`<div class="${cls}" data-edit-b="${j},${k}">${B[j][k]}</div>`;
   }
-  bHtml+='</div></div>';
+  bHtml+=`</div>${dimBtnsV('J')}</div>`;
+  bHtml+=dimBtnsH('K');
+  bHtml+='</div>';
 
-  // Result (I×K)
+  // Result (I×K) — in exploration mode, show all values and highlight selected
+  const exploring=dpSelectedI>=0 && dpStep<0;
   let rHtml='<div class="dp-mat-block">';
   rHtml+=`<div class="dp-mat-label"><span style="color:#1a9a40;font-weight:600">Result</span> (${I}×${K})</div>`;
-  rHtml+=`<div class="dp-grid" style="grid-template-columns:repeat(${K},42px)">`;
+  rHtml+=`<div class="dp-grid" style="grid-template-columns:repeat(${K},44px)">`;
   for(let i=0;i<I;i++) for(let k=0;k<K;k++){
     const cellIdx=i*K+k;
     const curCellIdx=curI>=0?curI*K+curK:-1;
-    let cls='dp-cell dp-cell-r';
+    let cls='mat-cell r';
     let val='';
-    if(cellIdx===curCellIdx){
+    if(exploring){
+      // Exploration mode: show all values, highlight selected cell
+      val=Res[i][k];
+      if(cellIdx===curCellIdx) cls+=' cur';
+      else cls+=' done';
+    } else if(cellIdx===curCellIdx){
       cls+=' cur';
-      if(dpTermByTerm()){
-        // Show partial sum up to curJ
+      if(dpTermByTerm() && curJ>=0){
         let partial=0;
         for(let jj=0;jj<=curJ;jj++) partial+=A[i][jj]*B[jj][k];
         val=partial;
@@ -1716,70 +1963,28 @@ function dpRenderMatrices(){
     } else if(cellIdx<=completedUpTo){
       cls+=' done';
       val=Res[i][k];
+    } else if(dpStep<0){
+      // Not started yet: show all values so user can click
+      val=Res[i][k];
+      cls+=' done';
+    } else {
+      cls+=' empty';
     }
-    rHtml+=`<div class="${cls}" onclick="dpJumpToCell(${i},${k})">${val}</div>`;
+    rHtml+=`<div class="${cls}" onclick="dpJumpToCell(${i},${k})" style="cursor:pointer">${val}</div>`;
   }
   rHtml+='</div></div>';
 
   container.innerHTML=aHtml+bHtml+rHtml;
-}
 
-function dpRenderDetail(){
-  const content=document.getElementById('dpDetailContent');
-  if(!content) return;
-  const {i,k,j:curJ}=dpDecodeStep(dpStep);
-  if(i<0){
-    content.innerHTML='Click ▶ or click a result cell to see the dot product';
-    return;
-  }
-
-  const upToJ=dpTermByTerm()?curJ:J-1;
-
-  // Row values
-  let rowHtml='<div class="dp-row-vals"><span style="color:#e06000;font-weight:600">A['+i+',:]</span> = [ ';
-  for(let j=0;j<J;j++){
-    let cls='dp-term dp-term-a';
-    if(dpTermByTerm() && j===curJ) cls+=' cur';
-    rowHtml+=`<span class="${cls}">${A[i][j]}</span>`;
-    if(j<J-1) rowHtml+=' ';
-  }
-  rowHtml+=' ]</div>';
-
-  // Col values
-  let colHtml='<div class="dp-col-vals"><span style="color:#1a60b0;font-weight:600">B[:,'+k+']</span> = [ ';
-  for(let j=0;j<J;j++){
-    let cls='dp-term dp-term-b';
-    if(dpTermByTerm() && j===curJ) cls+=' cur';
-    colHtml+=`<span class="${cls}">${B[j][k]}</span>`;
-    if(j<J-1) colHtml+=' ';
-  }
-  colHtml+=' ]</div>';
-
-  // Products
-  let prodHtml='<div class="dp-products"><span style="color:#666">Products:</span> ';
-  let sum=0;
-  for(let j=0;j<J;j++){
-    const prod=A[i][j]*B[j][k];
-    let cls='dp-term dp-term-prod';
-    if(dpTermByTerm()){
-      if(j===curJ) cls+=' cur';
-      else if(j>upToJ) cls+=' dim';
-    }
-    if(j<=upToJ) sum+=prod;
-    prodHtml+=`<span class="${cls}">${prod}</span>`;
-    if(j<J-1) prodHtml+=' <span style="color:#ccc">+</span> ';
-  }
-  prodHtml+='</div>';
-
-  // Sum
-  let sumHtml;
-  if(dpTermByTerm() && curJ<J-1){
-    sumHtml=`<div class="dp-sum-line"><span style="color:#666">Partial sum (j=0..${curJ}):</span> <span class="dp-accum">${sum}</span></div>`;
-  } else {
-    sumHtml=`<div class="dp-sum-line"><span style="color:#666">Sum:</span> <span class="dp-accum">${sum}</span> = Result[${i},${k}]</div>`;
-  }
-
-  content.innerHTML=rowHtml+colHtml+prodHtml+sumHtml;
+  // Attach edit handlers via event delegation
+  container.querySelectorAll('[data-edit-a]').forEach(el=>{
+    const [ci,cj]=el.dataset.editA.split(',').map(Number);
+    el.onclick=function(){ editCellInline(this, A[ci][cj], '#e06000', function(v){ A[ci][cj]=v; recomputeFromMatrices(); }); };
+  });
+  container.querySelectorAll('[data-edit-b]').forEach(el=>{
+    const [cj,ck]=el.dataset.editB.split(',').map(Number);
+    el.onclick=function(){ editCellInline(this, B[cj][ck], '#1a60b0', function(v){ B[cj][ck]=v; recomputeFromMatrices(); }); };
+  });
 }
 
 function dpRenderDots(){
@@ -1802,15 +2007,27 @@ function dpRenderDots(){
 function dpRenderFormula(){
   const f=document.getElementById('fDP');
   if(!f) return;
-  const {i,k,j:curJ}=dpDecodeStep(dpStep);
+  // Determine selection: exploration click takes priority
+  let i,k,curJ;
+  if(dpSelectedI>=0 && dpSelectedK>=0 && dpStep<0){
+    i=dpSelectedI; k=dpSelectedK; curJ=J-1;
+    // Show the full dot product formula for the explored cell
+    f.innerHTML=`Result[<span class="fa">${i}</span>,<span class="fb">${k}</span>] = `
+      +Array.from({length:J},(_,j)=>`<span class="fa">${A[i][j]}</span>·<span class="fb">${B[j][k]}</span>`).join(' + ')
+      +` = <span class="fc">${Res[i][k]}</span>`
+      +`  <em class="dp-connection">This is cube column [${i}, ·, ${k}] summed along j.</em>`;
+    return;
+  }
+  const dec=dpDecodeStep(dpStep);
+  i=dec.i; k=dec.k; curJ=dec.j;
   if(dpStep<0){
-    f.innerHTML='Each result cell is a dot product: row of A · column of B. Press ▶';
+    f.innerHTML='Click a result cell to see its dot product as a column through the cube. Or press ▶ to step through all.';
     return;
   }
   if(dpTermByTerm()){
     f.innerHTML=`Result[<span class="fa">${i}</span>,<span class="fb">${k}</span>]: term j=<span class="fc">${curJ}</span>: `
       +`<span class="fa">${A[i][curJ]}</span> × <span class="fb">${B[curJ][k]}</span> = <span class="fc">${A[i][curJ]*B[curJ][k]}</span>`
-      +`  <em class="dp-connection">Each term is one cell in tab ②'s cube at [${i},${curJ},${k}]. The dot product looks DOWN through the cube.</em>`;
+      +`  <em class="dp-connection">Each term is one cell in tab ①'s cube at [${i},${curJ},${k}]. The dot product looks DOWN through the cube.</em>`;
   } else {
     f.innerHTML=`Result[<span class="fa">${i}</span>,<span class="fb">${k}</span>] = `
       +Array.from({length:J},(_,j)=>`<span class="fa">${A[i][j]}</span>·<span class="fb">${B[j][k]}</span>`).join(' + ')
@@ -1818,11 +2035,150 @@ function dpRenderFormula(){
   }
 }
 
+// Highlight the cube column [curI, ·, curK] in the 3D scene
+// Uses dpSelectedI/K for exploration mode (click a result cell) or dpStep for auto-play
+function dpHighlightCubeColumn(){
+  if(!boxes.length||currentMode!=='dotprod') return;
+
+  // Determine which column is selected: exploration click takes priority, else auto-step
+  let selI, selK, selJ=-1;
+  if(dpSelectedI>=0 && dpSelectedK>=0 && dpStep<0){
+    // Exploration mode: user clicked a result cell
+    selI=dpSelectedI; selK=dpSelectedK;
+  } else {
+    const dec=dpDecodeStep(dpStep);
+    selI=dec.i; selK=dec.k; selJ=dec.j;
+  }
+
+  // Figure out which cells (columns) are already completed in auto-step mode
+  const completedUpTo=dpStep<0?-1:(dpTermByTerm()?Math.floor((dpStep)/J)-((dpStep%J===J-1)?0:1):dpStep-1);
+
+  // At full collapse (t=1), only j=0 is visible — show result values
+  const collapsed=dpCollapseT>=1;
+
+  for(let i=0;i<I;i++) for(let j=0;j<J;j++) for(let k=0;k<K;k++){
+    const b=boxes[i][j][k];
+    if(!b.mesh.visible) continue; // hidden by collapse
+
+    const cellIdx=i*K+k;
+
+    if(collapsed){
+      // Fully collapsed: show result values on the remaining j=0 plane
+      if(selI>=0 && i===selI && k===selK){
+        paintBox(i,j,k,0xf0a040,0.95,0x2a0e00,Res[i][k]);
+      } else {
+        paintBox(i,j,k,0x50c878,0.78,0,Res[i][k]);
+      }
+    } else if(selI>=0 && i===selI && k===selK){
+      // This column is the SELECTED dot product
+      if(dpTermByTerm() && selJ>=0 && j===selJ){
+        // Current term: bright orange
+        paintBox(i,j,k,0xe06000,0.95,0x2a0e00,Cube[i][j][k]);
+      } else if(dpTermByTerm() && selJ>=0 && j<selJ){
+        // Already-summed terms in this column: green
+        paintBox(i,j,k,0x50c878,0.78,0,Cube[i][j][k]);
+      } else if(!dpTermByTerm()||selJ<0){
+        // Whole column highlighted (exploration mode or non-term mode)
+        paintBox(i,j,k,0xf0a040,0.95,0x2a0e00,Cube[i][j][k]);
+      } else {
+        // Future terms in this column: dimmer but with values
+        paintBox(i,j,k,0xeeeeee,0.30,0,Cube[i][j][k]);
+      }
+    } else if(dpStep>=0 && cellIdx<=completedUpTo){
+      // Completed column (auto-play mode) — keep it green with values visible
+      paintBox(i,j,k,0x50c878,0.55,0,Cube[i][j][k]);
+    } else if(dpStep<0 && dpSelectedI<0){
+      // Initial state: show the full cube green (same as matmul tab's built cube)
+      paintBox(i,j,k,0x50c878,0.78,0,Cube[i][j][k]);
+    } else if(dpStep<0 && dpSelectedI>=0){
+      // Exploration mode: non-selected columns are dimmer
+      paintBox(i,j,k,0x50c878,0.25,0,Cube[i][j][k]);
+    } else {
+      // Not yet visited in auto-play — dim but still part of the cube
+      paintBox(i,j,k,0x50c878,0.12,0,null);
+    }
+  }
+}
+
+// Render the column detail panel showing row/column extraction and products
+function dpRenderColumnDetail(){
+  const el=document.getElementById('dpColumnDetail');
+  if(!el) return;
+
+  // Determine selection: exploration click takes priority
+  let i,k,curJ;
+  if(dpSelectedI>=0 && dpSelectedK>=0 && dpStep<0){
+    i=dpSelectedI; k=dpSelectedK; curJ=J-1; // show full dot product
+  } else {
+    const dec=dpDecodeStep(dpStep);
+    i=dec.i; k=dec.k; curJ=dec.j;
+  }
+  if(i<0){
+    el.innerHTML='<div class="dp-detail-title">Column detail</div>Click a result cell to see the dot product extracted from the cube';
+    return;
+  }
+
+  const upToJ=(dpStep>=0 && dpTermByTerm())?curJ:J-1;
+
+  // Row of A
+  let html='<div class="dp-detail-title">Cube column ['+i+', ·, '+k+'] = element-wise products</div>';
+  html+='<div class="dp-row-vals"><span style="color:#e06000;font-weight:600">A['+i+',:]</span> = [ ';
+  for(let j=0;j<J;j++){
+    let cls='dp-term dp-term-a';
+    if(dpTermByTerm()&&j===curJ) cls+=' cur';
+    html+=`<span class="${cls}">${A[i][j]}</span>`;
+    if(j<J-1) html+=' ';
+  }
+  html+=' ]</div>';
+
+  // Col of B
+  html+='<div class="dp-col-vals"><span style="color:#1a60b0;font-weight:600">B[:,'+k+']</span> = [ ';
+  for(let j=0;j<J;j++){
+    let cls='dp-term dp-term-b';
+    if(dpTermByTerm()&&j===curJ) cls+=' cur';
+    html+=`<span class="${cls}">${B[j][k]}</span>`;
+    if(j<J-1) html+=' ';
+  }
+  html+=' ]</div>';
+
+  // Products (cube column values)
+  html+='<div class="dp-products"><span style="color:#666">Cube['+i+',j,'+k+']:</span> ';
+  let sum=0;
+  for(let j=0;j<J;j++){
+    const prod=A[i][j]*B[j][k];
+    let cls='dp-term dp-term-prod';
+    if(dpTermByTerm()){
+      if(j===curJ) cls+=' cur';
+      else if(j>upToJ) cls+=' dim';
+    }
+    if(j<=upToJ) sum+=prod;
+    html+=`<span class="${cls}">${prod}</span>`;
+    if(j<J-1) html+=' <span style="color:#ccc">+</span> ';
+  }
+  html+='</div>';
+
+  // Sum
+  if(dpTermByTerm()&&curJ<J-1){
+    html+=`<div class="dp-sum-line"><span style="color:#666">Partial sum (j=0..${curJ}):</span> <span class="dp-accum">${sum}</span></div>`;
+  } else {
+    html+=`<div class="dp-sum-line"><span style="color:#666">Sum:</span> <span class="dp-accum">${sum}</span> = Result[${i},${k}]</div>`;
+  }
+
+  el.innerHTML=html;
+}
+
 function dpJumpToCell(ti,tk){
   dpPause();
+  // If not auto-playing, use exploration mode (set selection, keep dpStep=-1)
+  if(dpStep<0){
+    dpSelectedI=ti; dpSelectedK=tk;
+    dpRenderAll();
+    return;
+  }
+  // Otherwise jump auto-play to this cell
   const cellIdx=ti*K+tk;
   if(dpTermByTerm()){
-    dpStep=cellIdx*J; // first term of this cell
+    dpStep=cellIdx*J;
   } else {
     dpStep=cellIdx;
   }
@@ -1835,6 +2191,7 @@ function dpToggle(){
 }
 function dpPlay(){
   if(dpStep>=dpTotalSteps()-1) dpStep=-1;
+  dpSelectedI=-1; dpSelectedK=-1; // exit exploration mode
   dpPlaying=true;
   document.getElementById('pbDP').textContent='⏸';
   dpTick();
@@ -1866,11 +2223,13 @@ function dpBack(){
 function dpReset(){
   dpPause();
   dpStep=-1;
+  dpSelectedI=-1; dpSelectedK=-1;
   dpRenderAll();
 }
 function dpTermToggle(){
   dpPause();
   dpStep=-1;
+  dpSelectedI=-1; dpSelectedK=-1;
   dpRenderAll();
 }
 
