@@ -27,8 +27,10 @@ export function toggleInfo() {
 export function applyInfoState() {
   const shelf = document.getElementById('infoShelf');
   const backdrop = document.getElementById('infoShelfBackdrop');
+  const handle = document.getElementById('infoShelfHandle');
   if (shelf) shelf.classList.toggle('open', infoOpen);
   if (backdrop) backdrop.classList.toggle('open', infoOpen);
+  if (handle) handle.classList.toggle('open', infoOpen);
   if (infoOpen && onShelfOpen) onShelfOpen();
 }
 

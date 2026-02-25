@@ -104,7 +104,7 @@ function renderIntroStep1(wrap) {
   html += shapeTag(`(${I}, <strong>1</strong>) → (${I}, ${K})`);
   html += '</div>';
 
-  html += '<div class="intro-sym">*</div>';
+  html += '<div class="intro-sym">⊙</div>';
 
   html += '<div class="intro-block">';
   html += '<div class="intro-block-label"><span style="color:#1a60b0;font-weight:700">b</span><span style="color:#aaa">[None, :]</span> broadcast ↓</div>';
@@ -143,6 +143,20 @@ function renderIntroStep1(wrap) {
   html += '</div>';
   html += '</div>';
   wrap.innerHTML = html;
+
+  // Highlight input cells as each result cell appears
+  introStopHiAnim();
+  const hiCellDelay = Math.max(delay * 0.3, 60);
+  const total = I * K;
+  let idx = 0;
+  function hiTick() {
+    const ci = Math.floor(idx / K), ck = idx % K;
+    introHover(ci, ck);
+    idx++;
+    if (idx < total) introHiTm = setTimeout(hiTick, hiCellDelay);
+    else introHiTm = setTimeout(() => { introClearHover(); }, hiCellDelay);
+  }
+  introHiTm = setTimeout(hiTick, broadcastTime);
 }
 
 function renderIntroStep2(wrap) {
@@ -168,7 +182,7 @@ function renderIntroStep2(wrap) {
   html += '</div>';
   html += '</div>';
 
-  html += '<div class="intro-sym">*</div>';
+  html += '<div class="intro-sym">⊙</div>';
 
   html += '<div class="intro-block">';
   html += `<div class="intro-block-label">(${I}, ${K})</div>`;

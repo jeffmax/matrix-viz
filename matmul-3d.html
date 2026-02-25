@@ -207,6 +207,22 @@ input[type=range] { width: 88px; accent-color: #333; }
   cursor: pointer; padding: 0; line-height: 1;
 }
 .info-shelf-close:hover { color: #333; }
+/* Left-edge pull handle */
+.info-shelf-handle {
+  position: fixed; top: 50%; left: 0;
+  transform: translateY(-50%);
+  z-index: 1001;
+  width: 24px; height: 64px;
+  background: #f0f0f0; border: 1px solid #ddd; border-left: none;
+  border-radius: 0 6px 6px 0;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.06);
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.15s;
+  font-size: 0.7rem; color: #999;
+}
+.info-shelf-handle:hover { background: #e8e8e8; color: #555; }
+.info-shelf-handle.open { left: 380px; }
+@media (max-width: 448px) { .info-shelf-handle.open { left: 85vw; } }
 
 /* ── Intro tab: outer product a ⊗ b ── */
 .intro-wrap {
@@ -399,10 +415,10 @@ input[type=range] { width: 88px; accent-color: #333; }
 <div class="top-controls">
   <button class="ctrl-btn primary" onclick="rebuild(true)">Randomize</button>
   <button class="ctrl-btn" onclick="rebuild(false)">Reset (1s)</button>
-  <button class="ctrl-btn" id="infoShelfBtn" onclick="toggleInfo()">Learn more</button>
 </div>
 
 <!-- Info shelf overlay -->
+<div id="infoShelfHandle" class="info-shelf-handle" onclick="toggleInfo()">ⓘ</div>
 <div id="infoShelfBackdrop" class="info-shelf-backdrop" onclick="toggleInfo()"></div>
 <div id="infoShelf" class="info-shelf">
   <div class="info-shelf-inner">

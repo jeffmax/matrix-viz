@@ -163,6 +163,7 @@ function dpRenderMatrices() {
   const exploring = dpSelectedI >= 0 && dpStep < 0;
   let rHtml = '<div class="dp-mat-block">';
   rHtml += `<div class="dp-mat-label"><span style="color:#1a9a40;font-weight:600">Result</span> (${I}×${K})</div>`;
+  rHtml += '<div class="grid-with-row-btns">';
   rHtml += `<div class="dp-grid" style="grid-template-columns:repeat(${K},44px)">`;
   for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
     const cellIdx = i * K + k;
@@ -193,7 +194,11 @@ function dpRenderMatrices() {
     }
     rHtml += `<div class="${cls}" onclick="dpJumpToCell(${i},${k})" style="cursor:pointer">${val}</div>`;
   }
-  rHtml += '</div></div>';
+  rHtml += '</div>';
+  rHtml += '<div style="width:30px"></div>'; // spacer matching dimBtnsV width
+  rHtml += '</div>';
+  rHtml += '<div style="height:25px"></div>'; // spacer matching dimBtnsH height
+  rHtml += '</div>';
 
   container.innerHTML = aHtml + '<div class="mm-sym">&times;</div>' + bHtml + '<div class="mm-sym">=</div>' + rHtml;
 
