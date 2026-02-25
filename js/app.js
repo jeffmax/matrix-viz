@@ -2,8 +2,9 @@
 // APP — ENTRY POINT, MODE SWITCHING, INIT
 // ══════════════════════════════════════════════════
 import { I, J, K, currentMode, setCurrentMode, computeData, changeDim,
-         registerCallbacks, applyInfoState, toggleInfo, recomputeFromMatrices } from './shared.js';
-import { sc, initScene, moveCanvasTo } from './scene.js';
+         registerCallbacks, toggleInfo, recomputeFromMatrices,
+         infoOpen, setOnShelfOpen } from './shared.js';
+import { sc, initScene, moveCanvasTo, snapToDefault } from './scene.js';
 import { boxes, rebuildBoxes, addPlusPlanes, removePlusPlanes, ensureAllGreen, clearBoxes } from './cube-manager.js';
 import { introA, introB, initIntroVecs, renderIntro, pauseIntro, resetIntroStep,
          resizeIntroVecs, stepFwdIntro, stepBackIntro, togglePlayIntro, resetIntro,
@@ -13,7 +14,8 @@ import { mmPauseAll, mmReset, mmToggle, mmFwd, mmBack, mmScrubCollapse,
          mmUpdateCanvasTitle, collapseT, mmPhase, applyCollapse } from './tab-matmul.js';
 import { dpPause, dpRenderAll, dpReset, dpApplyCollapse, dpScrubCollapse,
          dpToggle, dpFwd, dpBack, dpJumpToCell,
-         resetDpState, dpCollapseT, setDpCollapseT } from './tab-dotprod.js';
+         resetDpState, dpCollapseT, setDpCollapseT,
+         dpRenderVectorIntro } from './tab-dotprod.js';
 
 // ── Register callbacks for shared.js ──
 registerCallbacks({
@@ -118,6 +120,7 @@ function setMode(m) {
     renderEinsumBadge('einsumDotprod', 'dotprod');
     dpRenderAll();
   }
+  if (infoOpen) updateShelfContent();
 }
 
 // ══════════════════════════════════════════════════
@@ -170,6 +173,38 @@ export function renderEinsumBadge(containerId, tab) {
   }
 }
 
+// ── Shelf content routing ──
+function updateShelfContent() {
+  const el = document.getElementById('shelfContent');
+  if (!el) return;
+  if (currentMode === 'intro') {
+    el.innerHTML =
+      `<div class="broadcast-rules">`
+      + `<strong>Broadcasting rules</strong> (NumPy / PyTorch):`
+      + `<ol>`
+      + `<li>Right-align the shapes</li>`
+      + `<li>Dimensions of size 1 stretch to match</li>`
+      + `<li>Missing dimensions are treated as size 1</li>`
+      + `</ol>`
+      + `<div class="sidebar-link" style="margin-top:6px">See also: <a href="https://github.com/srush/Tensor-Puzzles" target="_blank">Sasha Rush's Tensor Puzzles</a></div>`
+      + `</div>`;
+  } else if (currentMode === 'matmul') {
+    el.innerHTML =
+      `<div class="broadcast-rules">`
+      + `<strong>Outer product perspective</strong>`
+      + `<p style="margin-top:6px">Matrix multiplication as a sum of rank-1 outer products:</p>`
+      + `<p style="margin-top:4px"><strong>Result = &Sigma;<sub>j</sub> A[:,j] &otimes; B[j,:]</strong></p>`
+      + `<p style="margin-top:6px">Each slice j of the cube is one outer product A[:,j] &otimes; B[j,:]. `
+      + `Building the cube shows all J slices; collapsing sums them along the j axis into the final result.</p>`
+      + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic">This decomposition is key to understanding LoRA (low-rank adaptation) and why attention heads can be viewed as outer product accumulators.</p>`
+      + `</div>`;
+  } else if (currentMode === 'dotprod') {
+    el.innerHTML = '<div class="dp-vector-intro" id="shelfDpIntro"></div>';
+    dpRenderVectorIntro('shelfDpIntro');
+  }
+}
+setOnShelfOpen(updateShelfContent);
+
 // ── Wire up window globals for HTML onclick handlers ──
 window.rebuild = rebuild;
 window.setMode = setMode;
@@ -196,8 +231,9 @@ window.dpToggle = dpToggle;
 window.dpReset = dpReset;
 window.dpJumpToCell = dpJumpToCell;
 window.dpScrubCollapse = dpScrubCollapse;
+// Snap-back
+window.snapToDefault = snapToDefault;
 
 // ── Init ──
 rebuild(true);
 setMode('intro');
-applyInfoState();

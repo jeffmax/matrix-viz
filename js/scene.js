@@ -71,6 +71,38 @@ export function initScene() {
   })();
 }
 
+let snapAnimId = null;
+
+export function cancelSnap() {
+  if (snapAnimId != null) { cancelAnimationFrame(snapAnimId); snapAnimId = null; }
+}
+
+export function snapToDefault() {
+  cancelSnap();
+  if (!orb) return;
+  const startTheta = orb.theta, startPhi = orb.phi;
+  const dTheta = FIXED_THETA - startTheta, dPhi = FIXED_PHI - startPhi;
+  if (Math.abs(dTheta) < 0.001 && Math.abs(dPhi) < 0.001) return;
+  const dur = 400;
+  let t0 = null;
+  function tick(now) {
+    if (t0 == null) { t0 = now; snapAnimId = requestAnimationFrame(tick); return; }
+    const elapsed = now - t0;
+    const p = Math.min(elapsed / dur, 1);
+    const e = 1 - Math.pow(1 - p, 3); // ease-out cubic
+    orb.theta = startTheta + dTheta * e;
+    orb.phi = startPhi + dPhi * e;
+    if (p < 1) snapAnimId = requestAnimationFrame(tick);
+    else snapAnimId = null;
+  }
+  snapAnimId = requestAnimationFrame(tick);
+  // Cancel snap on user drag
+  const canvas = document.getElementById('mainCanvas');
+  const abort = () => { cancelSnap(); canvas.removeEventListener('mousedown', abort); canvas.removeEventListener('touchstart', abort); };
+  canvas.addEventListener('mousedown', abort, {once: true});
+  canvas.addEventListener('touchstart', abort, {once: true});
+}
+
 export function moveCanvasTo(hostId) {
   const canvas = document.getElementById('mainCanvas');
   if (!canvas) return;

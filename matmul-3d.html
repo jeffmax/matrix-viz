@@ -176,33 +176,37 @@ input[type=range] { width: 88px; accent-color: #333; }
 
 .hidden { display: none !important; }
 
-/* ── Drawer layout for tabs ── */
+/* ── Tab layout ── */
 .tab-container { max-width: 1100px; width: 100%; }
-.info-toggle {
-  font-size: 0.72rem; color: #888; background: none; border: 1px solid #ddd;
-  border-radius: 4px; padding: 3px 10px; cursor: pointer; margin-bottom: 8px;
-  transition: background 0.15s;
+.tab-inner { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+
+/* ── Info shelf overlay ── */
+.info-shelf-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.25);
+  z-index: 999; opacity: 0; pointer-events: none;
+  transition: opacity 0.25s ease;
 }
-.info-toggle:hover { background: #f5f5f5; }
-.info-toggle.active { background: #f0f0f0; }
-.tab-with-drawer {
-  display: flex; gap: 18px; align-items: flex-start; width: 100%;
+.info-shelf-backdrop.open { opacity: 1; pointer-events: auto; }
+.info-shelf {
+  position: fixed; top: 0; left: 0; bottom: 0;
+  width: 380px; max-width: 85vw;
+  background: #fff; z-index: 1000;
+  box-shadow: 4px 0 24px rgba(0,0,0,0.12);
+  transform: translateX(-100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
 }
-.info-drawer {
-  flex: 0 0 280px; display: flex; flex-direction: column; gap: 10px;
-  transition: flex-basis 0.2s ease, opacity 0.15s ease, padding 0.2s ease;
-  overflow: hidden;
+.info-shelf.open { transform: translateX(0); }
+.info-shelf-inner {
+  padding: 24px 20px 32px;
+  display: flex; flex-direction: column; gap: 16px;
 }
-.info-drawer.closed {
-  flex-basis: 0px; opacity: 0; padding: 0; gap: 0;
-  pointer-events: none; min-width: 0;
+.info-shelf-close {
+  align-self: flex-end;
+  background: none; border: none; font-size: 1.4rem; color: #999;
+  cursor: pointer; padding: 0; line-height: 1;
 }
-.tab-main { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 14px; min-width: 0; }
-@media (max-width: 700px) {
-  .tab-with-drawer { flex-direction: column; }
-  .info-drawer { flex: none; width: 100%; }
-  .info-drawer.closed { display: none; }
-}
+.info-shelf-close:hover { color: #333; }
 
 /* ── Intro tab: outer product a ⊗ b ── */
 .intro-wrap {
@@ -310,7 +314,7 @@ input[type=range] { width: 88px; accent-color: #333; }
   padding: 10px 0; max-width: 900px; margin: 0 auto;
 }
 .dp-matrices {
-  display: flex; align-items: flex-start; justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   gap: 24px; flex-wrap: wrap;
 }
 .dp-mat-block {
@@ -355,7 +359,7 @@ input[type=range] { width: 88px; accent-color: #333; }
 
 /* ── Dot product top row: matrices + cube column ── */
 .dp-top-row {
-  display: flex; align-items: flex-start; justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   gap: 24px; flex-wrap: wrap;
 }
 .dp-cube-col {
@@ -395,6 +399,16 @@ input[type=range] { width: 88px; accent-color: #333; }
 <div class="top-controls">
   <button class="ctrl-btn primary" onclick="rebuild(true)">Randomize</button>
   <button class="ctrl-btn" onclick="rebuild(false)">Reset (1s)</button>
+  <button class="ctrl-btn" id="infoShelfBtn" onclick="toggleInfo()">Learn more</button>
+</div>
+
+<!-- Info shelf overlay -->
+<div id="infoShelfBackdrop" class="info-shelf-backdrop" onclick="toggleInfo()"></div>
+<div id="infoShelf" class="info-shelf">
+  <div class="info-shelf-inner">
+    <button class="info-shelf-close" onclick="toggleInfo()">&times;</button>
+    <div id="shelfContent"></div>
+  </div>
 </div>
 
 <div class="mode-tabs">
@@ -406,89 +420,69 @@ input[type=range] { width: 88px; accent-color: #333; }
 
 <!-- TAB 0 — Broadcasting & Outer Product -->
 <div id="ctrl-intro" class="tab-container">
-  <button class="info-toggle active" onclick="toggleInfo()">ⓘ Info ◂</button>
-  <div class="tab-with-drawer">
-    <div class="info-drawer" id="drawer-intro">
-      <div class="broadcast-rules" id="broadcastRules">
-        <strong>Broadcasting rules</strong> (NumPy / PyTorch):
-        <ol>
-          <li>Right-align the shapes</li>
-          <li>Dimensions of size 1 stretch to match</li>
-          <li>Missing dimensions are treated as size 1</li>
-        </ol>
-        <div class="sidebar-link" style="margin-top:6px">See also: <a href="https://github.com/srush/Tensor-Puzzles" target="_blank">Sasha Rush's Tensor Puzzles</a></div>
-      </div>
-    </div>
-    <div class="tab-main">
-      <div class="controls-row">
-        <div class="playback">
-          <button class="play-btn" onclick="stepBackIntro()" title="Step back">◀</button>
-          <button class="play-btn big" onclick="stepFwdIntro()" title="Step forward">▶|</button>
-          <button class="play-btn" id="pbIntro" onclick="togglePlayIntro()">▶</button>
-          <button class="play-btn" onclick="resetIntro()" title="Reset">↺</button>
-          <div class="slider-wrap">
-            <span>slow</span>
-            <input type="range" id="spIntro" min="200" max="1200" value="200" step="50">
-            <span>fast</span>
-          </div>
+  <div class="tab-inner">
+    <div class="controls-row">
+      <div class="playback">
+        <button class="play-btn" onclick="stepBackIntro()" title="Step back">◀</button>
+        <button class="play-btn big" onclick="stepFwdIntro()" title="Step forward">▶|</button>
+        <button class="play-btn" id="pbIntro" onclick="togglePlayIntro()">▶</button>
+        <button class="play-btn" onclick="resetIntro()" title="Reset">↺</button>
+        <div class="slider-wrap">
+          <span>slow</span>
+          <input type="range" id="spIntro" min="200" max="1200" value="200" step="50">
+          <span>fast</span>
         </div>
-        <div class="einsum-badge" id="einsumIntro"></div>
       </div>
-      <div id="introDisplay" class="intro-wrap"></div>
-      <div class="formula-bar">
-        <div class="formula-text" id="fIntro"></div>
-      </div>
-      <div class="step-dots" id="dIntro"></div>
+      <div class="einsum-badge" id="einsumIntro"></div>
     </div>
+    <div id="introDisplay" class="intro-wrap"></div>
+    <div class="formula-bar">
+      <div class="formula-text" id="fIntro"></div>
+    </div>
+    <div class="step-dots" id="dIntro"></div>
   </div>
 </div>
 
 <!-- TAB 2 — Dot Product: Row · Column with cube-column visualization -->
 <div id="ctrl-dotprod" class="hidden tab-container">
-  <button class="info-toggle active" onclick="toggleInfo()">ⓘ Info ◂</button>
-  <div class="tab-with-drawer">
-    <div class="info-drawer" id="drawer-dotprod">
-      <div class="dp-vector-intro" id="dpVectorIntro"></div>
+  <div class="tab-inner">
+    <div class="controls-row">
+      <div class="playback">
+        <button class="play-btn" onclick="dpBack()" title="Step back">◀</button>
+        <button class="play-btn big" onclick="dpFwd()" title="Step forward">▶|</button>
+        <button class="play-btn" id="pbDP" onclick="dpToggle()">▶</button>
+        <button class="play-btn" onclick="dpReset()" title="Reset">↺</button>
+        <div class="slider-wrap">
+          <span>slow</span>
+          <input type="range" id="spDP" min="200" max="1200" value="200" step="50">
+          <span>fast</span>
+        </div>
+      </div>
+      <div class="einsum-badge" id="einsumDotprod"></div>
     </div>
-    <div class="tab-main">
-      <div class="controls-row">
-        <div class="playback">
-          <button class="play-btn" onclick="dpBack()" title="Step back">◀</button>
-          <button class="play-btn big" onclick="dpFwd()" title="Step forward">▶|</button>
-          <button class="play-btn" id="pbDP" onclick="dpToggle()">▶</button>
-          <button class="play-btn" onclick="dpReset()" title="Reset">↺</button>
-          <div class="slider-wrap">
-            <span>slow</span>
-            <input type="range" id="spDP" min="200" max="1200" value="200" step="50">
-            <span>fast</span>
-          </div>
-        </div>
-        <div class="einsum-badge" id="einsumDotprod"></div>
-      </div>
-      <div class="dp-top-row">
-        <div class="dp-matrices" id="dpMatrices"></div>
-        <div class="dp-cube-col" id="dpCubeCol">
-          <div class="canvas-title" id="dpCanvasTitle">The same cube — click a result cell to select a column</div>
-          <div id="dpCanvasHost"></div>
-          <div class="canvas-hint">Drag to rotate · Click result cells to explore columns</div>
-          <div class="slider-wrap" id="dpCollapseWrap" style="margin-top:6px">
-            <span>stacked</span>
-            <input type="range" id="dpCollapseSlider" min="0" max="1000" value="0" step="1"
-                   oninput="dpScrubCollapse(this.value/1000)">
-            <span>summed</span>
-          </div>
+    <div class="dp-top-row">
+      <div class="dp-matrices" id="dpMatrices"></div>
+      <div class="dp-cube-col" id="dpCubeCol">
+        <div class="canvas-title" id="dpCanvasTitle">The same cube — click a result cell to select a column</div>
+        <div id="dpCanvasHost"></div>
+        <div class="canvas-hint">Drag to rotate · <button class="ctrl-btn" style="font-size:0.62rem;height:22px;padding:0 8px" onclick="snapToDefault()">Reset view</button> · Click result cells to explore</div>
+        <div class="slider-wrap" id="dpCollapseWrap" style="margin-top:6px">
+          <span>stacked</span>
+          <input type="range" id="dpCollapseSlider" min="0" max="1000" value="0" step="1"
+                 oninput="dpScrubCollapse(this.value/1000)">
+          <span>summed</span>
         </div>
       </div>
-      <div class="formula-bar">
-        <div class="formula-text" id="fDP">Click a result cell to see its dot product as a column through the cube</div>
-      </div>
-      <div class="step-dots" id="dDP"></div>
-      <div class="dp-connection">
-        The same cube from tab ① — but now each vertical column is a dot product (row of A · column of B) waiting to be summed.
-      </div>
-      <div style="font-size:0.68rem;color:#bbb;margin-top:4px;text-align:center">
-        See this as a full matrix multiply animation at <a href="http://matrixmultiplication.xyz" target="_blank" style="color:#999">matrixmultiplication.xyz</a>
-      </div>
+    </div>
+    <div class="formula-bar">
+      <div class="formula-text" id="fDP">Click a result cell to see its dot product as a column through the cube</div>
+    </div>
+    <div class="step-dots" id="dDP"></div>
+    <div class="dp-connection">
+      The same cube from tab ① — but now each vertical column is a dot product (row of A · column of B) waiting to be summed.
+    </div>
+    <div style="font-size:0.68rem;color:#bbb;margin-top:4px;text-align:center">
+      See this as a full matrix multiply animation at <a href="http://matrixmultiplication.xyz" target="_blank" style="color:#999">matrixmultiplication.xyz</a>
     </div>
   </div>
 </div>
@@ -537,7 +531,7 @@ input[type=range] { width: 88px; accent-color: #333; }
       <div id="mmCanvasHost">
         <canvas id="mainCanvas" width="420" height="380"></canvas>
       </div>
-      <div class="canvas-hint">Drag to rotate</div>
+      <div class="canvas-hint">Drag to rotate · <button class="ctrl-btn" style="font-size:0.62rem;height:22px;padding:0 8px" onclick="snapToDefault()">Reset view</button></div>
       <div class="slider-wrap" id="collapseSliderWrap" style="margin-top:6px">
         <span>stacked</span>
         <input type="range" id="spCollapse" min="0" max="1000" value="0" step="1"

@@ -78,7 +78,6 @@ function dpDecodeStep(s) {
 }
 
 export function dpRenderAll() {
-  dpRenderVectorIntro();
   dpRenderMatrices();
   dpRenderDots();
   dpRenderFormula();
@@ -86,8 +85,8 @@ export function dpRenderAll() {
   dpRenderColumnDetail();
 }
 
-function dpRenderVectorIntro() {
-  const el = document.getElementById('dpVectorIntro');
+export function dpRenderVectorIntro(targetId) {
+  const el = document.getElementById(targetId || 'shelfContent');
   if (!el) return;
   const aRow = Array.from({length: J}, (_, j) => A[0][j]);
   const bCol = Array.from({length: J}, (_, j) => B[j][0]);
@@ -196,7 +195,7 @@ function dpRenderMatrices() {
   }
   rHtml += '</div></div>';
 
-  container.innerHTML = aHtml + bHtml + rHtml;
+  container.innerHTML = aHtml + '<div class="mm-sym">&times;</div>' + bHtml + '<div class="mm-sym">=</div>' + rHtml;
 
   container.querySelectorAll('[data-edit-a]').forEach(el => {
     const [ci, cj] = el.dataset.editA.split(',').map(Number);

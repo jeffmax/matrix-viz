@@ -12,23 +12,24 @@ export let A = [], B = [], Cube = [], Res = [];
 export let currentMode = 'intro';
 export function setCurrentMode(m) { currentMode = m; }
 
-// ── Info drawer toggle ──
-export let infoOpen = localStorage.getItem('matmul-info-open') !== 'false';
+// ── Info shelf toggle ──
+export let infoOpen = false;
+
+// Callback set by app.js to populate shelf content for current tab
+export let onShelfOpen = null;
+export function setOnShelfOpen(fn) { onShelfOpen = fn; }
 
 export function toggleInfo() {
   infoOpen = !infoOpen;
-  localStorage.setItem('matmul-info-open', String(infoOpen));
   applyInfoState();
 }
 
 export function applyInfoState() {
-  document.querySelectorAll('.info-drawer').forEach(d =>
-    d.classList.toggle('closed', !infoOpen)
-  );
-  document.querySelectorAll('.info-toggle').forEach(b => {
-    b.classList.toggle('active', infoOpen);
-    b.textContent = infoOpen ? 'ⓘ Info ◂' : 'ⓘ Info ▸';
-  });
+  const shelf = document.getElementById('infoShelf');
+  const backdrop = document.getElementById('infoShelfBackdrop');
+  if (shelf) shelf.classList.toggle('open', infoOpen);
+  if (backdrop) backdrop.classList.toggle('open', infoOpen);
+  if (infoOpen && onShelfOpen) onShelfOpen();
 }
 
 // ── Callback registry (avoids circular imports) ──

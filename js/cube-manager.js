@@ -2,7 +2,7 @@
 // 3D CUBE MANAGEMENT
 // ══════════════════════════════════════════════════
 import { I, J, K, Cube } from './shared.js';
-import { sc, orb, CELL, STEP, FIXED_THETA, FIXED_PHI, makeTex, makePlusTex, initScene } from './scene.js';
+import { sc, orb, CELL, STEP, FIXED_THETA, FIXED_PHI, makeTex, makePlusTex, initScene, cancelSnap } from './scene.js';
 
 const THREE = window.THREE;
 
@@ -10,6 +10,7 @@ export let boxes = [];
 export let plusPlanes = [];
 
 export function rebuildBoxes() {
+  cancelSnap();
   if (!sc) initScene();
   boxes.forEach(l => l.forEach(r => r.forEach(b => { sc.scene.remove(b.mesh); sc.scene.remove(b.edges); sc.scene.remove(b.spr); })));
   plusPlanes.forEach(pl => pl.forEach(s => sc.scene.remove(s)));
