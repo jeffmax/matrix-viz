@@ -12,7 +12,7 @@ import { mmPauseAll, mmReset, mmToggle, mmFwd, mmBack, mmScrubCollapse,
          resetMmBuildState, applyS1, renderA, renderB, carryIntroToMatmul,
          mmUpdateCanvasTitle, collapseT, mmPhase, applyCollapse } from './tab-matmul.js';
 import { dpPause, dpRenderAll, dpReset, dpApplyCollapse, dpScrubCollapse,
-         dpToggle, dpFwd, dpBack, dpJumpToCell, dpTermToggle,
+         dpToggle, dpFwd, dpBack, dpJumpToCell,
          resetDpState, dpCollapseT, setDpCollapseT } from './tab-dotprod.js';
 
 // ── Register callbacks for shared.js ──
@@ -195,7 +195,6 @@ window.dpFwd = dpFwd;
 window.dpToggle = dpToggle;
 window.dpReset = dpReset;
 window.dpJumpToCell = dpJumpToCell;
-window.dpTermToggle = dpTermToggle;
 window.dpScrubCollapse = dpScrubCollapse;
 
 // ── Init ──

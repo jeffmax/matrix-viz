@@ -60,7 +60,7 @@ export function dpScrubCollapse(t) {
   }
 }
 
-function dpTermByTerm() { return document.getElementById('chkDpTerm').checked; }
+function dpTermByTerm() { return true; }
 function dpTotalSteps() { return dpTermByTerm() ? I * K * J : I * K; }
 function dpDelay() { return 1400 - parseInt(document.getElementById('spDP').value || 600); }
 
@@ -442,9 +442,4 @@ export function dpReset() {
   dpRenderAll();
 }
 
-export function dpTermToggle() {
-  dpPause();
-  dpStep = -1;
-  dpSelectedI = -1; dpSelectedK = -1;
-  dpRenderAll();
-}
+// dpTermToggle removed — dot product tab always shows terms one by one
