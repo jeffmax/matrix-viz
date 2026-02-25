@@ -2,18 +2,69 @@
 
 ## What this is
 
-An interactive 3D visualization of matrix multiplication built as a single HTML file using Three.js (r128). The goal is to help people doing Karpathy's *nn-zero-to-hero* course (and similar) develop deep geometric intuition for matrix multiplication — not just the algorithm, but the underlying structure that matters for understanding attention, backprop, and linear layers.
+An interactive 3D visualization of matrix multiplication using Three.js (r128). The goal is to help people doing Karpathy's *nn-zero-to-hero* course (and similar) develop deep geometric intuition for matrix multiplication — not just the algorithm, but the underlying structure that matters for understanding attention, backprop, and linear layers.
 
-## Current file
+## Running locally
 
-`matmul-3d.html` — self-contained, no build step, open directly in browser.
+```bash
+npm start          # serves on http://localhost:3000
+# open http://localhost:3000/matmul-3d.html
+```
+
+ES modules require a local server — `file://` won't work due to CORS.
+
+## File structure
+
+```
+matmul-3d.html          HTML + CSS (no inline JS)
+js/
+  shared.js             Global state (I,J,K, A,B,Cube,Res), dimensions, utilities, callback registry
+  scene.js              Three.js scene, camera, custom orbit controls, render loop
+  cube-manager.js       3D box mesh management, paint functions, plus planes
+  tab-intro.js          Tab 0: Outer Product intro (2D, no Three.js)
+  tab-matmul.js         Tab 1: Matrix Multiply — Build & Collapse (3D)
+  tab-dotprod.js        Tab 2: Dot Product view (3D)
+  app.js                Entry point: mode switching, rebuild, einsum badge, window globals
+package.json            Dev server (serve)
+.gitignore              node_modules/
+```
+
+### Import graph (no circular dependencies)
+
+```
+shared.js        ← scene.js, cube-manager.js, tab-intro.js, tab-matmul.js, tab-dotprod.js, app.js
+scene.js         ← cube-manager.js, tab-matmul.js, tab-dotprod.js, app.js
+cube-manager.js  ← tab-matmul.js, tab-dotprod.js, app.js
+tab-intro.js     ← app.js
+tab-matmul.js    ← app.js
+tab-dotprod.js   ← app.js
+```
+
+### Key patterns
+
+- **ES module live bindings**: `export let I, J, K` in shared.js — importers always see current values. Only shared.js can reassign; other modules use `setData()` for bulk updates.
+- **Callback registry**: shared.js fires `tabCallbacks.onDimChange()` / `tabCallbacks.onRecompute()` without importing tab modules. app.js registers the handlers via `registerCallbacks()`.
+- **Window globals**: HTML onclick handlers call `window.functionName`. app.js assigns all needed functions to `window`.
+- **Three.js as global**: Loaded via `<script>` tag before the ES module. Accessed as `THREE` (global).
+
+## Pre-commit hook
+
+`.git/hooks/pre-commit` validates all `js/*.js` files with `node --input-type=module --check`. Catches syntax errors before commit.
+
+## How to add a new tab
+
+1. Create `js/tab-newtab.js` — import from `shared.js`, `scene.js`, `cube-manager.js` as needed
+2. Export render/reset/pause/step functions
+3. In `app.js`: import the new tab's exports, add to `setMode()` switch, register any callbacks, assign window globals
+4. In `matmul-3d.html`: add a `.mode-tab` button, a `ctrl-newtab` controls div, and a canvas host div if it uses 3D
 
 ## Architecture
 
 - **Single canvas / single Three.js scene** shared across tabs (important — switching tabs must not cause a jarring view change)
-- **Two tabs:**
+- **Three tabs:**
   - ⓪ Outer Product — a ⊗ b (2D intro: broadcast animation, hover interaction)
   - ① Matrix Multiply — Build & Collapse (unified: builds cube slice by slice, then collapses via scrubable animation)
+  - ② Dot Product — row·column view for each result cell
 - All 3D state lives in `boxes[i][j][k]` — mesh, edges, value sprite per cell
 - Collapse animation driven by `collapseT ∈ [0,1]` — pure function `applyCollapse(t)` so it's scrubable and reversible
 - Outer product display panel shows A[:,j] ⊗ B[j,:] for each active slice:
@@ -129,7 +180,7 @@ That site is excellent for the dot-product view but hides all structure. The ins
 - `tm1` is used for both build tick timeouts AND the 600ms build→collapse transition timeout — `mmPauseBuild()` / `mmPauseAll()` cancel it via `clearTimeout(tm1)`
 - `colAnimId` is a `requestAnimationFrame` id — cancelled via `cancelAnimationFrame(colAnimId)` in `stopColAnim()`
 - **rAF first-frame fix**: `runColAnim` skips the first frame (`if(!last){ last=now; ... return; }`) because dt=0 would trigger the boundary check and stop immediately
-- When rebuilding, always call `removePlusSprites()` before `rebuildBoxes()` to avoid orphaned scene objects
+- When rebuilding, always call `removePlusPlanes()` before `rebuildBoxes()` to avoid orphaned scene objects
 - The orbit controls share one `orb` object — resetting theta/phi in `rebuildBoxes()` is intentional
 - Three.js r128 from cdnjs — don't upgrade without testing, OrbitControls not used (custom drag implementation)
 - `lastOpJ` tracks the last displayed j-slice in the outer product display to avoid re-triggering broadcast animations on same-j re-renders — reset it whenever build state resets (`mmReset`, `rebuild`)
