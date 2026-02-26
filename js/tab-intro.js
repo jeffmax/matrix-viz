@@ -218,7 +218,6 @@ function renderIntroStep2(wrap) {
   html += '</div></div>';
   html += '</div>';
   wrap.innerHTML = html;
-  introRunHiAnim();
 }
 
 export function introHover(hi, hk) {

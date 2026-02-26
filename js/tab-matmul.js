@@ -64,11 +64,29 @@ export function applyS1(s) {
   setF1(s); setD1(s); updateOpDisplay(s);
 }
 
+// ── Outer product highlight animation ──
+let opHiTm = null;
+function opStopHi() { clearTimeout(opHiTm); opHiTm = null; }
+
+function opHighlight(ci, ck) {
+  const panel = document.getElementById('opDisplay');
+  if (!panel) return;
+  panel.querySelectorAll('.op-hi').forEach(el => el.classList.remove('op-hi'));
+  panel.querySelectorAll(`[data-opa-i="${ci}"]`).forEach(el => el.classList.add('op-hi'));
+  panel.querySelectorAll(`[data-opb-k="${ck}"]`).forEach(el => el.classList.add('op-hi'));
+}
+
+function opClearHi() {
+  const panel = document.getElementById('opDisplay');
+  if (!panel) return;
+  panel.querySelectorAll('.op-hi').forEach(el => el.classList.remove('op-hi'));
+}
+
 // ── Outer product visual display ──
 function updateOpDisplay(s) {
   const panel = document.getElementById('opDisplay');
   const {j, cellI, cellK} = decodeS1(s);
-  if (j < 0 || j >= J) { panel.classList.add('hidden'); panel.innerHTML = ''; lastOpJ = -1; return; }
+  if (j < 0 || j >= J) { panel.classList.add('hidden'); panel.innerHTML = ''; lastOpJ = -1; opStopHi(); return; }
   panel.classList.remove('hidden');
 
   const ebe = elemByElem() && cellI >= 0;
@@ -77,22 +95,43 @@ function updateOpDisplay(s) {
   if (!ebe) {
     const animate = j !== lastOpJ;
     lastOpJ = j;
+    opStopHi();
     const bDelay = 120, rDelay = 70;
     const rBase = animate ? Math.max(K - 1, I - 1) * bDelay + 200 : 0;
 
-    let aGrid = `<div class="op-grid" style="grid-template-columns:repeat(${K},${sz}px)">`;
-    for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
-      const cls = animate && k > 0 ? 'op-cell op-cell-a intro-anim-right' : 'op-cell op-cell-a';
-      const dly = animate && k > 0 ? `animation-delay:${(k - 1) * bDelay}ms;` : '';
-      aGrid += `<div class="${cls}" style="width:${sz}px;height:${sz}px;${dly}">${A[i][j]}</div>`;
+    // A[:,j] with dotted border around original column
+    let aGrid = '<div style="display:flex;gap:3px">';
+    aGrid += '<div class="intro-orig-vec intro-orig-a"><div style="display:flex;flex-direction:column;gap:3px">';
+    for (let i = 0; i < I; i++) {
+      aGrid += `<div class="op-cell op-cell-a" data-opa-i="${i}" style="width:${sz}px;height:${sz}px">${A[i][j]}</div>`;
+    }
+    aGrid += '</div></div>';
+    if (K > 1) {
+      aGrid += `<div style="display:grid;grid-template-columns:repeat(${K - 1},${sz}px);gap:3px">`;
+      for (let i = 0; i < I; i++) for (let k = 1; k < K; k++) {
+        const cls = animate ? 'op-cell op-cell-a intro-anim-right' : 'op-cell op-cell-a';
+        const dly = animate ? `animation-delay:${(k - 1) * bDelay}ms;` : '';
+        aGrid += `<div class="${cls}" data-opa-i="${i}" style="width:${sz}px;height:${sz}px;${dly}">${A[i][j]}</div>`;
+      }
+      aGrid += '</div>';
     }
     aGrid += '</div>';
 
-    let bGrid = `<div class="op-grid" style="grid-template-columns:repeat(${K},${sz}px)">`;
-    for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
-      const cls = animate && i > 0 ? 'op-cell op-cell-b intro-anim-down' : 'op-cell op-cell-b';
-      const dly = animate && i > 0 ? `animation-delay:${(i - 1) * bDelay}ms;` : '';
-      bGrid += `<div class="${cls}" style="width:${sz}px;height:${sz}px;${dly}">${B[j][k]}</div>`;
+    // B[j,:] with dotted border around original row
+    let bGrid = '<div style="display:flex;flex-direction:column;gap:3px">';
+    bGrid += '<div class="intro-orig-vec intro-orig-b"><div style="display:flex;gap:3px">';
+    for (let k = 0; k < K; k++) {
+      bGrid += `<div class="op-cell op-cell-b" data-opb-k="${k}" style="width:${sz}px;height:${sz}px">${B[j][k]}</div>`;
+    }
+    bGrid += '</div></div>';
+    if (I > 1) {
+      bGrid += `<div style="display:grid;grid-template-columns:repeat(${K},${sz}px);gap:3px">`;
+      for (let i = 1; i < I; i++) for (let k = 0; k < K; k++) {
+        const cls = animate ? 'op-cell op-cell-b intro-anim-down' : 'op-cell op-cell-b';
+        const dly = animate ? `animation-delay:${(i - 1) * bDelay}ms;` : '';
+        bGrid += `<div class="${cls}" data-opb-k="${k}" style="width:${sz}px;height:${sz}px;${dly}">${B[j][k]}</div>`;
+      }
+      bGrid += '</div>';
     }
     bGrid += '</div>';
 
@@ -111,11 +150,25 @@ function updateOpDisplay(s) {
       `<div style="font-size:0.7rem;color:#aaa;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;width:100%;text-align:center">Slice j = <span style="color:#1a9a40;font-weight:700">${j}</span>: &nbsp;<span style="color:#e06000">A[:,${j}]</span> ⊗ <span style="color:#1a60b0">B[${j},:]</span></div>` +
       `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center">` +
       `<div style="text-align:center"><div style="font-size:0.58rem;color:#aaa;margin-bottom:3px">A[:,${j}] broadcast →</div>${aGrid}</div>` +
-      `<div class="op-sym">×</div>` +
+      `<div class="op-sym">⊙</div>` +
       `<div style="text-align:center"><div style="font-size:0.58rem;color:#aaa;margin-bottom:3px">B[${j},:] broadcast ↓</div>${bGrid}</div>` +
       `<div class="op-sym">=</div>` +
       `<div style="text-align:center"><div style="font-size:0.58rem;color:#aaa;margin-bottom:3px">outer product</div>${rGrid}</div>` +
       `</div>`;
+
+    // Highlight input cells as each result cell appears
+    if (animate) {
+      const total = I * K;
+      let idx = 0;
+      function hiTick() {
+        const ck = Math.floor(idx / I), ci = idx % I;
+        opHighlight(ci, ck);
+        idx++;
+        if (idx < total) opHiTm = setTimeout(hiTick, rDelay);
+        else opHiTm = setTimeout(opClearHi, rDelay);
+      }
+      opHiTm = setTimeout(hiTick, rBase);
+    }
     return;
   }
 
@@ -193,7 +246,7 @@ function setD1(s) {
 function spdMM() { return 1900 - parseInt(document.getElementById('spMM').value || 700); }
 
 // ── Playback ──
-export function mmPauseBuild() { pl1 = false; clearTimeout(tm1); }
+export function mmPauseBuild() { pl1 = false; clearTimeout(tm1); opStopHi(); }
 export function mmPauseAll() {
   mmPauseBuild();
   stopColAnim();
@@ -332,6 +385,32 @@ export function mmScrubCollapse(t) {
 export function resetMmBuildState() {
   t1 = -1; collapseT = 0; lastOpJ = -1;
   mmPhase = 'build';
+  opStopHi();
+}
+
+// Restore the current matmul view without resetting state (for tab switching)
+export function mmRestoreView() {
+  mmPauseAll();
+  if (mmPhase === 'build') {
+    removePlusPlanes();
+    applyS1(t1);
+    renderA(-1, -1, -1); renderB(-1, -1, -1);
+    if (t1 >= 0) {
+      const {j, cellI, cellK} = decodeS1(t1);
+      if (j >= 0 && j < J) { renderA(j, cellI, -1); renderB(j, -1, cellK); }
+    }
+    document.getElementById('spCollapse').disabled = true;
+    document.getElementById('spCollapse').value = 0;
+  } else if (mmPhase === 'collapse' || mmPhase === 'done') {
+    removePlusPlanes();
+    ensureAllGreen();
+    addPlusPlanes();
+    document.getElementById('spCollapse').disabled = false;
+    document.getElementById('spCollapse').value = Math.round(collapseT * 1000);
+    applyCollapse(collapseT);
+    renderA(-1, -1, -1); renderB(-1, -1, -1);
+  }
+  mmUpdateCanvasTitle();
 }
 
 // ── Collapse animation ──
@@ -433,7 +512,7 @@ export function renderA(j, curI, curK) {
     el.appendChild(d);
   }
   const rb = document.getElementById('dimRowBtnsA'); if (rb) rb.innerHTML = dimBtnsV('I');
-  const cb = document.getElementById('dimColBtnsA'); if (cb) cb.innerHTML = dimBtnsH('J');
+  const cb = document.getElementById('dimColBtnsA'); if (cb) cb.innerHTML = dimBtnsH('J', true);
 }
 
 export function renderB(j, curI, curK) {
@@ -447,6 +526,6 @@ export function renderB(j, curI, curK) {
     ((cj, ck) => { d.onclick = function() { editCellInline(this, B[cj][ck], '#1a60b0', function(v) { B[cj][ck] = v; recomputeFromMatrices(); }); }; })(jj, k);
     el.appendChild(d);
   }
-  const rb = document.getElementById('dimRowBtnsB'); if (rb) rb.innerHTML = dimBtnsV('J');
+  const rb = document.getElementById('dimRowBtnsB'); if (rb) rb.innerHTML = dimBtnsV('J', true);
   const cb = document.getElementById('dimColBtnsB'); if (cb) cb.innerHTML = dimBtnsH('K');
 }

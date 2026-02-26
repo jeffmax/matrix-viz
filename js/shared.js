@@ -118,21 +118,23 @@ export function codeSpan(text) {
 }
 
 // Horizontal +/- (for columns — placed below grid)
-export function dimBtnsH(dim) {
+export function dimBtnsH(dim, highlight) {
   const val = dim === 'I' ? I : dim === 'J' ? J : K;
+  const cls = highlight ? 'dim-label dim-shared' : 'dim-label';
   return `<div class="dim-btns-h">`
     + `<button class="dim-btn" onclick="changeDim('${dim}',-1)"${val <= 1 ? ' disabled' : ''}>−</button>`
-    + `<span class="dim-label">${dim.toLowerCase()}=${val}</span>`
+    + `<span class="${cls}">${dim.toLowerCase()}=${val}</span>`
     + `<button class="dim-btn" onclick="changeDim('${dim}',+1)"${val >= 4 ? ' disabled' : ''}>+</button>`
     + `</div>`;
 }
 
 // Vertical +/- (for rows — placed to the right of grid)
-export function dimBtnsV(dim) {
+export function dimBtnsV(dim, highlight) {
   const val = dim === 'I' ? I : dim === 'J' ? J : K;
+  const cls = highlight ? 'dim-label dim-shared' : 'dim-label';
   return `<div class="dim-btns-v">`
     + `<button class="dim-btn" onclick="changeDim('${dim}',-1)"${val <= 1 ? ' disabled' : ''}>−</button>`
-    + `<span class="dim-label">${dim.toLowerCase()}=${val}</span>`
+    + `<span class="${cls}">${dim.toLowerCase()}=${val}</span>`
     + `<button class="dim-btn" onclick="changeDim('${dim}',+1)"${val >= 4 ? ' disabled' : ''}>+</button>`
     + `</div>`;
 }

@@ -43,6 +43,7 @@ h1 { font-size: 1.2rem; font-weight: 400; color: #555; margin-bottom: 14px; }
 /* Vertical column: + label − (for rows, placed to the right of grid) */
 .dim-btns-v { display: flex; flex-direction: column; gap: 2px; align-items: center; justify-content: center; margin-left: 4px; }
 .dim-label { font-size: 0.55rem; color: #bbb; text-transform: uppercase; letter-spacing: .05em; }
+.dim-label.dim-shared { font-weight: 700; color: #1a9a40; font-size: 0.62rem; }
 /* Wraps a grid + row buttons side by side */
 .grid-with-row-btns { display: flex; align-items: center; gap: 0; }
 
@@ -123,8 +124,10 @@ h1 { font-size: 1.2rem; font-weight: 400; color: #555; margin-bottom: 14px; }
 }
 .op-cell-a { background: #fff3e8; color: #e06000; border-color: #ffd0a0; }
 .op-cell-a.op-cur { background: #e06000; color: #fff; border-color: #e06000; }
+.op-cell-a.op-hi { background: #ff9a3c; color: #fff; border-color: #e06000; transform: scale(1.1); box-shadow: 0 0 8px rgba(224,96,0,0.35); transition: all .1s; }
 .op-cell-b { background: #e8f2ff; color: #1a60b0; border-color: #b0d0f8; }
 .op-cell-b.op-cur { background: #1a60b0; color: #fff; border-color: #1a60b0; }
+.op-cell-b.op-hi { background: #4a90d9; color: #fff; border-color: #1a60b0; transform: scale(1.1); box-shadow: 0 0 8px rgba(26,96,176,0.35); transition: all .1s; }
 .op-sym { font-size: 1.6rem; color: #bbb; font-weight: 300; line-height: 1; margin: 0 4px; }
 .op-eq { font-size: 0.9rem; color: #888; margin: 0 4px; }
 .op-result { font-size: 1.1rem; font-weight: 700; color: #1a9a40; }
@@ -525,7 +528,7 @@ input[type=range] { width: 88px; accent-color: #333; }
   </div>
   <div class="mm-row">
     <div class="mm-mat-area" id="mmPanelA">
-      <div class="mat-title">A &nbsp;<span style="color:#e06000;font-weight:600">← col j</span></div>
+      <div class="mat-title">A</div>
       <div class="grid-with-row-btns">
         <div class="grid" id="gridA"></div>
         <div id="dimRowBtnsA"></div>
@@ -534,7 +537,7 @@ input[type=range] { width: 88px; accent-color: #333; }
     </div>
     <div class="mm-sym">×</div>
     <div class="mm-mat-area" id="mmPanelB">
-      <div class="mat-title">B &nbsp;<span style="color:#1a60b0;font-weight:600">row j →</span></div>
+      <div class="mat-title">B</div>
       <div class="grid-with-row-btns">
         <div class="grid" id="gridB"></div>
         <div id="dimRowBtnsB"></div>

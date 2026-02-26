@@ -11,7 +11,7 @@ import { introA, introB, initIntroVecs, renderIntro, pauseIntro, resetIntroStep,
          introEditCell, introHover, introClearHover } from './tab-intro.js';
 import { mmPauseAll, mmReset, mmToggle, mmFwd, mmBack, mmScrubCollapse,
          resetMmBuildState, applyS1, renderA, renderB, carryIntroToMatmul,
-         mmUpdateCanvasTitle, collapseT, mmPhase, applyCollapse } from './tab-matmul.js';
+         mmUpdateCanvasTitle, collapseT, mmPhase, applyCollapse, mmRestoreView } from './tab-matmul.js';
 import { dpPause, dpRenderAll, dpReset, dpApplyCollapse, dpScrubCollapse,
          dpToggle, dpFwd, dpBack, dpJumpToCell,
          resetDpState, dpCollapseT, setDpCollapseT,
@@ -79,20 +79,28 @@ function setMode(m) {
   document.getElementById('ctrl-dotprod').classList.toggle('hidden', m !== 'dotprod');
   document.getElementById('ctrl-matmul').classList.toggle('hidden', m !== 'matmul');
 
-  if (prev === 'intro' && m !== 'intro' && introA.length > 0) {
+  const introCarry = prev === 'intro' && m !== 'intro' && introA.length > 0;
+  if (introCarry) {
     carryIntroToMatmul(introA, introB);
   }
 
   if (m === 'matmul') {
     moveCanvasTo('mmCanvasHost');
-    mmPauseAll();
-    resetMmBuildState();
-    document.getElementById('spCollapse').disabled = true;
-    document.getElementById('spCollapse').value = 0;
-    rebuildBoxes(); removePlusPlanes();
-    applyS1(-1);
-    renderA(-1, -1, -1); renderB(-1, -1, -1);
-    mmUpdateCanvasTitle();
+    if (introCarry) {
+      // Data changed from intro carry-over — full reset
+      mmPauseAll();
+      resetMmBuildState();
+      document.getElementById('spCollapse').disabled = true;
+      document.getElementById('spCollapse').value = 0;
+      rebuildBoxes(); removePlusPlanes();
+      applyS1(-1);
+      renderA(-1, -1, -1); renderB(-1, -1, -1);
+      mmUpdateCanvasTitle();
+    } else {
+      // Returning to matmul — restore existing state
+      rebuildBoxes();
+      mmRestoreView();
+    }
     renderEinsumBadge('einsumMatmul', 'matmul');
   }
   if (m === 'intro') {
@@ -102,21 +110,14 @@ function setMode(m) {
   if (m === 'dotprod') {
     moveCanvasTo('dpCanvasHost');
     if (!sc) initScene();
-    let savedCollapseT = 0;
-    if (!boxes.length) {
-      rebuildBoxes();
-    } else {
-      savedCollapseT = collapseT;
-    }
-    removePlusPlanes(); // clear matmul's plus planes before rebuilding for dotprod
+    if (!boxes.length) rebuildBoxes();
+    removePlusPlanes();
+    const savedT = dpCollapseT;
     const dpSlider = document.getElementById('dpCollapseSlider');
-    if (dpSlider) dpSlider.value = Math.round(savedCollapseT * 1000);
+    if (dpSlider) dpSlider.value = Math.round(savedT * 1000);
     ensureAllGreen();
-    setDpCollapseT(savedCollapseT);
-    dpApplyCollapse(savedCollapseT); // this will add plus planes if t < 1
-    resetDpState();
-    // resetDpState clears dpCollapseT, restore it
-    setDpCollapseT(savedCollapseT);
+    setDpCollapseT(savedT);
+    dpApplyCollapse(savedT);
     renderEinsumBadge('einsumDotprod', 'dotprod');
     dpRenderAll();
   }
