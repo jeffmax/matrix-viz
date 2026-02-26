@@ -25,7 +25,14 @@ js/
   tab-matmul.js         Tab 1: Matrix Multiply — Build & Collapse (3D)
   tab-dotprod.js        Tab 2: Dot Product view (3D)
   app.js                Entry point: mode switching, rebuild, einsum badge, window globals
-package.json            Dev server (serve)
+package.json            Dev server (serve), test script
+vitest.config.js        Vitest config (jsdom environment)
+tests/
+  setup.js              DOM stubs, THREE.js mock, canvas mock
+  shared.test.js        computeData correctness tests
+  tab-intro.test.js     Tab 0 regression tests (double-play bug)
+  tab-matmul.test.js    Tab 1 regression tests (highlight timer bug)
+  tab-dotprod.test.js   Tab 2 regression tests (cell selection, checkbox)
 .gitignore              node_modules/
 ```
 
@@ -52,9 +59,21 @@ tab-dotprod.js   ← app.js
 - **Always commit after any non-trivial change** before telling the user you're done. Don't leave uncommitted work.
 - **Run syntax checks** before committing — the pre-commit hook will catch JS errors, but verify manually if making broad changes.
 
+## Testing
+
+```bash
+npm test           # runs vitest (14 tests across 4 files)
+```
+
+- **Framework**: Vitest with jsdom environment
+- **Setup**: `tests/setup.js` mocks THREE.js, canvas context, and builds all required DOM elements
+- **Key rule**: Never import `app.js` in tests — it runs `rebuild(true)` + `setMode('intro')` at module init. Import individual modules directly.
+- **Testable exports**: Functions marked `/* @testable */` are exported primarily for testing (e.g., `getOpHiTm`, `getDpState`, `dpTermByTerm`, `introAnimDuration`)
+- **Writing new tests**: Add regression tests for bugs, put them in `tests/tab-*.test.js`
+
 ## Pre-commit hook
 
-`.git/hooks/pre-commit` validates all `js/*.js` files with `node --input-type=module --check`. Catches syntax errors before commit.
+`.git/hooks/pre-commit` validates all `js/*.js` files with `node --input-type=module --check` and runs `npm test`. Catches syntax errors and regressions before commit.
 
 ## How to add a new tab
 

@@ -66,6 +66,8 @@ export function applyS1(s) {
 
 // ── Outer product highlight animation ──
 let opHiTm = null;
+/* @testable */ export function getOpHiTm() { return opHiTm; }
+/* @testable */ export function setOpHiTm(v) { opHiTm = v; }
 function opStopHi() { clearTimeout(opHiTm); opHiTm = null; }
 
 function opHighlight(ci, ck) {
@@ -246,7 +248,8 @@ function setD1(s) {
 function spdMM() { return 1900 - parseInt(document.getElementById('spMM').value || 700); }
 
 // ── Playback ──
-export function mmPauseBuild() { pl1 = false; clearTimeout(tm1); opStopHi(); }
+function mmStopBuildTimer() { pl1 = false; clearTimeout(tm1); }
+export function mmPauseBuild() { mmStopBuildTimer(); opStopHi(); }
 export function mmPauseAll() {
   mmPauseBuild();
   stopColAnim();
@@ -281,8 +284,9 @@ function mmTickBuild() {
   }
 }
 
-function mmBuildDone() {
-  mmPauseBuild();
+/* @testable */
+export function mmBuildDone() {
+  mmStopBuildTimer();
   mmPhase = 'collapse';
   collapseT = 0;
   addPlusPlanes();

@@ -5,13 +5,15 @@
   "main": "index.js",
   "scripts": {
     "start": "npx serve .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "devDependencies": {
-    "serve": "^14.2.5"
+    "jsdom": "^26.0.0",
+    "serve": "^14.2.5",
+    "vitest": "^3.0.0"
   }
 }

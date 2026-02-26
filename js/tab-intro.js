@@ -210,10 +210,9 @@ function renderIntroStep2(wrap) {
   html += `<div class="intro-grid" style="grid-template-columns:repeat(${K},44px)">`;
   for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
     const val = introA[i] * introB[k];
-    const cellDelay = (i * K + k) * Math.max(delay * 0.3, 60);
-    html += `<div class="mat-cell r anim" data-ri="${i}" data-rk="${k}" `
+    html += `<div class="mat-cell r" data-ri="${i}" data-rk="${k}" `
       + `onmouseenter="introHover(${i},${k})" onmouseleave="introClearHover()" `
-      + `style="animation-delay:${cellDelay}ms;cursor:pointer">${val}</div>`;
+      + `style="cursor:pointer">${val}</div>`;
   }
   html += '</div></div>';
   html += '</div>';
@@ -291,7 +290,8 @@ function updateIntroDots() {
   }
 }
 
-function introAnimDuration() {
+/* @testable */
+export function introAnimDuration() {
   const delay = introDelay();
   if (introStep === 1) {
     const broadcastTime = Math.max((K - 2) * delay, (I - 2) * delay) + 400;
@@ -299,8 +299,7 @@ function introAnimDuration() {
     return broadcastTime + resultTime + 500;
   }
   if (introStep === 2) {
-    const resultTime = (I * K - 1) * Math.max(delay * 0.3, 60);
-    return resultTime + I * K * Math.max(delay * 0.3, 60) + 500;
+    return 800; // No animation in step 2 — cells appear instantly
   }
   return 600;
 }

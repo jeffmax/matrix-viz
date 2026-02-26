@@ -12,6 +12,9 @@ export function resetDpState() {
   dpStep = -1; dpSelectedI = -1; dpSelectedK = -1; dpCollapseT = 0;
 }
 
+/* @testable */
+export function getDpState() { return { dpStep, dpSelectedI, dpSelectedK, dpCollapseT }; }
+
 export function setDpCollapseT(t) { dpCollapseT = t; }
 
 // Apply collapse to cube on the dot product tab
@@ -60,7 +63,11 @@ export function dpScrubCollapse(t) {
   }
 }
 
-function dpTermByTerm() { return true; }
+/* @testable */
+export function dpTermByTerm() {
+  const chk = document.getElementById('chkDpCol');
+  return !chk || !chk.checked;
+}
 function dpTotalSteps() { return dpTermByTerm() ? I * K * J : I * K; }
 function dpDelay() { return 1400 - parseInt(document.getElementById('spDP').value || 600); }
 
@@ -367,17 +374,9 @@ function dpRenderColumnDetail() {
 
 export function dpJumpToCell(ti, tk) {
   dpPause();
-  if (dpStep < 0) {
-    dpSelectedI = ti; dpSelectedK = tk;
-    dpRenderAll();
-    return;
-  }
-  const cellIdx = ti * K + tk;
-  if (dpTermByTerm()) {
-    dpStep = cellIdx * J;
-  } else {
-    dpStep = cellIdx;
-  }
+  dpStep = -1;
+  dpSelectedI = ti;
+  dpSelectedK = tk;
   dpRenderAll();
 }
 
