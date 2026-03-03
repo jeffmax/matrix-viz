@@ -388,7 +388,7 @@ export function renderEinsumBadge(containerId, tab) {
   const el = document.getElementById(containerId);
   if (!el) return;
   if (tab === 'inner') {
-    el.innerHTML = `einsum('<span class="ei-contract">i</span>, <span class="ei-contract">i</span> → <span style="color:#999">scalar</span>', a, b)`;
+    el.innerHTML = `einsum('<span class="ei-contract">i</span>, <span class="ei-contract">i</span> → ', a, b)`;
   } else if (tab === 'intro') {
     el.innerHTML = `einsum('<span class="ei-free">i</span>, <span class="ei-free">k</span> → <span class="ei-free">ik</span>', a, b)`;
   } else if (tab === 'dotprod') {
