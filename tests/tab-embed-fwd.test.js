@@ -117,7 +117,7 @@ describe('tab-embed-fwd', () => {
     expect(contractedLabels.length).toBe(2);
   });
 
-  it('prior pill renders with tooltip content', () => {
+  it('prior pill renders with token grid tooltip', () => {
     efRender();
     const wrap = document.getElementById('efDisplay');
     const pill = wrap.querySelector('.ef-prior-pill');
@@ -125,7 +125,17 @@ describe('tab-embed-fwd', () => {
     expect(pill.textContent).toContain('F.one_hot');
     const tooltip = wrap.querySelector('.ef-pill-tooltip');
     expect(tooltip).not.toBeNull();
-    expect(tooltip.textContent).toContain('tok[');
+    // Tooltip shows token grid with batch labels and mini-onehot dots
+    const tokenGrid = tooltip.querySelector('.ef-pill-token-grid');
+    expect(tokenGrid).not.toBeNull();
+    const s = getEfState();
+    const batchLabels = tooltip.querySelectorAll('.ef-pill-batch-label');
+    expect(batchLabels.length).toBe(s.eB);
+    const tokenCells = tooltip.querySelectorAll('.ef-pill-token-cell');
+    expect(tokenCells.length).toBe(s.eB * s.eL);
+    // Each token cell has mini-onehot dots
+    const dotGroups = tooltip.querySelectorAll('.ef-mini-onehot');
+    expect(dotGroups.length).toBe(s.eB * s.eL);
   });
 
   // ── Contraction detail tests ──
@@ -230,6 +240,23 @@ describe('tab-embed-fwd', () => {
     efRender();
     const f = document.getElementById('fEF');
     expect(f.innerHTML).toContain('contracted');
+  });
+
+  it('stacked tensors have expandable class when not playing', () => {
+    efRender();
+    const wrap = document.getElementById('efDisplay');
+    const expandables = wrap.querySelectorAll('.ef-stacked-tensor.expandable');
+    expect(expandables.length).toBe(2); // X and Y
+  });
+
+  it('stacked tensor expands on mouseenter', () => {
+    efRender();
+    const wrap = document.getElementById('efDisplay');
+    const stackedEl = wrap.querySelector('.ef-stacked-tensor.expandable');
+    stackedEl.dispatchEvent(new Event('mouseenter'));
+    expect(stackedEl.classList.contains('expanded')).toBe(true);
+    stackedEl.dispatchEvent(new Event('mouseleave'));
+    expect(stackedEl.classList.contains('expanded')).toBe(false);
   });
 
   it('active page highlights correct batch in X stacked tensor', () => {

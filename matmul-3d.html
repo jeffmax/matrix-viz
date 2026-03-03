@@ -597,28 +597,46 @@ input[type=range] { width: 88px; accent-color: #333; }
   padding: 3px 10px; font-size: 0.62rem; color: #888;
   font-family: 'SF Mono', Menlo, Consolas, monospace;
   cursor: default; position: relative; white-space: nowrap;
-  align-self: center;
 }
 .ef-prior-pill:hover .ef-pill-tooltip {
   display: block;
 }
 .ef-pill-tooltip {
-  display: none; position: absolute; top: 100%; left: 50%;
-  transform: translateX(-50%); margin-top: 6px; z-index: 10;
+  display: none; position: absolute; top: 100%; left: 0;
+  margin-top: 6px; z-index: 10;
   background: #fff; border: 1px solid #ddd; border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.10);
-  padding: 8px 12px; font-size: 0.65rem; line-height: 1.6;
-  color: #444; white-space: pre; text-align: left; width: max-content;
+  padding: 10px 14px; font-size: 0.70rem; line-height: 1.6;
+  color: #444; white-space: nowrap; text-align: left; width: max-content;
 }
 .ef-pill-tooltip::before {
-  content: ''; position: absolute; top: -6px; left: 50%; transform: translateX(-50%);
+  content: ''; position: absolute; top: -6px; left: 20px;
   border-left: 6px solid transparent; border-right: 6px solid transparent;
   border-bottom: 6px solid #ddd;
 }
 .ef-pill-tooltip::after {
-  content: ''; position: absolute; top: -5px; left: 50%; transform: translateX(-50%);
+  content: ''; position: absolute; top: -5px; left: 21px;
   border-left: 5px solid transparent; border-right: 5px solid transparent;
   border-bottom: 5px solid #fff;
+}
+/* Token grid inside pill tooltip */
+.ef-pill-token-grid {
+  display: flex; flex-direction: column; gap: 3px;
+}
+.ef-pill-token-row {
+  display: flex; gap: 3px; align-items: center;
+}
+.ef-pill-batch-label {
+  font-size: 0.52rem; color: #bbb; width: 22px; text-align: right;
+  padding-right: 4px; font-family: monospace;
+}
+.ef-pill-token-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 3px 5px; border: 1px solid #e8e8e8; border-radius: 4px;
+  background: #fafafa; min-width: 32px;
+}
+.ef-pill-tok-id {
+  font-size: 0.72rem; font-weight: 700; color: #e06000;
 }
 
 /* ── Contraction detail panel ── */
@@ -647,8 +665,39 @@ input[type=range] { width: 88px; accent-color: #333; }
   display: flex; align-items: flex-start; justify-content: center;
   gap: 20px; flex-wrap: wrap;
 }
+.ef-tensor-row {
+  display: flex; align-items: flex-start; justify-content: center;
+  gap: 0; width: 100%;
+}
+.ef-pill-block {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding-top: 30px; margin-right: 12px;
+  flex-shrink: 0;
+}
 .ef-tensor-block {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+
+/* ── Stacked tensor hover-to-expand ── */
+.ef-stacked-tensor.expandable {
+  cursor: pointer;
+}
+.ef-stacked-tensor.expanded {
+  /* Override the fixed height — let pages flow vertically */
+  height: auto !important;
+  width: auto !important;
+}
+.ef-stacked-tensor.expanded .ef-tensor-page {
+  position: relative !important;
+  left: 0 !important;
+  top: 0 !important;
+  z-index: 1 !important;
+  margin-bottom: 6px;
+}
+.ef-stacked-tensor.expanded .ef-tensor-page.back-page {
+  position: relative !important;
+  background: #fff;
+  border-color: #ddd;
 }
 .ef-tensor-label {
   font-size: 0.72rem; color: #555; font-weight: 600; letter-spacing: .03em;

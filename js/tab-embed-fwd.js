@@ -128,7 +128,9 @@ function renderStackedTensor(data3D, axisLabels, options = {}) {
   const totalW = gridW + (pages - 1) * offsetX + 10;
   const totalH = gridH + (pages - 1) * offsetY + 30;
 
-  html += `<div class="ef-stacked-tensor" style="width:${totalW}px;height:${totalH}px">`;
+  const expandable = options.expandable ?? false;
+  const expandCls = expandable ? ' expandable' : '';
+  html += `<div class="ef-stacked-tensor${expandCls}" style="width:${totalW}px;height:${totalH}px">`;
 
   // Render pages back to front
   for (let p = pages - 1; p >= 0; p--) {
@@ -179,18 +181,47 @@ function renderStackedTensor(data3D, axisLabels, options = {}) {
   return html;
 }
 
-// ── Prior-step pill with hover tooltip ──
+// ── Wire hover-to-expand on stacked tensors ──
+function wireStackedHover(container) {
+  const stackeds = container.querySelectorAll('.ef-stacked-tensor.expandable');
+  stackeds.forEach(el => {
+    el.addEventListener('mouseenter', () => {
+      if (!efPlaying) el.classList.add('expanded');
+    });
+    el.addEventListener('mouseleave', () => {
+      el.classList.remove('expanded');
+    });
+  });
+}
+
+// ── Mini one-hot dots HTML ──
+function renderMiniOneHot(tokenId) {
+  let html = '<div class="ef-mini-onehot">';
+  for (let h = 0; h < eH; h++) {
+    html += `<div class="ef-mini-dot${h === tokenId ? ' active' : ''}"></div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+// ── Prior-step pill with hover tooltip showing token grid ──
 function renderPriorPill() {
-  let tooltip = '';
+  let tooltip = '<div class="ef-pill-token-grid">';
   for (let b = 0; b < eB; b++) {
+    tooltip += '<div class="ef-pill-token-row">';
+    tooltip += `<span class="ef-pill-batch-label">b=${b}</span>`;
     for (let l = 0; l < eL; l++) {
       const tok = tokenIds[b][l];
-      const oh = Array(eH).fill(0); oh[tok] = 1;
-      tooltip += `tok[${b},${l}]=${tok} → [${oh.join(',')}]\n`;
+      tooltip += '<div class="ef-pill-token-cell">';
+      tooltip += `<span class="ef-pill-tok-id">${tok}</span>`;
+      tooltip += renderMiniOneHot(tok);
+      tooltip += '</div>';
     }
+    tooltip += '</div>';
   }
-  return `<div class="ef-prior-pill">F.one_hot(tokens) →`
-    + `<div class="ef-pill-tooltip">${tooltip.trim()}</div></div>`;
+  tooltip += '</div>';
+  return `<div class="ef-prior-pill">F.one_hot(tokens) &rarr;`
+    + `<div class="ef-pill-tooltip">${tooltip}</div></div>`;
 }
 
 // ── One-hot column for contraction detail ──
@@ -316,13 +347,14 @@ export function efRender() {
 }
 
 function renderOverview(wrap) {
-  let html = '<div class="ef-overview-tensors">';
+  let html = '<div class="ef-tensor-row">';
 
-  // Prior pill
-  html += '<div class="ef-tensor-block">';
-  html += '<div class="ef-tensor-label">&nbsp;</div>';
+  // Prior pill — positioned left, outside the main tensor row
+  html += '<div class="ef-pill-block">';
   html += renderPriorPill();
   html += '</div>';
+
+  html += '<div class="ef-overview-tensors">';
 
   // X tensor (B×L×H) — stacked pages
   const xCellRenderer = (val, p, r, c, isActiveRow) => {
@@ -335,7 +367,7 @@ function renderOverview(wrap) {
     top: 'h &rarr;', topContracted: true,
     left: 'l &darr;', leftContracted: false,
     pageLabel: 'b'
-  }, { cellRenderer: xCellRenderer, cellSize: 32 });
+  }, { cellRenderer: xCellRenderer, cellSize: 32, expandable: !efPlaying });
   html += '</div>';
 
   // W tensor (H×C) — 2D grid
@@ -354,24 +386,27 @@ function renderOverview(wrap) {
     top: 'c &rarr;', topContracted: false,
     left: 'l &darr;', leftContracted: false,
     pageLabel: 'b'
-  }, { emptyPages: true, cellSize: 32, onCellClick: 'efTraceBack' });
+  }, { emptyPages: true, cellSize: 32, onCellClick: 'efTraceBack', expandable: !efPlaying });
   html += '</div>';
 
   html += '</div>'; // ef-overview-tensors
+  html += '</div>'; // ef-tensor-row
   wrap.innerHTML = html;
+  wireStackedHover(wrap);
 }
 
 function renderActivePosition(wrap) {
   const [b, l] = posTobl(efStep);
   const tok = tokenIds[b][l];
 
-  let html = '<div class="ef-overview-tensors">';
+  let html = '<div class="ef-tensor-row">';
 
-  // Prior pill
-  html += '<div class="ef-tensor-block">';
-  html += '<div class="ef-tensor-label">&nbsp;</div>';
+  // Prior pill — positioned left
+  html += '<div class="ef-pill-block">';
   html += renderPriorPill();
   html += '</div>';
+
+  html += '<div class="ef-overview-tensors">';
 
   // X tensor with active row highlighted
   const xCellRenderer = (val, p, r, c, isActiveRow) => {
@@ -386,7 +421,7 @@ function renderActivePosition(wrap) {
     top: 'h &rarr;', topContracted: true,
     left: 'l &darr;', leftContracted: false,
     pageLabel: 'b'
-  }, { activePage: b, activeRow: l, cellRenderer: xCellRenderer, cellSize: 32 });
+  }, { activePage: b, activeRow: l, cellRenderer: xCellRenderer, cellSize: 32, expandable: !efPlaying });
   html += '</div>';
 
   // W tensor with active row
@@ -405,15 +440,17 @@ function renderActivePosition(wrap) {
     top: 'c &rarr;', topContracted: false,
     left: 'l &darr;', leftContracted: false,
     pageLabel: 'b'
-  }, { emptyPages: true, doneUpTo: efStep, activePage: b, cellSize: 32, onCellClick: 'efTraceBack' });
+  }, { emptyPages: true, doneUpTo: efStep, activePage: b, cellSize: 32, onCellClick: 'efTraceBack', expandable: !efPlaying });
   html += '</div>';
 
   html += '</div>'; // ef-overview-tensors
+  html += '</div>'; // ef-tensor-row
 
   // Contraction detail panel below
   html += renderContractionDetail(b, l);
 
   wrap.innerHTML = html;
+  wireStackedHover(wrap);
 }
 
 function efUpdateFormula() {
