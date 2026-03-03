@@ -17,7 +17,28 @@ h1 { font-size: 1.2rem; font-weight: 400; color: #555; margin-bottom: 14px; }
 .ctrl-btn { height: 30px; padding: 0 12px; border: 1px solid #ddd; border-radius: 4px; background: #fff; font-size: 0.75rem; color: #555; cursor: pointer; }
 .ctrl-btn.primary { background: #333; color: #fff; border-color: #333; }
 
-.mode-tabs { display: flex; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; margin-bottom: 24px; }
+/* ── Two-tier navigation ── */
+.nav-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 20px; width: 100%; max-width: 1100px; }
+.tier1-tabs { display: flex; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }
+.tier1-tab { padding: 8px 22px; font-size: 0.75rem; color: #aaa; cursor: pointer; background: #fff; border: none; border-right: 1px solid #ddd; letter-spacing: .03em; font-weight: 500; }
+.tier1-tab:last-child { border-right: none; }
+.tier1-tab.active { background: #333; color: #fff; }
+.tier2-row { display: flex; gap: 6px; align-items: center; }
+.tier2-tab { padding: 5px 14px; font-size: 0.68rem; color: #888; cursor: pointer; background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 100px; letter-spacing: .02em; transition: all .12s; }
+.tier2-tab:hover { background: #eee; color: #555; }
+.tier2-tab.active { background: #555; color: #fff; border-color: #555; }
+.tier2-link { font-size: 0.6rem; color: #ccc; margin: 0 2px; }
+
+/* ── Preset bar ── */
+.preset-bar { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; max-width: 900px; }
+.preset-pill { padding: 4px 10px; font-size: 0.62rem; color: #888; cursor: pointer; background: #fafafa; border: 1px solid #e8e8e8; border-radius: 100px; transition: all .12s; white-space: nowrap; }
+.preset-pill:hover { background: #f0f0f0; color: #555; border-color: #ccc; }
+.preset-pill.active { background: #e06000; color: #fff; border-color: #e06000; }
+.preset-desc { font-size: 0.72rem; color: #555; line-height: 1.6; text-align: center; max-width: 700px; padding: 6px 12px; background: #fafafa; border: 1px solid #e8e8e8; border-radius: 6px; }
+.preset-desc strong { color: #333; }
+
+/* Legacy flat tabs (hidden, kept for compatibility) */
+.mode-tabs { display: none; }
 .mode-tab { padding: 8px 18px; font-size: 0.72rem; color: #aaa; cursor: pointer; background: #fff; border: none; border-right: 1px solid #ddd; letter-spacing: .03em; }
 .mode-tab:last-child { border-right: none; }
 .mode-tab.active { background: #333; color: #fff; }
@@ -744,14 +765,48 @@ input[type=range] { width: 88px; accent-color: #333; }
   </div>
 </div>
 
-<div class="mode-tabs">
-  <button class="mode-tab active" id="tab-intro" onclick="setMode('intro')">⓪ Outer Product</button>
-  <button class="mode-tab"        id="tab-matmul" onclick="setMode('matmul')">① MatMul: Outer Product</button>
-  <button class="mode-tab"        id="tab-dotprod" onclick="setMode('dotprod')">② MatMul: Dot Product</button>
-  <button class="mode-tab"        id="tab-embed-fwd" onclick="setMode('embed-fwd')">③ Embed Forward</button>
-  <button class="mode-tab"        id="tab-embed-bwd" onclick="setMode('embed-bwd')">④ Embed Backward</button>
+<!-- Two-tier navigation -->
+<div class="nav-wrap" id="navWrap">
+  <!-- Tier 1: top-level categories -->
+  <div class="tier1-tabs">
+    <button class="tier1-tab active" id="tier1-blocks" onclick="setTier('blocks')">Building Blocks</button>
+    <button class="tier1-tab"        id="tier1-matmul" onclick="setTier('matmul')">Matrix Multiply</button>
+  </div>
+  <!-- Tier 2a: Building Blocks sub-tabs -->
+  <div class="tier2-row" id="tier2-blocks">
+    <button class="tier2-tab active" id="tab-inner" onclick="setMode('inner')">Inner Product</button>
+    <button class="tier2-tab"        id="tab-intro" onclick="setMode('intro')">Outer Product</button>
+  </div>
+  <!-- Tier 2b: Matrix Multiply sub-tabs -->
+  <div class="tier2-row hidden" id="tier2-matmul">
+    <button class="tier2-tab active" id="tab-matmul" onclick="setMode('matmul')">Outer Product View</button>
+    <span class="tier2-link">⇄</span>
+    <button class="tier2-tab"        id="tab-dotprod" onclick="setMode('dotprod')">Dot Product View</button>
+  </div>
+  <!-- Preset bar (Matrix Multiply tier only) -->
+  <div class="preset-bar hidden" id="presetBar"></div>
+  <!-- Preset description -->
+  <div class="preset-desc hidden" id="presetDesc"></div>
 </div>
 
+<!-- Legacy tab buttons (hidden, for test compatibility) -->
+<div class="mode-tabs">
+  <button class="mode-tab" id="tab-embed-fwd"></button>
+  <button class="mode-tab" id="tab-embed-bwd"></button>
+</div>
+
+
+<!-- TAB: Inner Product (Building Blocks) -->
+<div id="ctrl-inner" class="tab-container">
+  <div class="tab-inner">
+    <div class="controls-row">
+      <div class="einsum-badge" id="einsumInner"></div>
+    </div>
+    <div id="innerDisplay" class="intro-wrap">
+      <div style="color:#aaa;font-size:0.82rem;text-align:center;padding:40px 0">Inner product tab — coming next</div>
+    </div>
+  </div>
+</div>
 
 <!-- TAB 0 — Broadcasting & Outer Product -->
 <div id="ctrl-intro" class="tab-container">

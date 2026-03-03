@@ -99,15 +99,24 @@ if (typeof globalThis.requestAnimationFrame === 'undefined') {
 // ── Build all DOM elements that the code expects ──
 function buildDOM() {
   document.body.innerHTML = `
-    <!-- Tab buttons -->
-    <button id="tab-intro" class="mode-tab active"></button>
-    <button id="tab-matmul" class="mode-tab"></button>
-    <button id="tab-dotprod" class="mode-tab"></button>
+    <!-- Tier navigation -->
+    <button id="tier1-blocks" class="tier1-tab active"></button>
+    <button id="tier1-matmul" class="tier1-tab"></button>
+    <div id="tier2-blocks"><button id="tab-inner" class="tier2-tab active"></button><button id="tab-intro" class="tier2-tab"></button></div>
+    <div id="tier2-matmul" class="hidden"><button id="tab-matmul" class="tier2-tab active"></button><button id="tab-dotprod" class="tier2-tab"></button></div>
+    <div id="presetBar"></div>
+    <div id="presetDesc" class="hidden"></div>
 
     <!-- Info shelf -->
     <div id="infoShelfHandle"></div>
     <div id="infoShelfBackdrop"></div>
     <div id="infoShelf"><div id="shelfContent"></div></div>
+
+    <!-- Inner Product tab -->
+    <div id="ctrl-inner" class="hidden">
+      <div id="einsumInner"></div>
+      <div id="innerDisplay"></div>
+    </div>
 
     <!-- Tab 0 — Intro -->
     <div id="ctrl-intro">

@@ -2,8 +2,8 @@
 // APP — ENTRY POINT, MODE SWITCHING, INIT
 // ══════════════════════════════════════════════════
 import { I, J, K, A, B, currentMode, setCurrentMode, computeData, changeDim,
-         registerCallbacks, toggleInfo, recomputeFromMatrices,
-         infoOpen, setOnShelfOpen } from './shared.js';
+         registerCallbacks, toggleInfo, recomputeFromMatrices, resetLabels,
+         setData, infoOpen, setOnShelfOpen } from './shared.js';
 import { sc, initScene, moveCanvasTo, snapToDefault } from './scene.js';
 import { boxes, rebuildBoxes, addPlusPlanes, removePlusPlanes, ensureAllGreen, clearBoxes } from './cube-manager.js';
 import { introA, introB, initIntroVecs, renderIntro, pauseIntro, resetIntroStep,
@@ -20,12 +20,22 @@ import { efInit, efRender, efFwd, efBack, efToggle, efReset, efPause,
          efJumpToPos, efTraceBack, efChangeDim } from './tab-embed-fwd.js';
 import { ebInit, ebRender, ebFwd, ebBack, ebToggle, ebReset, ebPause,
          ebJumpToPos, ebTraceBack, ebChangeDim } from './tab-embed-bwd.js';
+import { PRESETS, loadPreset, clearPreset, activePreset } from './presets.js';
+
+// ══════════════════════════════════════════════════
+// TIER STATE
+// ══════════════════════════════════════════════════
+let currentTier = 'blocks';
+let lastBlocksMode = 'inner';   // remember last sub-tab per tier
+let lastMatmulMode = 'matmul';
 
 // ── Register callbacks for shared.js ──
 registerCallbacks({
   onDimChange: (oldI, oldJ, oldK) => {
     // Resize intro vectors
     resizeIntroVecs();
+    // Clear preset on dimension change
+    deselectPreset();
 
     // Reset animation state across all tabs
     mmPauseAll();
@@ -66,11 +76,40 @@ registerCallbacks({
 });
 
 // ══════════════════════════════════════════════════
+// TIER SWITCHING
+// ══════════════════════════════════════════════════
+function setTier(tier) {
+  currentTier = tier;
+  // Update tier1 buttons
+  document.getElementById('tier1-blocks').classList.toggle('active', tier === 'blocks');
+  document.getElementById('tier1-matmul').classList.toggle('active', tier === 'matmul');
+  // Show/hide tier2 rows
+  document.getElementById('tier2-blocks').classList.toggle('hidden', tier !== 'blocks');
+  document.getElementById('tier2-matmul').classList.toggle('hidden', tier !== 'matmul');
+  // Show/hide preset bar
+  document.getElementById('presetBar').classList.toggle('hidden', tier !== 'matmul');
+  const descEl = document.getElementById('presetDesc');
+  if (tier !== 'matmul') descEl.classList.add('hidden');
+  else if (activePreset) descEl.classList.remove('hidden');
+
+  // Switch to last-used sub-tab for this tier
+  if (tier === 'blocks') {
+    setMode(lastBlocksMode);
+  } else {
+    setMode(lastMatmulMode);
+  }
+}
+
+// ══════════════════════════════════════════════════
 // MODE TABS
 // ══════════════════════════════════════════════════
 function setMode(m) {
   const prev = currentMode;
   setCurrentMode(m);
+
+  // Track last sub-tab per tier
+  if (m === 'inner' || m === 'intro') lastBlocksMode = m;
+  if (m === 'matmul' || m === 'dotprod') lastMatmulMode = m;
 
   if (prev === 'intro') pauseIntro();
   if (prev === 'dotprod') dpPause();
@@ -78,23 +117,44 @@ function setMode(m) {
   if (prev === 'embed-fwd') efPause();
   if (prev === 'embed-bwd') ebPause();
 
-  const tabs = ['intro', 'dotprod', 'matmul', 'embed-fwd', 'embed-bwd'];
-  for (const t of tabs) {
+  const allTabs = ['inner', 'intro', 'dotprod', 'matmul', 'embed-fwd', 'embed-bwd'];
+  for (const t of allTabs) {
     const tabBtn = document.getElementById('tab-' + t);
     const ctrl = document.getElementById('ctrl-' + t);
     if (tabBtn) tabBtn.classList.toggle('active', m === t);
     if (ctrl) ctrl.classList.toggle('hidden', m !== t);
   }
 
-  const introCarry = prev === 'intro' && m !== 'intro' && introA.length > 0;
+  // Ensure correct tier is shown
+  if ((m === 'inner' || m === 'intro') && currentTier !== 'blocks') {
+    currentTier = 'blocks';
+    document.getElementById('tier1-blocks').classList.add('active');
+    document.getElementById('tier1-matmul').classList.remove('active');
+    document.getElementById('tier2-blocks').classList.remove('hidden');
+    document.getElementById('tier2-matmul').classList.add('hidden');
+    document.getElementById('presetBar').classList.add('hidden');
+    document.getElementById('presetDesc').classList.add('hidden');
+  } else if ((m === 'matmul' || m === 'dotprod') && currentTier !== 'matmul') {
+    currentTier = 'matmul';
+    document.getElementById('tier1-matmul').classList.add('active');
+    document.getElementById('tier1-blocks').classList.remove('active');
+    document.getElementById('tier2-matmul').classList.remove('hidden');
+    document.getElementById('tier2-blocks').classList.add('hidden');
+    document.getElementById('presetBar').classList.remove('hidden');
+    if (activePreset) document.getElementById('presetDesc').classList.remove('hidden');
+  }
+
+  const introCarry = prev === 'intro' && (m === 'matmul' || m === 'dotprod') && introA.length > 0;
   if (introCarry) {
     carryIntroToMatmul(introA, introB);
   }
 
+  if (m === 'inner') {
+    renderEinsumBadge('einsumInner', 'inner');
+  }
   if (m === 'matmul') {
     moveCanvasTo('mmCanvasHost');
     if (introCarry) {
-      // Data changed from intro carry-over — full reset
       mmPauseAll();
       resetMmBuildState();
       document.getElementById('spCollapse').disabled = true;
@@ -104,7 +164,6 @@ function setMode(m) {
       renderA(-1, -1, -1); renderB(-1, -1, -1);
       mmUpdateCanvasTitle();
     } else {
-      // Returning to matmul — restore existing state
       rebuildBoxes();
       mmRestoreView();
     }
@@ -140,6 +199,66 @@ function setMode(m) {
 }
 
 // ══════════════════════════════════════════════════
+// PRESET SYSTEM
+// ══════════════════════════════════════════════════
+function buildPresetBar() {
+  const bar = document.getElementById('presetBar');
+  if (!bar) return;
+  bar.innerHTML = PRESETS.map(p =>
+    `<button class="preset-pill" id="preset-${p.id}" onclick="selectPreset('${p.id}')">${p.label}</button>`
+  ).join('');
+}
+
+function selectPreset(id) {
+  const data = loadPreset(id);
+  if (!data) return;
+
+  // Update shared state with preset data
+  setData({ I: data.I, J: data.J, K: data.K, A: data.A, B: data.B, labelA: data.labelA, labelB: data.labelB });
+  recomputeFromMatrices();
+
+  // Reset animation state
+  mmPauseAll(); resetMmBuildState();
+  dpPause(); resetDpState();
+
+  // Rebuild 3D if on a matmul tab
+  if (currentMode === 'matmul' || currentMode === 'dotprod') {
+    rebuildBoxes(); removePlusPlanes();
+    if (currentMode === 'matmul') {
+      document.getElementById('spCollapse').value = 0;
+      document.getElementById('spCollapse').disabled = true;
+      applyS1(-1); renderA(-1, -1, -1); renderB(-1, -1, -1);
+      mmUpdateCanvasTitle();
+      renderEinsumBadge('einsumMatmul', 'matmul');
+    } else {
+      ensureAllGreen(); addPlusPlanes();
+      dpRenderAll();
+      renderEinsumBadge('einsumDotprod', 'dotprod');
+    }
+  }
+
+  // Update preset pill highlights
+  document.querySelectorAll('.preset-pill').forEach(el => el.classList.remove('active'));
+  const pill = document.getElementById('preset-' + id);
+  if (pill) pill.classList.add('active');
+
+  // Show description
+  const descEl = document.getElementById('presetDesc');
+  if (descEl && data.desc) {
+    descEl.innerHTML = data.desc;
+    descEl.classList.remove('hidden');
+  }
+}
+
+function deselectPreset() {
+  clearPreset();
+  resetLabels();
+  document.querySelectorAll('.preset-pill').forEach(el => el.classList.remove('active'));
+  const descEl = document.getElementById('presetDesc');
+  if (descEl) descEl.classList.add('hidden');
+}
+
+// ══════════════════════════════════════════════════
 // REBUILD
 // ══════════════════════════════════════════════════
 function rebuild(rnd) {
@@ -148,6 +267,9 @@ function rebuild(rnd) {
   pauseIntro(); resetIntroStep();
   dpPause(); resetDpState();
   efPause(); ebPause();
+
+  // Clear preset on randomize/reset
+  deselectPreset();
 
   computeData(rnd);
   initIntroVecs(rnd);
@@ -168,6 +290,7 @@ function rebuild(rnd) {
 
   renderA(-1, -1, -1); renderB(-1, -1, -1);
   applyS1(-1);
+  if (currentMode === 'inner') { renderEinsumBadge('einsumInner', 'inner'); }
   if (currentMode === 'intro') { renderIntro(); renderEinsumBadge('einsumIntro', 'intro'); }
   if (currentMode === 'dotprod') { dpRenderAll(); renderEinsumBadge('einsumDotprod', 'dotprod'); }
   if (currentMode === 'matmul') { renderEinsumBadge('einsumMatmul', 'matmul'); }
@@ -180,7 +303,11 @@ function rebuild(rnd) {
 // ══════════════════════════════════════════════════
 export function copyTorchCode(tab) {
   let code = 'import torch\n';
-  if (tab === 'intro') {
+  if (tab === 'inner') {
+    code += `a = torch.tensor([1., 2., 3.])\n`;
+    code += `b = torch.tensor([4., 5., 6.])\n`;
+    code += `result = torch.dot(a, b)  # or torch.einsum('i,i->', a, b)\n`;
+  } else if (tab === 'intro') {
     const aVals = introA.join(', ');
     const bVals = introB.join(', ');
     code += `a = torch.tensor([${aVals}])\n`;
@@ -242,7 +369,9 @@ export function copyTorchCode(tab) {
 export function renderEinsumBadge(containerId, tab) {
   const el = document.getElementById(containerId);
   if (!el) return;
-  if (tab === 'intro') {
+  if (tab === 'inner') {
+    el.innerHTML = `einsum('<span class="ei-contract">i</span>, <span class="ei-contract">i</span> → <span style="color:#999">scalar</span>', a, b)`;
+  } else if (tab === 'intro') {
     el.innerHTML = `einsum('<span class="ei-free">i</span>, <span class="ei-free">k</span> → <span class="ei-free">ik</span>', a, b)`;
   } else if (tab === 'dotprod') {
     el.innerHTML = `einsum('<span class="ei-free">i</span><span class="ei-contract">j</span>, <span class="ei-contract">j</span><span class="ei-free">k</span> → <span class="ei-free">ik</span>', A, B)`;
@@ -263,7 +392,16 @@ export function renderEinsumBadge(containerId, tab) {
 function updateShelfContent() {
   const el = document.getElementById('shelfContent');
   if (!el) return;
-  if (currentMode === 'intro') {
+  if (currentMode === 'inner') {
+    el.innerHTML =
+      `<div class="broadcast-rules">`
+      + `<strong>Inner (dot) product</strong>`
+      + `<p style="margin-top:6px">The dot product of two vectors: multiply matching elements, then sum to a scalar.</p>`
+      + `<p style="margin-top:4px"><strong>a · b = Σᵢ a[i] × b[i]</strong></p>`
+      + `<p style="margin-top:6px">This is the fundamental building block of matrix multiplication — each cell of A @ B is the dot product of a row of A and a column of B.</p>`
+      + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic">In einsum notation, repeated indices with no output = contraction (summation).</p>`
+      + `</div>`;
+  } else if (currentMode === 'intro') {
     el.innerHTML =
       `<div class="broadcast-rules">`
       + `<strong>Broadcasting rules</strong> (NumPy / PyTorch):`
@@ -302,7 +440,7 @@ function updateShelfContent() {
       + `<p style="margin-top:6px">The weight gradient accumulates upstream gradients: each position scatters its gradient to the row of its token.</p>`
       + `<p style="margin-top:6px"><code>dW[h,:] = Σ G[b,l,:] for all (b,l) where token==h</code></p>`
       + `<p style="margin-top:6px">This is the reverse of forward's "gather" — forward selects rows, backward <em>scatters</em> gradients back. Rare tokens get smaller updates (fewer terms in the sum).</p>`
-      + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic">Each position contributes a rank-1 outer product X[b,l,:]⊗G[b,l,:]. The weight update is a sum of these rank-1 terms — the same structure as Tab ①.</p>`
+      + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic">Each position contributes a rank-1 outer product X[b,l,:]⊗G[b,l,:]. The weight update is a sum of these rank-1 terms — the same structure as the Outer Product View.</p>`
       + `</div>`;
   }
 }
@@ -311,9 +449,11 @@ setOnShelfOpen(updateShelfContent);
 // ── Wire up window globals for HTML onclick handlers ──
 window.rebuild = rebuild;
 window.setMode = setMode;
+window.setTier = setTier;
+window.selectPreset = selectPreset;
 window.toggleInfo = toggleInfo;
 window.changeDim = changeDim;
-// Tab 0
+// Building Blocks — Outer Product
 window.stepFwdIntro = stepFwdIntro;
 window.stepBackIntro = stepBackIntro;
 window.togglePlayIntro = togglePlayIntro;
@@ -321,13 +461,13 @@ window.resetIntro = resetIntro;
 window.introEditCell = introEditCell;
 window.introHover = introHover;
 window.introClearHover = introClearHover;
-// Tab 1
+// Matrix Multiply — Outer Product View
 window.mmBack = mmBack;
 window.mmFwd = mmFwd;
 window.mmToggle = mmToggle;
 window.mmReset = mmReset;
 window.mmScrubCollapse = mmScrubCollapse;
-// Tab 2
+// Matrix Multiply — Dot Product View
 window.dpBack = dpBack;
 window.dpFwd = dpFwd;
 window.dpToggle = dpToggle;
@@ -336,7 +476,7 @@ window.dpJumpToCell = dpJumpToCell;
 window.dpScrubCollapse = dpScrubCollapse;
 window.dpHoverCell = dpHoverCell;
 window.dpClearHover = dpClearHover;
-// Tab 3 — Embedding Forward
+// Embedding Forward (hidden, kept for future use)
 window.efFwd = efFwd;
 window.efBack = efBack;
 window.efToggle = efToggle;
@@ -344,7 +484,7 @@ window.efReset = efReset;
 window.efJumpToPos = efJumpToPos;
 window.efTraceBack = efTraceBack;
 window.efChangeDim = efChangeDim;
-// Tab 4 — Embedding Backward
+// Embedding Backward (hidden, kept for future use)
 window.ebFwd = ebFwd;
 window.ebBack = ebBack;
 window.ebToggle = ebToggle;
@@ -358,5 +498,6 @@ window.snapToDefault = snapToDefault;
 window.copyTorchCode = copyTorchCode;
 
 // ── Init ──
+buildPresetBar();
 rebuild(true);
-setMode('intro');
+setMode('inner');
