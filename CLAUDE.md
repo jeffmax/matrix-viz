@@ -2,7 +2,7 @@
 
 ## What this is
 
-An interactive 3D visualization of matrix multiplication using Three.js (r128). The goal is to help people doing Karpathy's *nn-zero-to-hero* course (and similar) develop deep geometric intuition for matrix multiplication — not just the algorithm, but the underlying structure that matters for understanding attention, backprop, and linear layers.
+An interactive 3D visualization of matrix multiplication using Three.js (r128). The goal is to help people doing Karpathy's *nn-zero-to-hero* course (and similar) develop deep geometric intuition for matrix multiplication — not just the algorithm, but the underlying structure that matters for understanding attention, backprop, and linear layers. The perspective of einsum notation should be a guiding thread throughout the application. 
 
 ## Running locally
 
@@ -18,30 +18,37 @@ ES modules require a local server — `file://` won't work due to CORS.
 ```
 matmul-3d.html          HTML + CSS (no inline JS)
 js/
-  shared.js             Global state (I,J,K, A,B,Cube,Res), dimensions, utilities, callback registry
+  shared.js             Global state (I,J,K, A,B,Cube,Res, labelA,labelB), dimensions, utilities, callback registry
   scene.js              Three.js scene, camera, custom orbit controls, render loop
   cube-manager.js       3D box mesh management, paint functions, plus planes
-  tab-intro.js          Tab 0: Outer Product intro (2D, no Three.js)
-  tab-matmul.js         Tab 1: Matrix Multiply — Build & Collapse (3D)
-  tab-dotprod.js        Tab 2: Dot Product view (3D)
-  app.js                Entry point: mode switching, rebuild, einsum badge, window globals
+  presets.js            12 named matrix multiply examples (identity, row selection, one-hot lookup, etc.)
+  tab-inner.js          Inner Product tab: a · b step-through (2D, Building Blocks tier)
+  tab-intro.js          Outer Product tab: a ⊗ b broadcast animation (2D, Building Blocks tier)
+  tab-matmul.js         MatMul Outer Product View: Build & Collapse (3D, Matrix Multiply tier)
+  tab-dotprod.js        MatMul Dot Product View: row · column (3D, Matrix Multiply tier)
+  tab-embed-fwd.js      Embedding Forward (hidden, kept for future use)
+  tab-embed-bwd.js      Embedding Backward (hidden, kept for future use)
+  app.js                Entry point: two-tier nav, preset system, mode switching, rebuild, einsum badge
 package.json            Dev server (serve), test script
 vitest.config.js        Vitest config (jsdom environment)
 tests/
   setup.js              DOM stubs, THREE.js mock, canvas mock
   shared.test.js        computeData correctness tests
-  tab-intro.test.js     Tab 0 regression tests (double-play bug)
-  tab-matmul.test.js    Tab 1 regression tests (highlight timer bug)
-  tab-dotprod.test.js   Tab 2 regression tests (cell selection, checkbox)
+  tab-inner.test.js     Inner product tab tests (step, resize, render)
+  tab-intro.test.js     Outer product tab tests (double-play bug)
+  tab-matmul.test.js    MatMul outer product view tests (highlight timer bug)
+  tab-dotprod.test.js   Dot product view tests (cell selection, checkbox)
 .gitignore              node_modules/
 ```
 
 ### Import graph (no circular dependencies)
 
 ```
-shared.js        ← scene.js, cube-manager.js, tab-intro.js, tab-matmul.js, tab-dotprod.js, app.js
+shared.js        ← scene.js, cube-manager.js, presets.js, tab-inner.js, tab-intro.js, tab-matmul.js, tab-dotprod.js, app.js
 scene.js         ← cube-manager.js, tab-matmul.js, tab-dotprod.js, app.js
 cube-manager.js  ← tab-matmul.js, tab-dotprod.js, app.js
+presets.js       ← app.js
+tab-inner.js     ← app.js
 tab-intro.js     ← app.js
 tab-matmul.js    ← app.js
 tab-dotprod.js   ← app.js
@@ -84,27 +91,61 @@ npm test           # runs vitest (14 tests across 4 files)
 
 ## Architecture
 
-- **Single canvas / single Three.js scene** shared across tabs (important — switching tabs must not cause a jarring view change)
-- **Three tabs:**
-  - ⓪ Outer Product — a ⊗ b (2D intro: broadcast animation, hover interaction)
-  - ① Matrix Multiply — Build & Collapse (unified: builds cube slice by slice, then collapses via scrubable animation)
-  - ② Dot Product — row·column view for each result cell
+### Two-tier navigation
+
+```
+Tier 1:  [Building Blocks]  [Matrix Multiply]          ← top-level toggle
+Tier 2a: [Inner Product]  [Outer Product]               ← when Building Blocks active
+Tier 2b: [Outer Product View]  [Dot Product View]       ← when Matrix Multiply active
+         + preset bar (12 named examples)
+```
+
+- `setTier(tier)` toggles tier1 active states, shows/hides tier2 rows and preset bar
+- `setMode(m)` handles per-tab rendering and pausing, auto-selects correct tier
+- Each tier remembers its last-used sub-tab (`lastBlocksMode`, `lastMatmulMode`)
+
+### Preset system
+
+- `js/presets.js` exports `PRESETS` array (12 examples), `loadPreset(id)`, `clearPreset()`
+- `shared.js` exports `labelA`/`labelB` — dynamic matrix labels used by rendering code
+- Selecting a preset loads its matrices via `setData()` + `recomputeFromMatrices()`
+- Randomize, dim change, or manual cell edit calls `deselectPreset()` (clears active pill + resets labels)
+
+### Tabs
+
+- **Inner Product** (2D, Building Blocks): `a · b = Σ a[i]×b[i]`, editable vectors, step-through
+- **Outer Product** (2D, Building Blocks): `a ⊗ b` broadcast animation, hover interaction
+- **Outer Product View** (3D, Matrix Multiply): builds cube slice by slice, then collapses
+- **Dot Product View** (3D, Matrix Multiply): row·column view for each result cell
+- **Embed Forward/Backward** (hidden): modules stay in codebase, tab buttons hidden
+
+### Collapse sync
+
+When switching between Outer Product View and Dot Product View, `collapseT` is synced so the cube maintains its stacked/summed position.
+
+### 3D
+
+- **Single canvas / single Three.js scene** shared across 3D tabs
 - All 3D state lives in `boxes[i][j][k]` — mesh, edges, value sprite per cell
 - Collapse animation driven by `collapseT ∈ [0,1]` — pure function `applyCollapse(t)` so it's scrubable and reversible
 - Outer product display panel shows A[:,j] ⊗ B[j,:] for each active slice:
-  - **Whole-slice mode** (elem-by-elem unchecked): broadcast animation — A column copies rightward, B row copies downward, result grid appears with staggered orange→green animation
+  - **Whole-slice mode** (elem-by-elem unchecked): broadcast animation
   - **Element-by-element mode**: column vector, row vector, and result grid with current cell highlighted
-- **Tab ⓪ → ① carry-over**: switching from intro to matmul sets A = the intro's outer product (introA ⊗ introB), J = len(introB), B randomized. The user sees their outer product become the A matrix.
+- **Outer Product → MatMul carry-over**: switching from intro to matmul sets A = the intro's outer product (introA ⊗ introB), J = len(introB), B randomized
 
 ## Key design decisions made so far
 
-- One Three.js scene for all tabs — no jarring transitions when switching
+- **Two-tier navigation** replaces flat 5-tab bar: Building Blocks (Inner/Outer Product) and Matrix Multiply (Outer Product View / Dot Product View + 12 presets)
+- Embedding tabs hidden from nav but modules kept for future reactivation
+- One Three.js scene for all 3D tabs — no jarring transitions when switching
 - Speed slider: left = slow, right = fast (not reversed)
 - Element-by-element checkbox applies to ALL j-slices, not just the first
-- **Tabs ① and ② merged into a single "Matrix Multiply — Build & Collapse" tab** with a `mmPhase` state machine (`'build'` → `'collapse'` → `'done'`). Build auto-transitions to collapse after 600ms pause. Pressing ◀ during collapse reverses; if collapseT reaches 0, transitions back to build phase.
+- **Outer Product View** uses `mmPhase` state machine (`'build'` → `'collapse'` → `'done'`). Build auto-transitions to collapse after 600ms pause. Pressing ◀ during collapse reverses; if collapseT reaches 0, transitions back to build phase.
 - Collapse slider (labeled "stacked" / "summed") appears after build completes, scrubs collapse position
+- Collapse state synced between Outer Product View and Dot Product View
 - Step dots show one dot per j-slice (not per cell) to avoid clutter
-- Max dimensions: I, J, K ∈ [1, 4] to keep performance smooth
+- Max dimensions: I, J, K ∈ [1, 5] to keep performance smooth
+- Inner product tab has its own vector size (n=1..8), independent of matmul I/J/K
 - **3D axis mapping**: k→X (horizontal), j→Y (vertical/collapse axis), i→Z (depth). This makes the 3D cube slices visually align with the 2D outer product grid below (k=columns left-to-right, i=rows top-to-bottom from the overhead camera angle)
 
 ## The full taxonomy of views to build toward
@@ -176,20 +217,27 @@ Good for: the bridge from matmul to attention.
 Score (Q·Kᵀ) → softmax → weighted sum of V.
 Matmul appears at every step. Shows why the outer product structure of OV circuit matters.
 
-## Suggested tab order for the unified app
+## Current tab layout (two-tier)
 
 ```
-⓪ Outer Product — a ⊗ b         (DONE — 2D broadcast animation intro, carries over to matmul tab)
-① Matrix Multiply — Build & Collapse  (DONE — unified 3D build + collapse with broadcast display)
-② Matrix-vector: y = A @ x       (column mixing, sliders, information flow)
-③ Dot product: row · column       (standard algorithm view)
-④ Rank-1 sum: accumulating outer products   (2D heatmap panels, additive accumulator)
-⑤ Bilinear scores → attention              (stretch goal, deep learning payoff)
+Building Blocks:
+  Inner Product — a · b              (DONE — 2D step-through)
+  Outer Product — a ⊗ b              (DONE — 2D broadcast animation, carries over to matmul)
+
+Matrix Multiply (+ 12 presets):
+  Outer Product View — Build & Collapse  (DONE — 3D cube build + collapse)
+  Dot Product View — row · column        (DONE — 3D cube column view)
+
+Future tabs (not yet in nav):
+  Matrix-vector: y = A @ x           (column mixing, sliders)
+  Rank-1 sum: accumulating outer products   (2D heatmap panels)
+  Bilinear scores → attention              (stretch goal)
+  Embed Forward/Backward                   (modules exist, tab buttons hidden)
 ```
 
-The narrative arc: *what an outer product is → how matmul builds and collapses a cube of them → what a matrix does to a vector → the standard algorithm → the additive accumulation story → why this matters for transformers.*
+The narrative arc: *what a dot product is → what an outer product is → how matmul builds and collapses a cube of them → the standard algorithm → presets show real operations.*
 
-Note: ⓪, ②, ③, ④ are pure 2D (no Three.js). ① is the existing 3D work. This means Three.js complexity is isolated to one tab.
+Note: Inner Product, Outer Product are pure 2D (no Three.js). 3D is isolated to Matrix Multiply tier.
 
 ## Middle ground with matrixmultiplication.xyz
 
