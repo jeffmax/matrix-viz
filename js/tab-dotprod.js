@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════════
 // TAB 2 — DOT PRODUCT: ROW · COLUMN
 // ══════════════════════════════════════════════════
-import { I, J, K, A, B, Cube, Res, currentMode, editCellInline, recomputeFromMatrices, dimBtnsH, dimBtnsV } from './shared.js';
+import { I, J, K, A, B, Cube, Res, currentMode, labelA, labelB, editCellInline, recomputeFromMatrices, dimBtnsH, dimBtnsV } from './shared.js';
 import { boxes, paintBox, packedY, plusPlanes, addPlusPlanes, removePlusPlanes } from './cube-manager.js';
 
 let dpStep = -1, dpPlaying = false, dpTm = null;
@@ -137,7 +137,7 @@ function dpRenderMatrices() {
   const completedUpTo = dpStep < 0 ? -1 : (dpTermByTerm() ? Math.floor((dpStep) / J) - ((dpStep % J === J - 1) ? 0 : 1) : dpStep - 1);
 
   let aHtml = '<div class="dp-mat-block">';
-  aHtml += `<div class="dp-mat-label"><span style="color:#e06000;font-weight:600">A</span> (${I}×${J})</div>`;
+  aHtml += `<div class="dp-mat-label"><span style="color:#e06000;font-weight:600">${labelA}</span> (${I}×${J})</div>`;
   aHtml += `<div class="grid-with-row-btns">`;
   aHtml += `<div class="dp-grid" style="grid-template-columns:repeat(${J},44px)">`;
   const exploring = dpSelectedI >= 0 && dpStep < 0;
@@ -155,7 +155,7 @@ function dpRenderMatrices() {
   aHtml += '</div>';
 
   let bHtml = '<div class="dp-mat-block">';
-  bHtml += `<div class="dp-mat-label"><span style="color:#1a60b0;font-weight:600">B</span> (${J}×${K})</div>`;
+  bHtml += `<div class="dp-mat-label"><span style="color:#1a60b0;font-weight:600">${labelB}</span> (${J}×${K})</div>`;
   bHtml += `<div class="grid-with-row-btns">`;
   bHtml += `<div class="dp-grid" style="grid-template-columns:repeat(${K},44px)">`;
   for (let j = 0; j < J; j++) for (let k = 0; k < K; k++) {

@@ -127,6 +127,8 @@ function buildDOM() {
       <input type="range" id="spCollapse" min="0" max="1000" value="0" disabled>
       <div id="mmCanvasHost"><canvas id="mainCanvas" width="420" height="380"></canvas></div>
       <div id="canvasTitle"></div>
+      <div id="mmTitleA">A</div>
+      <div id="mmTitleB">B</div>
       <div id="gridA" class="grid"></div>
       <div id="gridB" class="grid"></div>
       <div id="dimRowBtnsA"></div>

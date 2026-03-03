@@ -8,6 +8,9 @@ export let I = 3, J = 3, K = 3;
 // Data arrays
 export let A = [], B = [], Cube = [], Res = [];
 
+// Matrix labels (overridden by presets)
+export let labelA = 'A', labelB = 'B';
+
 // Current mode
 export let currentMode = 'intro';
 export function setCurrentMode(m) { currentMode = m; }
@@ -47,10 +50,14 @@ export function setData(d) {
   if ('B' in d) B = d.B;
   if ('Cube' in d) Cube = d.Cube;
   if ('Res' in d) Res = d.Res;
+  if ('labelA' in d) labelA = d.labelA;
+  if ('labelB' in d) labelB = d.labelB;
 }
 
 // ── Data utilities ──
 export function rand() { return Math.floor(Math.random() * 9) + 1; }
+
+export function resetLabels() { labelA = 'A'; labelB = 'B'; }
 
 export function computeData(rnd) {
   A = Array.from({length: I}, () => Array.from({length: J}, () => rnd ? rand() : 1));

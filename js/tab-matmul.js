@@ -2,7 +2,7 @@
 // TAB 1 — OUTER PRODUCTS, SLICE BY SLICE
 // Build cube slice by slice, then collapse via scrubable animation
 // ══════════════════════════════════════════════════
-import { I, J, K, A, B, Cube, Res, rand, editCellInline, recomputeFromMatrices, dimBtnsH, dimBtnsV, setData } from './shared.js';
+import { I, J, K, A, B, Cube, Res, rand, labelA, labelB, editCellInline, recomputeFromMatrices, dimBtnsH, dimBtnsV, setData } from './shared.js';
 import { makeTex } from './scene.js';
 import { boxes, plusPlanes, paintBox, paintSlice, ensureAllGreen, packedY, addPlusPlanes, removePlusPlanes } from './cube-manager.js';
 
@@ -508,6 +508,8 @@ export function mmUpdateCanvasTitle() {
 export function renderA(j, curI, curK) {
   const el = document.getElementById('gridA');
   if (!el || !A.length) return;
+  const titleEl = document.getElementById('mmTitleA');
+  if (titleEl) titleEl.textContent = labelA;
   el.style.gridTemplateColumns = `repeat(${J},44px)`; el.innerHTML = '';
   for (let i = 0; i < I; i++) for (let jj = 0; jj < J; jj++) {
     const d = document.createElement('div'); d.className = 'mat-cell neutral editable';
@@ -523,6 +525,8 @@ export function renderA(j, curI, curK) {
 export function renderB(j, curI, curK) {
   const el = document.getElementById('gridB');
   if (!el || !B.length) return;
+  const titleEl = document.getElementById('mmTitleB');
+  if (titleEl) titleEl.textContent = labelB;
   el.style.gridTemplateColumns = `repeat(${K},44px)`; el.innerHTML = '';
   for (let jj = 0; jj < J; jj++) for (let k = 0; k < K; k++) {
     const d = document.createElement('div'); d.className = 'mat-cell neutral-b editable';
