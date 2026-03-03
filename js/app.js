@@ -203,14 +203,7 @@ export function renderEinsumBadge(containerId, tab) {
   } else if (tab === 'dotprod') {
     el.innerHTML = `einsum('<span class="ei-free">i</span><span class="ei-contract">j</span>, <span class="ei-contract">j</span><span class="ei-free">k</span> → <span class="ei-free">ik</span>', A, B)`;
   } else if (tab === 'matmul') {
-    const base = `einsum('<span class="ei-free">i</span><span class="ei-contract">j</span>, <span class="ei-contract">j</span><span class="ei-free">k</span> → <span class="ei-free">ik</span>', A, B)`;
-    if (mmPhase === 'build') {
-      el.innerHTML = base + ` &nbsp;<span class="ei-note">building <span class="ei-free">i</span><span class="ei-free">j</span><span class="ei-free">k</span> cube</span>`;
-    } else if (mmPhase === 'collapse') {
-      el.innerHTML = base + ` &nbsp;<span class="ei-note">summing out <span class="ei-contract">j</span></span>`;
-    } else {
-      el.innerHTML = base;
-    }
+    el.innerHTML = `einsum('<span class="ei-free">i</span><span class="ei-contract">j</span>, <span class="ei-contract">j</span><span class="ei-free">k</span> → <span class="ei-free">ik</span>', A, B)`;
   }
   // Remove old active-tab markers
   document.querySelectorAll('.copy-torch-btn.active-tab').forEach(b => b.classList.remove('active-tab'));
