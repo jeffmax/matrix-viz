@@ -152,6 +152,18 @@ function setMode(m) {
     carryIntroToMatmul(introA, introB);
   }
 
+  // ── Sync collapse state between matmul perspectives ──
+  if (prev === 'matmul' && m === 'dotprod' && !introCarry) {
+    if (mmPhase === 'collapse' || mmPhase === 'done') {
+      setDpCollapseT(collapseT);
+    }
+  }
+  if (prev === 'dotprod' && m === 'matmul') {
+    if (dpCollapseT > 0) {
+      mmScrubCollapse(dpCollapseT);
+    }
+  }
+
   if (m === 'inner') {
     ipRender();
     renderEinsumBadge('einsumInner', 'inner');
