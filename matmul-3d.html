@@ -415,6 +415,81 @@ input[type=range] { width: 88px; accent-color: #333; }
   font-size: 0.68rem; color: #bbb; line-height: 1.5;
 }
 .sidebar-link a { color: #999; text-decoration: underline; }
+
+/* ══════════════════════════════════════════════════ */
+/* EMBEDDING TABS — Forward & Backward               */
+/* ══════════════════════════════════════════════════ */
+.ef-wrap, .eb-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 18px;
+  padding: 10px 0; max-width: 960px; margin: 0 auto;
+}
+.ef-layout, .eb-layout {
+  display: flex; align-items: flex-start; justify-content: center;
+  gap: 28px; flex-wrap: wrap;
+}
+.ef-section, .eb-section {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.ef-section-label {
+  font-size: 0.72rem; color: #555; font-weight: 600; letter-spacing: .03em;
+}
+.ef-dim { font-weight: 400; color: #aaa; font-size: 0.65rem; }
+
+/* Token grid */
+.ef-token-grid, .eb-token-grid {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.ef-token-row { display: flex; gap: 4px; }
+.ef-token, .eb-pos {
+  width: 56px; padding: 6px 4px;
+  border: 2px solid #ddd; border-radius: 6px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  cursor: pointer; transition: all .15s; background: #fafafa;
+}
+.ef-token:hover, .eb-pos:hover { border-color: #bbb; background: #f0f0f0; }
+.ef-token.active, .eb-pos.active {
+  border-color: #e06000; background: #fff3e8;
+  transform: scale(1.06); box-shadow: 0 0 8px rgba(224,96,0,0.25);
+}
+.ef-token.done, .eb-pos.done { border-color: #a0e8b8; background: #f0faf4; }
+.ef-tok-id { font-size: 0.82rem; font-weight: 700; color: #e06000; }
+.ef-tok-pos { font-size: 0.55rem; color: #bbb; }
+.eb-grad-vec { font-size: 0.58rem; color: #1a60b0; font-family: monospace; }
+
+/* W grid & dW grid */
+.ef-w-grid, .eb-dw-grid, .eb-op-grid {
+  display: grid; gap: 3px; align-items: center;
+}
+.ef-w-header {
+  font-size: 0.58rem; color: #bbb; text-align: center;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.ef-w-rowlabel {
+  font-size: 0.62rem; color: #999; text-align: right; padding-right: 4px;
+  font-family: monospace;
+}
+.ef-w-rowlabel.active { color: #e06000; font-weight: 700; }
+
+/* Output grid */
+.ef-output-grid { display: flex; flex-direction: column; gap: 6px; }
+.ef-output-row { display: flex; gap: 6px; }
+.ef-output-cell-group {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 4px; border: 2px solid transparent; border-radius: 6px;
+  transition: all .15s;
+}
+.ef-output-cell-group.active {
+  border-color: #50c878; background: rgba(80,200,120,0.08);
+}
+.ef-output-pos { font-size: 0.55rem; color: #bbb; }
+.ef-output-vec { display: flex; gap: 2px; }
+
+/* Backward contribution panel */
+.eb-contrib {
+  min-width: 140px;
+}
+.eb-outer-product { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.eb-op-label { font-size: 0.65rem; color: #999; font-family: monospace; }
 </style>
 </head>
 <body>
@@ -438,8 +513,10 @@ input[type=range] { width: 88px; accent-color: #333; }
 
 <div class="mode-tabs">
   <button class="mode-tab active" id="tab-intro" onclick="setMode('intro')">⓪ Outer Product</button>
-  <button class="mode-tab"        id="tab-matmul" onclick="setMode('matmul')">① MatMul: Outer Product Perspective</button>
-  <button class="mode-tab"        id="tab-dotprod" onclick="setMode('dotprod')">② MatMul: Dot Product Perspective</button>
+  <button class="mode-tab"        id="tab-matmul" onclick="setMode('matmul')">① MatMul: Outer Product</button>
+  <button class="mode-tab"        id="tab-dotprod" onclick="setMode('dotprod')">② MatMul: Dot Product</button>
+  <button class="mode-tab"        id="tab-embed-fwd" onclick="setMode('embed-fwd')">③ Embed Forward</button>
+  <button class="mode-tab"        id="tab-embed-bwd" onclick="setMode('embed-bwd')">④ Embed Backward</button>
 </div>
 
 
@@ -580,6 +657,56 @@ input[type=range] { width: 88px; accent-color: #333; }
     <div class="legend-item"><div class="legend-swatch" style="background:#4a90d9"></div>B[j,:] row</div>
     <div class="legend-item"><div class="legend-swatch" style="background:#50c878"></div>Filled slice</div>
     <div class="legend-item"><div class="legend-swatch" style="background:#e06000"></div>Active cell</div>
+  </div>
+</div>
+
+<!-- TAB 3 — Embedding Forward: blh,hc→blc -->
+<div id="ctrl-embed-fwd" class="hidden tab-container">
+  <div class="tab-inner">
+    <div class="controls-row">
+      <div class="playback">
+        <button class="play-btn" onclick="efBack()" title="Step back">◀</button>
+        <button class="play-btn big" onclick="efFwd()" title="Step forward">▶|</button>
+        <button class="play-btn" id="pbEF" onclick="efToggle()">▶</button>
+        <button class="play-btn" onclick="efReset()" title="Reset">↺</button>
+        <div class="slider-wrap">
+          <span>slow</span>
+          <input type="range" id="spEF" min="200" max="1200" value="200" step="50">
+          <span>fast</span>
+        </div>
+      </div>
+      <div class="einsum-badge" id="einsumEmbedFwd"></div>
+    </div>
+    <div id="efDisplay" class="ef-wrap"></div>
+    <div class="formula-bar">
+      <div class="formula-text" id="fEF"></div>
+    </div>
+    <div class="step-dots" id="dEF"></div>
+  </div>
+</div>
+
+<!-- TAB 4 — Embedding Backward: blh,blc→hc -->
+<div id="ctrl-embed-bwd" class="hidden tab-container">
+  <div class="tab-inner">
+    <div class="controls-row">
+      <div class="playback">
+        <button class="play-btn" onclick="ebBack()" title="Step back">◀</button>
+        <button class="play-btn big" onclick="ebFwd()" title="Step forward">▶|</button>
+        <button class="play-btn" id="pbEB" onclick="ebToggle()">▶</button>
+        <button class="play-btn" onclick="ebReset()" title="Reset">↺</button>
+        <div class="slider-wrap">
+          <span>slow</span>
+          <input type="range" id="spEB" min="200" max="1200" value="200" step="50">
+          <span>fast</span>
+        </div>
+      </div>
+      <div class="einsum-badge" id="einsumEmbedBwd"></div>
+    </div>
+    <div id="ebDisplay" class="eb-wrap"></div>
+    <div class="formula-bar">
+      <div class="formula-text" id="fEB"></div>
+    </div>
+    <div class="step-dots" id="dEB"></div>
   </div>
 </div>
 

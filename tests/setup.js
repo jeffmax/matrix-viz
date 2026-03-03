@@ -153,6 +153,26 @@ function buildDOM() {
       <div id="dpColumnDetail"></div>
       <div id="einsumDotprod"></div>
     </div>
+
+    <!-- Tab 3 — Embedding Forward -->
+    <div id="ctrl-embed-fwd" class="hidden">
+      <button id="pbEF">▶</button>
+      <input type="range" id="spEF" value="600">
+      <div id="efDisplay"></div>
+      <div id="fEF"></div>
+      <div id="dEF"></div>
+      <div id="einsumEmbedFwd"></div>
+    </div>
+
+    <!-- Tab 4 — Embedding Backward -->
+    <div id="ctrl-embed-bwd" class="hidden">
+      <button id="pbEB">▶</button>
+      <input type="range" id="spEB" value="600">
+      <div id="ebDisplay"></div>
+      <div id="fEB"></div>
+      <div id="dEB"></div>
+      <div id="einsumEmbedBwd"></div>
+    </div>
   `;
 }
 

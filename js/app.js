@@ -16,6 +16,10 @@ import { dpPause, dpRenderAll, dpReset, dpApplyCollapse, dpScrubCollapse,
          dpToggle, dpFwd, dpBack, dpJumpToCell,
          resetDpState, dpCollapseT, setDpCollapseT,
          dpRenderVectorIntro, dpHoverCell, dpClearHover } from './tab-dotprod.js';
+import { efInit, efRender, efFwd, efBack, efToggle, efReset, efPause,
+         efJumpToPos, efTraceBack, efChangeDim } from './tab-embed-fwd.js';
+import { ebInit, ebRender, ebFwd, ebBack, ebToggle, ebReset, ebPause,
+         ebJumpToPos, ebTraceBack, ebChangeDim } from './tab-embed-bwd.js';
 
 // ── Register callbacks for shared.js ──
 registerCallbacks({
@@ -71,13 +75,16 @@ function setMode(m) {
   if (prev === 'intro') pauseIntro();
   if (prev === 'dotprod') dpPause();
   if (prev === 'matmul') mmPauseAll();
+  if (prev === 'embed-fwd') efPause();
+  if (prev === 'embed-bwd') ebPause();
 
-  document.getElementById('tab-intro').classList.toggle('active', m === 'intro');
-  document.getElementById('tab-dotprod').classList.toggle('active', m === 'dotprod');
-  document.getElementById('tab-matmul').classList.toggle('active', m === 'matmul');
-  document.getElementById('ctrl-intro').classList.toggle('hidden', m !== 'intro');
-  document.getElementById('ctrl-dotprod').classList.toggle('hidden', m !== 'dotprod');
-  document.getElementById('ctrl-matmul').classList.toggle('hidden', m !== 'matmul');
+  const tabs = ['intro', 'dotprod', 'matmul', 'embed-fwd', 'embed-bwd'];
+  for (const t of tabs) {
+    const tabBtn = document.getElementById('tab-' + t);
+    const ctrl = document.getElementById('ctrl-' + t);
+    if (tabBtn) tabBtn.classList.toggle('active', m === t);
+    if (ctrl) ctrl.classList.toggle('hidden', m !== t);
+  }
 
   const introCarry = prev === 'intro' && m !== 'intro' && introA.length > 0;
   if (introCarry) {
@@ -121,6 +128,14 @@ function setMode(m) {
     renderEinsumBadge('einsumDotprod', 'dotprod');
     dpRenderAll();
   }
+  if (m === 'embed-fwd') {
+    efRender();
+    renderEinsumBadge('einsumEmbedFwd', 'embed-fwd');
+  }
+  if (m === 'embed-bwd') {
+    ebRender();
+    renderEinsumBadge('einsumEmbedBwd', 'embed-bwd');
+  }
   if (infoOpen) updateShelfContent();
 }
 
@@ -132,9 +147,12 @@ function rebuild(rnd) {
   resetMmBuildState();
   pauseIntro(); resetIntroStep();
   dpPause(); resetDpState();
+  efPause(); ebPause();
 
   computeData(rnd);
   initIntroVecs(rnd);
+  efInit(rnd);
+  ebInit(rnd);
 
   if (currentMode === 'matmul' || currentMode === 'dotprod') {
     rebuildBoxes();
@@ -153,6 +171,8 @@ function rebuild(rnd) {
   if (currentMode === 'intro') { renderIntro(); renderEinsumBadge('einsumIntro', 'intro'); }
   if (currentMode === 'dotprod') { dpRenderAll(); renderEinsumBadge('einsumDotprod', 'dotprod'); }
   if (currentMode === 'matmul') { renderEinsumBadge('einsumMatmul', 'matmul'); }
+  if (currentMode === 'embed-fwd') { efRender(); renderEinsumBadge('einsumEmbedFwd', 'embed-fwd'); }
+  if (currentMode === 'embed-bwd') { ebRender(); renderEinsumBadge('einsumEmbedBwd', 'embed-bwd'); }
 }
 
 // ══════════════════════════════════════════════════
@@ -166,6 +186,30 @@ export function copyTorchCode(tab) {
     code += `a = torch.tensor([${aVals}])\n`;
     code += `b = torch.tensor([${bVals}])\n`;
     code += `result = torch.einsum('i,k->ik', a, b)\n`;
+  } else if (tab === 'embed-fwd') {
+    code += `import torch.nn.functional as F\n\n`;
+    code += `# Embedding forward: one-hot × weight = row lookup\n`;
+    code += `B, L, H, C = 2, 3, 4, 3\n`;
+    code += `tokens = torch.randint(0, H, (B, L))\n`;
+    code += `X = F.one_hot(tokens, H).float()  # (B, L, H)\n`;
+    code += `W = torch.randn(H, C)\n\n`;
+    code += `# These are equivalent:\n`;
+    code += `Y_einsum = torch.einsum('blh,hc->blc', X, W)\n`;
+    code += `Y_lookup = W[tokens]  # simple row selection\n`;
+    code += `assert torch.allclose(Y_einsum, Y_lookup)\n`;
+  } else if (tab === 'embed-bwd') {
+    code += `import torch.nn.functional as F\n\n`;
+    code += `# Embedding backward: scatter gradients into weight update\n`;
+    code += `B, L, H, C = 2, 3, 4, 3\n`;
+    code += `tokens = torch.randint(0, H, (B, L))\n`;
+    code += `X = F.one_hot(tokens, H).float()  # (B, L, H)\n`;
+    code += `G = torch.randn(B, L, C)  # upstream gradients\n\n`;
+    code += `# Weight gradient via einsum:\n`;
+    code += `dW = torch.einsum('blh,blc->hc', X, G)\n`;
+    code += `# Equivalent scatter-add:\n`;
+    code += `dW2 = torch.zeros(H, C)\n`;
+    code += `dW2.index_add_(0, tokens.reshape(-1), G.reshape(-1, C))\n`;
+    code += `assert torch.allclose(dW, dW2)\n`;
   } else {
     const aRows = [];
     for (let i = 0; i < I; i++) {
@@ -204,6 +248,10 @@ export function renderEinsumBadge(containerId, tab) {
     el.innerHTML = `einsum('<span class="ei-free">i</span><span class="ei-contract">j</span>, <span class="ei-contract">j</span><span class="ei-free">k</span> → <span class="ei-free">ik</span>', A, B)`;
   } else if (tab === 'matmul') {
     el.innerHTML = `einsum('<span class="ei-free">i</span><span class="ei-contract">j</span>, <span class="ei-contract">j</span><span class="ei-free">k</span> → <span class="ei-free">ik</span>', A, B)`;
+  } else if (tab === 'embed-fwd') {
+    el.innerHTML = `einsum('<span class="ei-free">b</span><span class="ei-free">l</span><span class="ei-contract">h</span>, <span class="ei-contract">h</span><span class="ei-free">c</span> → <span class="ei-free">b</span><span class="ei-free">l</span><span class="ei-free">c</span>', X, W)`;
+  } else if (tab === 'embed-bwd') {
+    el.innerHTML = `einsum('<span class="ei-contract">b</span><span class="ei-contract">l</span><span class="ei-free">h</span>, <span class="ei-contract">b</span><span class="ei-contract">l</span><span class="ei-free">c</span> → <span class="ei-free">h</span><span class="ei-free">c</span>', X, G)`;
   }
   // Remove old active-tab markers
   document.querySelectorAll('.copy-torch-btn.active-tab').forEach(b => b.classList.remove('active-tab'));
@@ -239,6 +287,23 @@ function updateShelfContent() {
   } else if (currentMode === 'dotprod') {
     el.innerHTML = '<div class="dp-vector-intro" id="shelfDpIntro"></div>';
     dpRenderVectorIntro('shelfDpIntro');
+  } else if (currentMode === 'embed-fwd') {
+    el.innerHTML =
+      `<div class="broadcast-rules">`
+      + `<strong>Embedding Forward: blh,hc→blc</strong>`
+      + `<p style="margin-top:6px">Each token is a one-hot vector. Multiplying by the embedding table W selects a row — embedding lookup <em>is</em> matrix multiplication.</p>`
+      + `<p style="margin-top:6px"><code>Y[b,l,:] = X[b,l,:] @ W = W[token_id, :]</code></p>`
+      + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic">This is nn.Embedding forward from Karpathy's makemore Part 4. The contraction over h is the "lookup" — only the h=token_id term survives.</p>`
+      + `</div>`;
+  } else if (currentMode === 'embed-bwd') {
+    el.innerHTML =
+      `<div class="broadcast-rules">`
+      + `<strong>Embedding Backward: blh,blc→hc</strong>`
+      + `<p style="margin-top:6px">The weight gradient accumulates upstream gradients: each position scatters its gradient to the row of its token.</p>`
+      + `<p style="margin-top:6px"><code>dW[h,:] = Σ G[b,l,:] for all (b,l) where token==h</code></p>`
+      + `<p style="margin-top:6px">This is the reverse of forward's "gather" — forward selects rows, backward <em>scatters</em> gradients back. Rare tokens get smaller updates (fewer terms in the sum).</p>`
+      + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic">Each position contributes a rank-1 outer product X[b,l,:]⊗G[b,l,:]. The weight update is a sum of these rank-1 terms — the same structure as Tab ①.</p>`
+      + `</div>`;
   }
 }
 setOnShelfOpen(updateShelfContent);
@@ -271,6 +336,22 @@ window.dpJumpToCell = dpJumpToCell;
 window.dpScrubCollapse = dpScrubCollapse;
 window.dpHoverCell = dpHoverCell;
 window.dpClearHover = dpClearHover;
+// Tab 3 — Embedding Forward
+window.efFwd = efFwd;
+window.efBack = efBack;
+window.efToggle = efToggle;
+window.efReset = efReset;
+window.efJumpToPos = efJumpToPos;
+window.efTraceBack = efTraceBack;
+window.efChangeDim = efChangeDim;
+// Tab 4 — Embedding Backward
+window.ebFwd = ebFwd;
+window.ebBack = ebBack;
+window.ebToggle = ebToggle;
+window.ebReset = ebReset;
+window.ebJumpToPos = ebJumpToPos;
+window.ebTraceBack = ebTraceBack;
+window.ebChangeDim = ebChangeDim;
 // Snap-back
 window.snapToDefault = snapToDefault;
 // Copy torch code
