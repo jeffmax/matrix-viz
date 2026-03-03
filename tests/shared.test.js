@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { computeData, I, J, K, A, B, Cube, Res } from '../js/shared.js';
+import { computeData, changeDim, I, J, K, A, B, Cube, Res } from '../js/shared.js';
 
 describe('computeData', () => {
   beforeEach(() => {
@@ -43,5 +43,33 @@ describe('computeData', () => {
     for (let i = 0; i < I; i++)
       for (let j = 0; j < J; j++)
         expect(A[i][j]).toBe(1);
+  });
+});
+
+describe('default dimensions', () => {
+  it('defaults to I=3, J=3, K=2 (non-square B)', () => {
+    expect(I).toBe(3);
+    expect(J).toBe(3);
+    expect(K).toBe(2);
+  });
+});
+
+describe('changeDim max=5', () => {
+  beforeEach(() => {
+    computeData(true);
+  });
+
+  it('allows dimensions up to 5', () => {
+    // Start at I=3, increase twice to reach 5
+    changeDim('I', 1);
+    changeDim('I', 1);
+    expect(I).toBe(5);
+  });
+
+  it('clamps at 5 (does not exceed)', () => {
+    changeDim('I', 1);
+    changeDim('I', 1);
+    changeDim('I', 1); // should be clamped
+    expect(I).toBe(5);
   });
 });

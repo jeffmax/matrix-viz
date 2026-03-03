@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════════
 // APP — ENTRY POINT, MODE SWITCHING, INIT
 // ══════════════════════════════════════════════════
-import { I, J, K, currentMode, setCurrentMode, computeData, changeDim,
+import { I, J, K, A, B, currentMode, setCurrentMode, computeData, changeDim,
          registerCallbacks, toggleInfo, recomputeFromMatrices,
          infoOpen, setOnShelfOpen } from './shared.js';
 import { sc, initScene, moveCanvasTo, snapToDefault } from './scene.js';
@@ -156,6 +156,43 @@ function rebuild(rnd) {
 }
 
 // ══════════════════════════════════════════════════
+// COPY PYTORCH CODE
+// ══════════════════════════════════════════════════
+export function copyTorchCode(tab) {
+  let code = 'import torch\n';
+  if (tab === 'intro') {
+    const aVals = introA.join(', ');
+    const bVals = introB.join(', ');
+    code += `a = torch.tensor([${aVals}])\n`;
+    code += `b = torch.tensor([${bVals}])\n`;
+    code += `result = torch.einsum('i,k->ik', a, b)\n`;
+  } else {
+    const aRows = [];
+    for (let i = 0; i < I; i++) {
+      const row = [];
+      for (let j = 0; j < J; j++) row.push(A[i][j]);
+      aRows.push('[' + row.join(', ') + ']');
+    }
+    const bRows = [];
+    for (let j = 0; j < J; j++) {
+      const row = [];
+      for (let k = 0; k < K; k++) row.push(B[j][k]);
+      bRows.push('[' + row.join(', ') + ']');
+    }
+    code += `A = torch.tensor([${aRows.join(', ')}])\n`;
+    code += `B = torch.tensor([${bRows.join(', ')}])\n`;
+    code += `result = A @ B  # or torch.einsum('ij,jk->ik', A, B)\n`;
+  }
+  navigator.clipboard.writeText(code).then(() => {
+    const btn = document.querySelector('.copy-torch-btn.active-tab');
+    if (btn) {
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = '📋 torch'; }, 1200);
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════
 // EINSUM BADGE RENDERER
 // ══════════════════════════════════════════════════
 export function renderEinsumBadge(containerId, tab) {
@@ -166,12 +203,19 @@ export function renderEinsumBadge(containerId, tab) {
   } else if (tab === 'dotprod') {
     el.innerHTML = `einsum('<span class="ei-free">i</span><span class="ei-contract">j</span>, <span class="ei-contract">j</span><span class="ei-free">k</span> → <span class="ei-free">ik</span>', A, B)`;
   } else if (tab === 'matmul') {
+    const base = `einsum('<span class="ei-free">i</span><span class="ei-contract">j</span>, <span class="ei-contract">j</span><span class="ei-free">k</span> → <span class="ei-free">ik</span>', A, B)`;
     if (mmPhase === 'build') {
-      el.innerHTML = `einsum('<span class="ei-free">i</span><span class="ei-free">j</span>, <span class="ei-free">j</span><span class="ei-free">k</span> → <span class="ei-free">ijk</span>', A, B) &nbsp;<span class="ei-note">build cube</span>`;
+      el.innerHTML = base + ` &nbsp;<span class="ei-note">building <span class="ei-free">i</span><span class="ei-free">j</span><span class="ei-free">k</span> cube</span>`;
+    } else if (mmPhase === 'collapse') {
+      el.innerHTML = base + ` &nbsp;<span class="ei-note">summing out <span class="ei-contract">j</span></span>`;
     } else {
-      el.innerHTML = `einsum('<span class="ei-free">i</span><span class="ei-contract">j</span><span class="ei-free">k</span> → <span class="ei-free">ik</span>', Cube) &nbsp;<span class="ei-note">sum out <span class="ei-contract">j</span></span>`;
+      el.innerHTML = base;
     }
   }
+  // Remove old active-tab markers
+  document.querySelectorAll('.copy-torch-btn.active-tab').forEach(b => b.classList.remove('active-tab'));
+  // Append copy button
+  el.innerHTML += ` <button class="copy-torch-btn active-tab" onclick="copyTorchCode('${tab}')">📋 torch</button>`;
 }
 
 // ── Shelf content routing ──
@@ -234,6 +278,8 @@ window.dpJumpToCell = dpJumpToCell;
 window.dpScrubCollapse = dpScrubCollapse;
 // Snap-back
 window.snapToDefault = snapToDefault;
+// Copy torch code
+window.copyTorchCode = copyTorchCode;
 
 // ── Init ──
 rebuild(true);

@@ -51,7 +51,7 @@ function vecTipB() {
 function renderIntroStep0(wrap) {
   let html = '<div class="intro-stage">';
   html += '<div class="intro-block">';
-  html += '<div class="intro-block-label"><span style="color:#e06000;font-weight:700">a</span><span style="color:#aaa">[:, None]</span></div>';
+  html += '<div class="intro-block-label"><span style="color:#e06000;font-weight:700">a</span> <span style="color:#aaa">column vector</span></div>';
   html += '<div class="grid-with-row-btns">';
   html += '<div class="intro-grid" style="grid-template-columns:44px">';
   for (let i = 0; i < I; i++) {
@@ -65,7 +65,7 @@ function renderIntroStep0(wrap) {
   html += '</div>';
   html += '<div class="intro-sym">⊗</div>';
   html += '<div class="intro-block">';
-  html += '<div class="intro-block-label"><span style="color:#1a60b0;font-weight:700">b</span><span style="color:#aaa">[None, :]</span></div>';
+  html += '<div class="intro-block-label"><span style="color:#1a60b0;font-weight:700">b</span> <span style="color:#aaa">row vector</span></div>';
   html += `<div class="intro-grid" style="grid-template-columns:repeat(${K},44px)">`;
   for (let k = 0; k < K; k++) {
     html += `<div class="mat-cell b editable" onclick="introEditCell('b',${k})">${introB[k]}</div>`;
@@ -85,7 +85,7 @@ function renderIntroStep1(wrap) {
   let html = '<div class="intro-stage">';
 
   html += '<div class="intro-block">';
-  html += '<div class="intro-block-label"><span style="color:#e06000;font-weight:700">a</span><span style="color:#aaa">[:, None]</span> broadcast →</div>';
+  html += '<div class="intro-block-label"><span style="color:#e06000;font-weight:700">a</span> <span style="color:#aaa">broadcast →</span></div>';
   html += '<div style="display:flex;gap:3px">';
   html += '<div class="intro-orig-vec intro-orig-a">';
   html += '<div style="display:flex;flex-direction:column;gap:3px">';
@@ -107,7 +107,7 @@ function renderIntroStep1(wrap) {
   html += '<div class="intro-sym">⊙</div>';
 
   html += '<div class="intro-block">';
-  html += '<div class="intro-block-label"><span style="color:#1a60b0;font-weight:700">b</span><span style="color:#aaa">[None, :]</span> broadcast ↓</div>';
+  html += '<div class="intro-block-label"><span style="color:#1a60b0;font-weight:700">b</span> <span style="color:#aaa">broadcast ↓</span></div>';
   html += '<div style="display:flex;flex-direction:column;gap:3px">';
   html += '<div class="intro-orig-vec intro-orig-b">';
   html += '<div style="display:flex;gap:3px">';
@@ -129,7 +129,7 @@ function renderIntroStep1(wrap) {
   html += '<div class="intro-sym">=</div>';
 
   html += '<div class="intro-block">';
-  html += '<div class="intro-block-label"><span style="color:#1a9a40;font-weight:700">a ⊗ b</span> <span style="color:#aaa">= a[:, None] * b[None, :]</span></div>';
+  html += '<div class="intro-block-label"><span style="color:#1a9a40;font-weight:700">a ⊗ b</span></div>';
   html += `<div class="intro-grid" style="grid-template-columns:repeat(${K},44px)">`;
   for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
     const val = introA[i] * introB[k];
@@ -206,7 +206,7 @@ function renderIntroStep2(wrap) {
   html += '<div class="intro-sym">=</div>';
 
   html += '<div class="intro-block">';
-  html += '<div class="intro-block-label"><span style="color:#1a9a40;font-weight:700">a ⊗ b</span> <span style="color:#aaa">= a[:, None] * b[None, :]</span></div>';
+  html += '<div class="intro-block-label"><span style="color:#1a9a40;font-weight:700">a ⊗ b</span></div>';
   html += `<div class="intro-grid" style="grid-template-columns:repeat(${K},44px)">`;
   for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
     const val = introA[i] * introB[k];

@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════════════
 
 // Dimensions
-export let I = 3, J = 4, K = 3;
+export let I = 3, J = 3, K = 2;
 
 // Data arrays
 export let A = [], B = [], Cube = [], Res = [];
@@ -62,9 +62,9 @@ export function computeData(rnd) {
 // Resize dimensions preserving existing values, new cells get random values
 export function changeDim(dim, delta) {
   const oldI = I, oldJ = J, oldK = K;
-  if (dim === 'I') I = Math.max(1, Math.min(4, I + delta));
-  else if (dim === 'J') J = Math.max(1, Math.min(4, J + delta));
-  else if (dim === 'K') K = Math.max(1, Math.min(4, K + delta));
+  if (dim === 'I') I = Math.max(1, Math.min(5, I + delta));
+  else if (dim === 'J') J = Math.max(1, Math.min(5, J + delta));
+  else if (dim === 'K') K = Math.max(1, Math.min(5, K + delta));
   if (I === oldI && J === oldJ && K === oldK) return;
 
   const newA = Array.from({length: I}, (_, i) => Array.from({length: J}, (_, j) => (i < oldI && j < oldJ) ? A[i][j] : rand()));
@@ -124,7 +124,7 @@ export function dimBtnsH(dim, highlight) {
   return `<div class="dim-btns-h">`
     + `<button class="dim-btn" onclick="changeDim('${dim}',-1)"${val <= 1 ? ' disabled' : ''}>−</button>`
     + `<span class="${cls}">${dim.toLowerCase()}=${val}</span>`
-    + `<button class="dim-btn" onclick="changeDim('${dim}',+1)"${val >= 4 ? ' disabled' : ''}>+</button>`
+    + `<button class="dim-btn" onclick="changeDim('${dim}',+1)"${val >= 5 ? ' disabled' : ''}>+</button>`
     + `</div>`;
 }
 
@@ -135,6 +135,6 @@ export function dimBtnsV(dim, highlight) {
   return `<div class="dim-btns-v">`
     + `<button class="dim-btn" onclick="changeDim('${dim}',-1)"${val <= 1 ? ' disabled' : ''}>−</button>`
     + `<span class="${cls}">${dim.toLowerCase()}=${val}</span>`
-    + `<button class="dim-btn" onclick="changeDim('${dim}',+1)"${val >= 4 ? ' disabled' : ''}>+</button>`
+    + `<button class="dim-btn" onclick="changeDim('${dim}',+1)"${val >= 5 ? ' disabled' : ''}>+</button>`
     + `</div>`;
 }

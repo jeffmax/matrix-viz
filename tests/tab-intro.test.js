@@ -1,12 +1,41 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { computeData, I, K } from '../js/shared.js';
-import { initIntroVecs, renderIntro, introStep, introAnimDuration } from '../js/tab-intro.js';
+import { initIntroVecs, renderIntro, introStep, introAnimDuration,
+         resetIntroStep, stepFwdIntro } from '../js/tab-intro.js';
 
-// Access the mutable introStep via the module — we use stepFwdIntro to advance
-import { stepFwdIntro } from '../js/tab-intro.js';
+describe('Tab 0 labels should not contain [:, None] broadcasting syntax', () => {
+  beforeEach(() => {
+    resetIntroStep();
+    computeData(true);
+    initIntroVecs(true);
+  });
+
+  it('step 0 does not show [:, None] or [None, :]', () => {
+    renderIntro();
+    const wrap = document.getElementById('introDisplay');
+    expect(wrap.innerHTML).not.toContain('[:, None]');
+    expect(wrap.innerHTML).not.toContain('[None, :]');
+  });
+
+  it('step 1 does not show [:, None] or [None, :]', () => {
+    stepFwdIntro();
+    const wrap = document.getElementById('introDisplay');
+    expect(wrap.innerHTML).not.toContain('[:, None]');
+    expect(wrap.innerHTML).not.toContain('[None, :]');
+  });
+
+  it('step 2 does not show [:, None] or [None, :]', () => {
+    stepFwdIntro();
+    stepFwdIntro();
+    const wrap = document.getElementById('introDisplay');
+    expect(wrap.innerHTML).not.toContain('[:, None]');
+    expect(wrap.innerHTML).not.toContain('[None, :]');
+  });
+});
 
 describe('Bug 1: Tab 0 step 2 should not replay result animation', () => {
   beforeEach(() => {
+    resetIntroStep();
     computeData(true);
     initIntroVecs(true);
   });
