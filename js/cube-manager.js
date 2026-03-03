@@ -6,32 +6,6 @@ import { sc, orb, CELL, STEP, FIXED_THETA, FIXED_PHI, makeTex, makePlusTex, init
 
 const THREE = window.THREE;
 
-// ── Rounded box geometry (r128-compatible) ──
-function createRoundedBoxGeo(w, h, d, radius, segments) {
-  const s = segments || 2;
-  const r = Math.min(radius, w / 2, h / 2, d / 2);
-  const geo = new THREE.BoxGeometry(w - 2 * r, h - 2 * r, d - 2 * r, s, s, s);
-  const pos = geo.attributes && geo.attributes.position;
-  if (!pos) return geo; // test mock — skip rounding
-  const hw = (w - 2 * r) / 2, hh = (h - 2 * r) / 2, hd = (d - 2 * r) / 2;
-  for (let i = 0; i < pos.count; i++) {
-    let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
-    const sx = x > 0 ? 1 : -1, sy = y > 0 ? 1 : -1, sz = z > 0 ? 1 : -1;
-    const dx = Math.max(0, Math.abs(x) - hw), dy = Math.max(0, Math.abs(y) - hh), dz = Math.max(0, Math.abs(z) - hd);
-    const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
-    if (len > 0.001) {
-      const scale = r / len;
-      x = (Math.abs(x) > hw ? sx * hw : x) + (dx > 0 ? sx * dx * scale : 0);
-      y = (Math.abs(y) > hh ? sy * hh : y) + (dy > 0 ? sy * dy * scale : 0);
-      z = (Math.abs(z) > hd ? sz * hd : z) + (dz > 0 ? sz * dz * scale : 0);
-    }
-    pos.setXYZ(i, x, y, z);
-  }
-  pos.needsUpdate = true;
-  geo.computeVertexNormals();
-  return geo;
-}
-
 export let boxes = [];
 export let plusPlanes = [];
 
@@ -47,13 +21,12 @@ export function rebuildBoxes() {
     for (let j = 0; j < J; j++) {
       const row = [];
       for (let k = 0; k < K; k++) {
-        const geo = createRoundedBoxGeo(CELL, CELL, CELL, CELL * 0.12, 3);
+        const geo = new THREE.BoxGeometry(CELL, CELL, CELL);
         const mat = new THREE.MeshPhongMaterial({color: 0xeeeeee, transparent: true, opacity: 0.10, shininess: 30});
         const mesh = new THREE.Mesh(geo, mat);
         const px = ox + k * STEP, py = oy + j * STEP, pz = oz + i * STEP;
         mesh.position.set(px, py, pz); sc.scene.add(mesh);
-        // Edges on rounded geometry — use threshold angle to avoid interior edges
-        const eg = new THREE.EdgesGeometry(geo, 15);
+        const eg = new THREE.EdgesGeometry(geo);
         const em = new THREE.LineBasicMaterial({color: 0xcccccc, transparent: true, opacity: 0.22});
         const edges = new THREE.LineSegments(eg, em); edges.position.copy(mesh.position); sc.scene.add(edges);
         const spr = new THREE.Sprite(new THREE.SpriteMaterial({transparent: true, depthTest: false}));
