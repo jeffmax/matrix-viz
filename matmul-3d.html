@@ -490,6 +490,58 @@ input[type=range] { width: 88px; accent-color: #333; }
 }
 .eb-outer-product { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .eb-op-label { font-size: 0.65rem; color: #999; font-family: monospace; }
+
+/* ── Embedding Forward: matmul flow layout ── */
+.ef-matmul-flow {
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px; flex-wrap: nowrap; overflow-x: auto;
+  padding: 8px 0;
+}
+.ef-flow-section {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  flex-shrink: 0;
+}
+.ef-flow-label {
+  font-size: 0.60rem; color: #aaa; letter-spacing: .04em;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+}
+.ef-flow-sym {
+  font-size: 1.3rem; color: #bbb; font-weight: 300;
+  flex-shrink: 0; padding: 0 2px;
+}
+.ef-onehot-col {
+  display: flex; flex-direction: column; gap: 3px;
+}
+.ef-onehot-rowlabel {
+  font-size: 0.52rem; color: #bbb; text-align: right; padding-right: 3px;
+  font-family: monospace;
+}
+.ef-onehot-row {
+  display: flex; align-items: center; gap: 2px;
+}
+.ef-inter-grid {
+  display: grid; gap: 3px;
+}
+.ef-w-row-faded { opacity: 0.18; }
+/* Mini one-hot dots inside token cells */
+.ef-mini-onehot {
+  display: flex; gap: 2px; justify-content: center; margin-top: 2px;
+}
+.ef-mini-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: #ddd;
+}
+.ef-mini-dot.active {
+  background: #e06000;
+}
+/* Compact token grid for active mode */
+.ef-tokens-compact {
+  display: flex; flex-direction: column; gap: 3px;
+}
+.ef-tokens-compact .ef-token-row { gap: 3px; }
+.ef-tokens-compact .ef-token { width: 44px; padding: 4px 2px; }
+.ef-tokens-compact .ef-tok-id { font-size: 0.72rem; }
+.ef-tokens-compact .ef-tok-pos { font-size: 0.48rem; }
 </style>
 </head>
 <body>

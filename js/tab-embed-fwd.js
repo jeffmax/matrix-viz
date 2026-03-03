@@ -36,70 +36,147 @@ export function efInit(randomize = true) {
   efSelectedCell = null;
 }
 
-// ── Rendering ──
-export function efRender() {
-  const wrap = document.getElementById('efDisplay');
-  if (!wrap) return;
+// ── Mini one-hot dots HTML ──
+function renderMiniOneHot(tokenId) {
+  let html = '<div class="ef-mini-onehot">';
+  for (let h = 0; h < eH; h++) {
+    html += `<div class="ef-mini-dot${h === tokenId ? ' active' : ''}"></div>`;
+  }
+  html += '</div>';
+  return html;
+}
 
-  let html = '<div class="ef-layout">';
-
-  // Token grid
-  html += '<div class="ef-section">';
-  html += '<div class="ef-section-label">Tokens X <span class="ef-dim">(B=' + eB + ', L=' + eL + ')</span></div>';
-  html += '<div class="ef-token-grid">';
+// ── Token grid (shared between overview & active, active uses compact) ──
+function renderTokenGrid(compact) {
+  const cls = compact ? 'ef-token-grid ef-tokens-compact' : 'ef-token-grid';
+  let html = `<div class="${cls}">`;
   for (let b = 0; b < eB; b++) {
     html += '<div class="ef-token-row">';
     for (let l = 0; l < eL; l++) {
       const p = blToPos(b, l);
       const active = efStep === p;
       const done = efStep > p;
-      const cls = active ? 'ef-token active' : done ? 'ef-token done' : 'ef-token';
-      html += `<div class="${cls}" onclick="efJumpToPos(${p})" title="batch ${b}, pos ${l}">`;
+      const tcls = active ? 'ef-token active' : done ? 'ef-token done' : 'ef-token';
+      html += `<div class="${tcls}" onclick="efJumpToPos(${p})" title="batch ${b}, pos ${l}">`;
       html += `<span class="ef-tok-id">${tokenIds[b][l]}</span>`;
       html += `<span class="ef-tok-pos">[${b},${l}]</span>`;
+      html += renderMiniOneHot(tokenIds[b][l]);
       html += '</div>';
     }
     html += '</div>';
   }
-  html += '</div></div>';
+  html += '</div>';
+  return html;
+}
 
-  // Embedding table W
-  html += '<div class="ef-section">';
-  html += '<div class="ef-section-label">Embedding W <span class="ef-dim">(H=' + eH + ', C=' + eC + ')</span></div>';
-  html += `<div class="ef-w-grid" style="grid-template-columns: auto repeat(${eC}, 40px)">`;
-  // Header row (c indices)
+// ── One-hot column for active position ──
+function renderOneHot(b, l) {
+  const tok = tokenIds[b][l];
+  let html = '<div class="ef-onehot-col">';
+  for (let h = 0; h < eH; h++) {
+    const val = h === tok ? 1 : 0;
+    const cls = val === 1 ? 'mat-cell a cur' : 'mat-cell a dim';
+    html += '<div class="ef-onehot-row">';
+    html += `<span class="ef-onehot-rowlabel">h=${h}</span>`;
+    html += `<div class="${cls}" style="width:36px;height:36px;font-size:0.82rem">${val}</div>`;
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+// ── W table with row fading ──
+function renderWTable(activeTokenId) {
+  const fading = activeTokenId >= 0;
+  let html = `<div class="ef-w-grid" style="grid-template-columns: auto repeat(${eC}, 40px)">`;
+  // Header row
   html += '<div class="ef-w-header"></div>';
   for (let c = 0; c < eC; c++) html += '<div class="ef-w-header">c' + c + '</div>';
   for (let h = 0; h < eH; h++) {
-    const [ab, al] = efStep >= 0 ? posTobl(efStep) : [-1, -1];
-    const isActiveRow = efStep >= 0 && tokenIds[ab]?.[al] === h;
-    html += `<div class="ef-w-rowlabel${isActiveRow ? ' active' : ''}">h=${h}</div>`;
+    const isActiveRow = fading && h === activeTokenId;
+    const rowFaded = fading && !isActiveRow;
+    html += `<div class="ef-w-rowlabel${isActiveRow ? ' active' : ''}"${rowFaded ? ' style="opacity:0.18"' : ''}>h=${h}</div>`;
     for (let c = 0; c < eC; c++) {
       const cls = isActiveRow ? 'mat-cell b cur' : 'mat-cell b';
-      html += `<div class="${cls}" style="width:40px;height:40px;font-size:0.82rem">${W[h][c]}</div>`;
+      html += `<div class="${cls}${rowFaded ? ' ef-w-row-faded' : ''}" style="width:40px;height:40px;font-size:0.82rem">${W[h][c]}</div>`;
     }
   }
-  html += '</div></div>';
+  html += '</div>';
+  return html;
+}
 
-  // Output Y
+// ── Intermediate H×C grid ──
+function renderIntermediate(b, l) {
+  const tok = tokenIds[b][l];
+  let html = `<div class="ef-inter-grid" style="grid-template-columns: repeat(${eC}, 36px)">`;
+  for (let h = 0; h < eH; h++) {
+    const isActive = h === tok;
+    for (let c = 0; c < eC; c++) {
+      const val = X[b][l][h] * W[h][c];
+      if (isActive) {
+        html += `<div class="mat-cell r cur" style="width:36px;height:36px;font-size:0.78rem">${val}</div>`;
+      } else {
+        html += `<div class="mat-cell r empty" style="width:36px;height:36px;font-size:0.72rem;opacity:0.25">0</div>`;
+      }
+    }
+  }
+  html += '</div>';
+  return html;
+}
+
+// ── Output vector for active position ──
+function renderOutputVec(b, l) {
+  let html = '<div style="display:flex;flex-direction:column;gap:3px">';
+  for (let c = 0; c < eC; c++) {
+    html += `<div class="mat-cell r cur" style="width:36px;height:36px;font-size:0.78rem" `
+      + `onclick="efTraceBack(${b},${l},${c})">${Y[b][l][c]}</div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+// ── Rendering ──
+export function efRender() {
+  const wrap = document.getElementById('efDisplay');
+  if (!wrap) return;
+
+  if (efStep < 0) {
+    renderOverview(wrap);
+  } else {
+    renderActivePosition(wrap);
+  }
+  efUpdateFormula();
+  efUpdateDots();
+}
+
+function renderOverview(wrap) {
+  let html = '<div class="ef-layout">';
+
+  // Token grid with mini one-hot dots
+  html += '<div class="ef-section">';
+  html += '<div class="ef-section-label">Tokens X <span class="ef-dim">(B=' + eB + ', L=' + eL + ')</span></div>';
+  html += renderTokenGrid(false);
+  html += '</div>';
+
+  // Embedding table W (no fading in overview)
+  html += '<div class="ef-section">';
+  html += '<div class="ef-section-label">Embedding W <span class="ef-dim">(H=' + eH + ', C=' + eC + ')</span></div>';
+  html += renderWTable(-1);
+  html += '</div>';
+
+  // Output Y (all empty in overview)
   html += '<div class="ef-section">';
   html += '<div class="ef-section-label">Output Y <span class="ef-dim">(B=' + eB + ', L=' + eL + ', C=' + eC + ')</span></div>';
   html += '<div class="ef-output-grid">';
   for (let b = 0; b < eB; b++) {
     html += '<div class="ef-output-row">';
     for (let l = 0; l < eL; l++) {
-      const p = blToPos(b, l);
-      const active = efStep === p;
-      const done = efStep >= 0 && p <= efStep;
-      html += '<div class="ef-output-cell-group' + (active ? ' active' : '') + '">';
+      html += '<div class="ef-output-cell-group">';
       html += `<span class="ef-output-pos">[${b},${l}]</span>`;
       html += '<div class="ef-output-vec">';
       for (let c = 0; c < eC; c++) {
-        const cellCls = active ? 'mat-cell r cur' :
-                        done ? 'mat-cell r done' : 'mat-cell r empty';
-        const val = done ? Y[b][l][c] : '';
-        html += `<div class="${cellCls}" style="width:36px;height:36px;font-size:0.78rem" `
-          + `onclick="efTraceBack(${b},${l},${c})">${val}</div>`;
+        html += `<div class="mat-cell r empty" style="width:36px;height:36px;font-size:0.78rem" `
+          + `onclick="efTraceBack(${b},${l},${c})"></div>`;
       }
       html += '</div></div>';
     }
@@ -109,8 +186,87 @@ export function efRender() {
 
   html += '</div>'; // ef-layout
   wrap.innerHTML = html;
-  efUpdateFormula();
-  efUpdateDots();
+}
+
+function renderActivePosition(wrap) {
+  const [b, l] = posTobl(efStep);
+  const tok = tokenIds[b][l];
+
+  let html = '';
+
+  // Top row: compact token grid + output grid (positions filled so far)
+  html += '<div class="ef-layout">';
+
+  // Compact token grid
+  html += '<div class="ef-section">';
+  html += '<div class="ef-section-label">Tokens <span class="ef-dim">(B=' + eB + ', L=' + eL + ')</span></div>';
+  html += renderTokenGrid(true);
+  html += '</div>';
+
+  // Output Y (filled up to current step)
+  html += '<div class="ef-section">';
+  html += '<div class="ef-section-label">Output Y <span class="ef-dim">(B=' + eB + ', L=' + eL + ', C=' + eC + ')</span></div>';
+  html += '<div class="ef-output-grid">';
+  for (let ob = 0; ob < eB; ob++) {
+    html += '<div class="ef-output-row">';
+    for (let ol = 0; ol < eL; ol++) {
+      const p = blToPos(ob, ol);
+      const active = efStep === p;
+      const done = p <= efStep;
+      html += '<div class="ef-output-cell-group' + (active ? ' active' : '') + '">';
+      html += `<span class="ef-output-pos">[${ob},${ol}]</span>`;
+      html += '<div class="ef-output-vec">';
+      for (let c = 0; c < eC; c++) {
+        const cellCls = active ? 'mat-cell r cur' :
+                        done ? 'mat-cell r done' : 'mat-cell r empty';
+        const val = done ? Y[ob][ol][c] : '';
+        html += `<div class="${cellCls}" style="width:36px;height:36px;font-size:0.78rem" `
+          + `onclick="efTraceBack(${ob},${ol},${c})">${val}</div>`;
+      }
+      html += '</div></div>';
+    }
+    html += '</div>';
+  }
+  html += '</div></div>';
+
+  html += '</div>'; // ef-layout
+
+  // Matmul flow: One-Hot × W = Intermediate Σ_h→ Output
+  html += '<div class="ef-matmul-flow">';
+
+  // One-hot column
+  html += '<div class="ef-flow-section">';
+  html += `<div class="ef-flow-label">X[${b},${l},:]</div>`;
+  html += renderOneHot(b, l);
+  html += '</div>';
+
+  html += '<div class="ef-flow-sym">&times;</div>';
+
+  // W table with fading
+  html += '<div class="ef-flow-section">';
+  html += '<div class="ef-flow-label">W</div>';
+  html += renderWTable(tok);
+  html += '</div>';
+
+  html += '<div class="ef-flow-sym">=</div>';
+
+  // Intermediate H×C grid
+  html += '<div class="ef-flow-section">';
+  html += `<div class="ef-flow-label">X[${b},${l},:] &middot; W</div>`;
+  html += renderIntermediate(b, l);
+  html += '</div>';
+
+  html += '<div class="ef-flow-sym">&Sigma;<sub style="font-size:0.6em">h</sub>&rarr;</div>';
+
+  // Output vector
+  html += '<div class="ef-flow-section">';
+  html += `<div class="ef-flow-label">Y[${b},${l},:]</div>`;
+  html += renderOutputVec(b, l);
+  html += '</div>';
+
+  html += '</div>'; // ef-matmul-flow
+
+  wrap.innerHTML = html;
 }
 
 function efUpdateFormula() {
@@ -125,22 +281,25 @@ function efUpdateFormula() {
       const xVal = X[b][l][h];
       const wVal = W[h][c];
       const style = h === tok ? 'font-weight:700' : 'opacity:0.3';
-      terms.push(`<span style="${style}"><span class="fa">X[${b},${l},${h}]</span>·<span class="fb">W[${h},${c}]</span> = ${xVal}×${wVal}</span>`);
+      terms.push(`<span style="${style}"><span class="fa">X[${b},${l},${h}]</span>&middot;<span class="fb">W[${h},${c}]</span> = ${xVal}&times;${wVal}</span>`);
     }
-    f.innerHTML = `Y[${b},${l},${c}] = Σ<sub>h</sub> X[${b},${l},h]·W[h,${c}] = ${terms.join(' + ')} = <span class="fc">${Y[b][l][c]}</span>`
-      + `<br><em style="color:#999;font-size:0.78rem">One-hot selects row ${tok} of W → it's just a lookup!</em>`;
+    f.innerHTML = `Y[${b},${l},${c}] = &Sigma;<sub>h</sub> X[${b},${l},h]&middot;W[h,${c}] = ${terms.join(' + ')} = <span class="fc">${Y[b][l][c]}</span>`
+      + `<br><em style="color:#999;font-size:0.78rem">One-hot selects row ${tok} of W &mdash; it's just a lookup!</em>`;
     return;
   }
 
   if (efStep < 0) {
-    f.innerHTML = `Each position (b,l) holds a one-hot vector. Multiplying by W selects a row — embedding lookup IS matrix multiplication. Press ▶ to step through positions.`;
+    f.innerHTML = `Each position (b,l) holds a one-hot vector. Multiplying by W selects a row &mdash; embedding lookup IS matrix multiplication. Press &#9654; to step through positions.`;
   } else {
     const [b, l] = posTobl(efStep);
     const tok = tokenIds[b][l];
-    f.innerHTML = `Position [${b},${l}]: token = <span class="fa">${tok}</span> → `
-      + `Y[${b},${l},:] = <span class="fb">W[${tok},:]</span> = `
-      + `<span class="fc">[${Y[b][l].join(', ')}]</span> `
-      + `<em style="color:#999">— row selection from the embedding table</em>`;
+    // Full matmul decomposition
+    let terms = [];
+    for (let h = 0; h < eH; h++) {
+      const style = h === tok ? 'font-weight:700' : 'opacity:0.3';
+      terms.push(`<span style="${style}">${X[b][l][h]}&middot;<span class="fb">W[${h},:]</span></span>`);
+    }
+    f.innerHTML = `Y[${b},${l},:] = &Sigma;<sub>h</sub> X[${b},${l},h]&middot;W[h,:] = ${terms.join(' + ')} = <span class="fb">W[${tok},:]</span> = <span class="fc">[${Y[b][l].join(', ')}]</span>`;
   }
 }
 
