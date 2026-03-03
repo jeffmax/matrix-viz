@@ -800,11 +800,24 @@ input[type=range] { width: 88px; accent-color: #333; }
 <div id="ctrl-inner" class="tab-container">
   <div class="tab-inner">
     <div class="controls-row">
+      <div class="playback">
+        <button class="play-btn" onclick="ipBack()" title="Step back">◀</button>
+        <button class="play-btn big" onclick="ipFwd()" title="Step forward">▶|</button>
+        <button class="play-btn" id="pbInner" onclick="ipToggle()">▶</button>
+        <button class="play-btn" onclick="ipReset()" title="Reset">↺</button>
+        <div class="slider-wrap">
+          <span>slow</span>
+          <input type="range" id="spInner" min="200" max="1200" value="200" step="50">
+          <span>fast</span>
+        </div>
+      </div>
       <div class="einsum-badge" id="einsumInner"></div>
     </div>
-    <div id="innerDisplay" class="intro-wrap">
-      <div style="color:#aaa;font-size:0.82rem;text-align:center;padding:40px 0">Inner product tab — coming next</div>
+    <div id="innerDisplay" class="intro-wrap"></div>
+    <div class="formula-bar">
+      <div class="formula-text" id="fInner"></div>
     </div>
+    <div class="step-dots" id="dInner"></div>
   </div>
 </div>
 

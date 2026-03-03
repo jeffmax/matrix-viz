@@ -21,6 +21,8 @@ import { efInit, efRender, efFwd, efBack, efToggle, efReset, efPause,
 import { ebInit, ebRender, ebFwd, ebBack, ebToggle, ebReset, ebPause,
          ebJumpToPos, ebTraceBack, ebChangeDim } from './tab-embed-bwd.js';
 import { PRESETS, loadPreset, clearPreset, activePreset } from './presets.js';
+import { ipInit, ipRender, ipPause, ipReset, ipToggle, ipFwd, ipBack,
+         ipEditCell, ipResize } from './tab-inner.js';
 
 // ══════════════════════════════════════════════════
 // TIER STATE
@@ -111,6 +113,7 @@ function setMode(m) {
   if (m === 'inner' || m === 'intro') lastBlocksMode = m;
   if (m === 'matmul' || m === 'dotprod') lastMatmulMode = m;
 
+  if (prev === 'inner') ipPause();
   if (prev === 'intro') pauseIntro();
   if (prev === 'dotprod') dpPause();
   if (prev === 'matmul') mmPauseAll();
@@ -150,6 +153,7 @@ function setMode(m) {
   }
 
   if (m === 'inner') {
+    ipRender();
     renderEinsumBadge('einsumInner', 'inner');
   }
   if (m === 'matmul') {
@@ -264,6 +268,7 @@ function deselectPreset() {
 function rebuild(rnd) {
   mmPauseAll();
   resetMmBuildState();
+  ipPause();
   pauseIntro(); resetIntroStep();
   dpPause(); resetDpState();
   efPause(); ebPause();
@@ -272,6 +277,7 @@ function rebuild(rnd) {
   deselectPreset();
 
   computeData(rnd);
+  ipInit(rnd);
   initIntroVecs(rnd);
   efInit(rnd);
   ebInit(rnd);
@@ -290,7 +296,7 @@ function rebuild(rnd) {
 
   renderA(-1, -1, -1); renderB(-1, -1, -1);
   applyS1(-1);
-  if (currentMode === 'inner') { renderEinsumBadge('einsumInner', 'inner'); }
+  if (currentMode === 'inner') { ipRender(); renderEinsumBadge('einsumInner', 'inner'); }
   if (currentMode === 'intro') { renderIntro(); renderEinsumBadge('einsumIntro', 'intro'); }
   if (currentMode === 'dotprod') { dpRenderAll(); renderEinsumBadge('einsumDotprod', 'dotprod'); }
   if (currentMode === 'matmul') { renderEinsumBadge('einsumMatmul', 'matmul'); }
@@ -453,6 +459,13 @@ window.setTier = setTier;
 window.selectPreset = selectPreset;
 window.toggleInfo = toggleInfo;
 window.changeDim = changeDim;
+// Building Blocks — Inner Product
+window.ipFwd = ipFwd;
+window.ipBack = ipBack;
+window.ipToggle = ipToggle;
+window.ipReset = ipReset;
+window.ipEditCell = ipEditCell;
+window.ipResize = ipResize;
 // Building Blocks — Outer Product
 window.stepFwdIntro = stepFwdIntro;
 window.stepBackIntro = stepBackIntro;

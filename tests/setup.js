@@ -114,8 +114,12 @@ function buildDOM() {
 
     <!-- Inner Product tab -->
     <div id="ctrl-inner" class="hidden">
+      <button id="pbInner">▶</button>
+      <input type="range" id="spInner" value="600">
       <div id="einsumInner"></div>
       <div id="innerDisplay"></div>
+      <div id="fInner"></div>
+      <div id="dInner"></div>
     </div>
 
     <!-- Tab 0 — Intro -->
