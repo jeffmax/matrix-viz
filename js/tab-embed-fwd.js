@@ -1,8 +1,8 @@
 // ══════════════════════════════════════════════════
 // TAB 3 — EMBEDDING FORWARD: blh,hc→blc (row selection)
 // ══════════════════════════════════════════════════
+// Einsum-centric redesign: the einsum badge maps to labeled axes on tensors.
 // Pure 2D tab — no Three.js needed.
-// Steps through (b,l) positions showing how one-hot × weight = row selection.
 
 import { generateTokens, generateEmbedding, computeForward } from './embed-data.js';
 
@@ -36,41 +36,165 @@ export function efInit(randomize = true) {
   efSelectedCell = null;
 }
 
-// ── Mini one-hot dots HTML ──
-function renderMiniOneHot(tokenId) {
-  let html = '<div class="ef-mini-onehot">';
-  for (let h = 0; h < eH; h++) {
-    html += `<div class="ef-mini-dot${h === tokenId ? ' active' : ''}"></div>`;
+// ══════════════════════════════════════════════════
+// RENDERING HELPERS — pure functions (data+config → HTML)
+// Designed for later extraction into shared einsum-viz utilities.
+// ══════════════════════════════════════════════════
+
+// ── Render a 2D grid with axis labels ──
+// data2D[row][col], axisLabels: {top, left}, options: {highlight, cellClass, cellSize}
+function renderGrid2D(data2D, axisLabels, options = {}) {
+  const rows = data2D.length;
+  const cols = data2D[0].length;
+  const sz = options.cellSize || 36;
+  const cellClass = options.cellClass || 'mat-cell b';
+  const highlightRow = options.highlightRow ?? -1;
+  const fadedRows = options.fadedRows ?? false;
+
+  let html = '<div class="ef-tensor-with-axes">';
+
+  // Top axis label
+  if (axisLabels.top) {
+    const cls = axisLabels.topContracted ? 'ef-axis-label contracted' : 'ef-axis-label';
+    html += `<div class="ef-tensor-top-axis"><span class="${cls}">${axisLabels.top}</span></div>`;
+  }
+
+  html += '<div class="ef-tensor-body-row">';
+
+  // Left axis label
+  if (axisLabels.left) {
+    const cls = axisLabels.leftContracted ? 'ef-axis-label contracted' : 'ef-axis-label';
+    html += `<div class="ef-tensor-left-axis"><span class="${cls}">${axisLabels.left}</span></div>`;
+  }
+
+  // Grid
+  html += `<div class="grid" style="grid-template-columns: repeat(${cols}, ${sz}px)">`;
+  for (let r = 0; r < rows; r++) {
+    const isActive = r === highlightRow;
+    const isFaded = fadedRows && !isActive;
+    for (let c = 0; c < cols; c++) {
+      let cls = cellClass;
+      if (isActive) cls += ' cur';
+      if (isFaded) cls += ' ef-w-row-faded';
+      const style = `width:${sz}px;height:${sz}px;font-size:0.78rem`;
+      const extra = isFaded ? ';opacity:0.18' : '';
+      html += `<div class="${cls}" style="${style}${extra}">${data2D[r][c]}</div>`;
+    }
   }
   html += '</div>';
+
+  html += '</div>'; // body-row
+  html += '</div>'; // tensor-with-axes
   return html;
 }
 
-// ── Token grid (shared between overview & active, active uses compact) ──
-function renderTokenGrid(compact) {
-  const cls = compact ? 'ef-token-grid ef-tokens-compact' : 'ef-token-grid';
-  let html = `<div class="${cls}">`;
-  for (let b = 0; b < eB; b++) {
-    html += '<div class="ef-token-row">';
-    for (let l = 0; l < eL; l++) {
-      const p = blToPos(b, l);
-      const active = efStep === p;
-      const done = efStep > p;
-      const tcls = active ? 'ef-token active' : done ? 'ef-token done' : 'ef-token';
-      html += `<div class="${tcls}" onclick="efJumpToPos(${p})" title="batch ${b}, pos ${l}">`;
-      html += `<span class="ef-tok-id">${tokenIds[b][l]}</span>`;
-      html += `<span class="ef-tok-pos">[${b},${l}]</span>`;
-      html += renderMiniOneHot(tokenIds[b][l]);
-      html += '</div>';
+// ── Render a stacked 3D tensor as offset pages ──
+// data3D[page][row][col], axisLabels: {top, left, pageLabel}
+// options: {activePage, activeRow, cellRenderer, cellSize, emptyPages}
+function renderStackedTensor(data3D, axisLabels, options = {}) {
+  const pages = data3D.length;
+  const rows = data3D[0].length;
+  const cols = data3D[0][0].length;
+  const sz = options.cellSize || 36;
+  const activePage = options.activePage ?? -1;
+  const activeRow = options.activeRow ?? -1;
+  const cellRenderer = options.cellRenderer || ((val) => val);
+  const emptyPages = options.emptyPages ?? false;
+  const doneUpTo = options.doneUpTo ?? -1; // for Y: fill up to this (b,l) position
+  const onCellClick = options.onCellClick || null;
+
+  const offsetX = 6; // px right per back page
+  const offsetY = 4; // px up per back page
+
+  let html = '<div class="ef-tensor-with-axes">';
+
+  // Top axis label
+  if (axisLabels.top) {
+    const cls = axisLabels.topContracted ? 'ef-axis-label contracted' : 'ef-axis-label';
+    html += `<div class="ef-tensor-top-axis"><span class="${cls}">${axisLabels.top}</span></div>`;
+  }
+
+  html += '<div class="ef-tensor-body-row">';
+
+  // Left axis label
+  if (axisLabels.left) {
+    const cls = axisLabels.leftContracted ? 'ef-axis-label contracted' : 'ef-axis-label';
+    html += `<div class="ef-tensor-left-axis"><span class="${cls}">${axisLabels.left}</span></div>`;
+  }
+
+  // Calculate total stacked area
+  const gridW = cols * (sz + 3) - 3;
+  const gridH = rows * (sz + 3) - 3;
+  const totalW = gridW + (pages - 1) * offsetX + 10;
+  const totalH = gridH + (pages - 1) * offsetY + 30;
+
+  html += `<div class="ef-stacked-tensor" style="width:${totalW}px;height:${totalH}px">`;
+
+  // Render pages back to front
+  for (let p = pages - 1; p >= 0; p--) {
+    const ox = p * offsetX;
+    const oy = (pages - 1 - p) * offsetY;
+    const isActive = p === activePage;
+    const isFront = p === (activePage >= 0 ? activePage : 0);
+    const pageCls = `ef-tensor-page${isFront ? ' front-page' : ' back-page'}${isActive ? ' active-page' : ''}`;
+
+    html += `<div class="${pageCls}" style="left:${ox}px;top:${oy}px;z-index:${p === activePage ? 10 : p}">`;
+
+    // Page header
+    const headerCls = isActive ? 'ef-page-header active' : 'ef-page-header';
+    html += `<div class="${headerCls}">${axisLabels.pageLabel || 'b'}=${p}</div>`;
+
+    // Grid
+    html += `<div class="grid" style="grid-template-columns: repeat(${cols}, ${sz}px)">`;
+    for (let r = 0; r < rows; r++) {
+      const isActiveRow = isActive && r === activeRow;
+      for (let c = 0; c < cols; c++) {
+        const val = data3D[p][r][c];
+        const pos = blToPos(p, r);
+        let rendered;
+        if (emptyPages && doneUpTo < 0) {
+          // All empty
+          rendered = { text: '', cls: 'mat-cell r empty' };
+        } else if (emptyPages && doneUpTo >= 0) {
+          const done = pos <= doneUpTo;
+          const cur = pos === doneUpTo;
+          if (cur) rendered = { text: val, cls: 'mat-cell r cur' };
+          else if (done) rendered = { text: val, cls: 'mat-cell r done' };
+          else rendered = { text: '', cls: 'mat-cell r empty' };
+        } else {
+          rendered = cellRenderer(val, p, r, c, isActiveRow);
+        }
+        const click = onCellClick ? ` onclick="${onCellClick}(${p},${r},${c})"` : '';
+        const rowHi = isActiveRow ? ' ef-row-highlight' : '';
+        html += `<div class="${rendered.cls}${rowHi}" style="width:${sz}px;height:${sz}px;font-size:0.78rem"${click}>${rendered.text}</div>`;
+      }
     }
     html += '</div>';
+    html += '</div>'; // tensor-page
   }
-  html += '</div>';
+  html += '</div>'; // stacked-tensor
+
+  html += '</div>'; // body-row
+  html += '</div>'; // tensor-with-axes
   return html;
 }
 
-// ── One-hot column for active position ──
-function renderOneHot(b, l) {
+// ── Prior-step pill with hover tooltip ──
+function renderPriorPill() {
+  let tooltip = '';
+  for (let b = 0; b < eB; b++) {
+    for (let l = 0; l < eL; l++) {
+      const tok = tokenIds[b][l];
+      const oh = Array(eH).fill(0); oh[tok] = 1;
+      tooltip += `tok[${b},${l}]=${tok} → [${oh.join(',')}]\n`;
+    }
+  }
+  return `<div class="ef-prior-pill">F.one_hot(tokens) →`
+    + `<div class="ef-pill-tooltip">${tooltip.trim()}</div></div>`;
+}
+
+// ── One-hot column for contraction detail ──
+function renderOneHotSlice(b, l) {
   const tok = tokenIds[b][l];
   let html = '<div class="ef-onehot-col">';
   for (let h = 0; h < eH; h++) {
@@ -85,11 +209,10 @@ function renderOneHot(b, l) {
   return html;
 }
 
-// ── W table with row fading ──
+// ── W table with row fading for contraction ──
 function renderWTable(activeTokenId) {
   const fading = activeTokenId >= 0;
   let html = `<div class="ef-w-grid" style="grid-template-columns: auto repeat(${eC}, 40px)">`;
-  // Header row
   html += '<div class="ef-w-header"></div>';
   for (let c = 0; c < eC; c++) html += '<div class="ef-w-header">c' + c + '</div>';
   for (let h = 0; h < eH; h++) {
@@ -124,7 +247,7 @@ function renderIntermediate(b, l) {
   return html;
 }
 
-// ── Output vector for active position ──
+// ── Output vector for contraction result ──
 function renderOutputVec(b, l) {
   let html = '<div style="display:flex;flex-direction:column;gap:3px">';
   for (let c = 0; c < eC; c++) {
@@ -135,7 +258,50 @@ function renderOutputVec(b, l) {
   return html;
 }
 
-// ── Rendering ──
+// ── Contraction detail panel (horizontal flow) ──
+function renderContractionDetail(b, l) {
+  const tok = tokenIds[b][l];
+
+  let html = '<div class="ef-contraction-detail">';
+
+  // One-hot slice
+  html += '<div class="ef-contraction-section">';
+  html += `<div class="ef-contraction-label">X[${b},${l},:]</div>`;
+  html += renderOneHotSlice(b, l);
+  html += '</div>';
+
+  html += '<div class="ef-contraction-sym">&times;</div>';
+
+  // W table with fading
+  html += '<div class="ef-contraction-section">';
+  html += '<div class="ef-contraction-label">W</div>';
+  html += renderWTable(tok);
+  html += '</div>';
+
+  html += '<div class="ef-contraction-sym">=</div>';
+
+  // Intermediate H×C grid
+  html += '<div class="ef-contraction-section">';
+  html += `<div class="ef-contraction-label">X[${b},${l},:] &middot; W</div>`;
+  html += renderIntermediate(b, l);
+  html += '</div>';
+
+  html += '<div class="ef-contraction-sym">&Sigma;<sub style="font-size:0.6em">h</sub>&rarr;</div>';
+
+  // Output vector
+  html += '<div class="ef-contraction-section">';
+  html += `<div class="ef-contraction-label">Y[${b},${l},:]</div>`;
+  html += renderOutputVec(b, l);
+  html += '</div>';
+
+  html += '</div>';
+  return html;
+}
+
+// ══════════════════════════════════════════════════
+// MAIN RENDERING
+// ══════════════════════════════════════════════════
+
 export function efRender() {
   const wrap = document.getElementById('efDisplay');
   if (!wrap) return;
@@ -150,41 +316,48 @@ export function efRender() {
 }
 
 function renderOverview(wrap) {
-  let html = '<div class="ef-layout">';
+  let html = '<div class="ef-overview-tensors">';
 
-  // Token grid with mini one-hot dots
-  html += '<div class="ef-section">';
-  html += '<div class="ef-section-label">Tokens X <span class="ef-dim">(B=' + eB + ', L=' + eL + ')</span></div>';
-  html += renderTokenGrid(false);
+  // Prior pill
+  html += '<div class="ef-tensor-block">';
+  html += '<div class="ef-tensor-label">&nbsp;</div>';
+  html += renderPriorPill();
   html += '</div>';
 
-  // Embedding table W (no fading in overview)
-  html += '<div class="ef-section">';
-  html += '<div class="ef-section-label">Embedding W <span class="ef-dim">(H=' + eH + ', C=' + eC + ')</span></div>';
-  html += renderWTable(-1);
+  // X tensor (B×L×H) — stacked pages
+  const xCellRenderer = (val, p, r, c, isActiveRow) => {
+    if (val === 1) return { text: '1', cls: 'mat-cell a' };
+    return { text: '0', cls: 'mat-cell a dim' };
+  };
+  html += '<div class="ef-tensor-block">';
+  html += '<div class="ef-tensor-label">X <span class="ef-dim">(B=' + eB + ', L=' + eL + ', H=' + eH + ')</span></div>';
+  html += renderStackedTensor(X, {
+    top: 'h &rarr;', topContracted: true,
+    left: 'l &darr;', leftContracted: false,
+    pageLabel: 'b'
+  }, { cellRenderer: xCellRenderer, cellSize: 32 });
   html += '</div>';
 
-  // Output Y (all empty in overview)
-  html += '<div class="ef-section">';
-  html += '<div class="ef-section-label">Output Y <span class="ef-dim">(B=' + eB + ', L=' + eL + ', C=' + eC + ')</span></div>';
-  html += '<div class="ef-output-grid">';
-  for (let b = 0; b < eB; b++) {
-    html += '<div class="ef-output-row">';
-    for (let l = 0; l < eL; l++) {
-      html += '<div class="ef-output-cell-group">';
-      html += `<span class="ef-output-pos">[${b},${l}]</span>`;
-      html += '<div class="ef-output-vec">';
-      for (let c = 0; c < eC; c++) {
-        html += `<div class="mat-cell r empty" style="width:36px;height:36px;font-size:0.78rem" `
-          + `onclick="efTraceBack(${b},${l},${c})"></div>`;
-      }
-      html += '</div></div>';
-    }
-    html += '</div>';
-  }
-  html += '</div></div>';
+  // W tensor (H×C) — 2D grid
+  html += '<div class="ef-tensor-block">';
+  html += '<div class="ef-tensor-label">W <span class="ef-dim">(H=' + eH + ', C=' + eC + ')</span></div>';
+  html += renderGrid2D(W, {
+    top: 'c &rarr;', topContracted: false,
+    left: 'h &darr;', leftContracted: true
+  }, { cellClass: 'mat-cell b', cellSize: 38 });
+  html += '</div>';
 
-  html += '</div>'; // ef-layout
+  // Y tensor (B×L×C) — stacked pages, empty
+  html += '<div class="ef-tensor-block">';
+  html += '<div class="ef-tensor-label">Y <span class="ef-dim">(B=' + eB + ', L=' + eL + ', C=' + eC + ')</span></div>';
+  html += renderStackedTensor(Y, {
+    top: 'c &rarr;', topContracted: false,
+    left: 'l &darr;', leftContracted: false,
+    pageLabel: 'b'
+  }, { emptyPages: true, cellSize: 32, onCellClick: 'efTraceBack' });
+  html += '</div>';
+
+  html += '</div>'; // ef-overview-tensors
   wrap.innerHTML = html;
 }
 
@@ -192,79 +365,53 @@ function renderActivePosition(wrap) {
   const [b, l] = posTobl(efStep);
   const tok = tokenIds[b][l];
 
-  let html = '';
+  let html = '<div class="ef-overview-tensors">';
 
-  // Top row: compact token grid + output grid (positions filled so far)
-  html += '<div class="ef-layout">';
-
-  // Compact token grid
-  html += '<div class="ef-section">';
-  html += '<div class="ef-section-label">Tokens <span class="ef-dim">(B=' + eB + ', L=' + eL + ')</span></div>';
-  html += renderTokenGrid(true);
+  // Prior pill
+  html += '<div class="ef-tensor-block">';
+  html += '<div class="ef-tensor-label">&nbsp;</div>';
+  html += renderPriorPill();
   html += '</div>';
 
-  // Output Y (filled up to current step)
-  html += '<div class="ef-section">';
-  html += '<div class="ef-section-label">Output Y <span class="ef-dim">(B=' + eB + ', L=' + eL + ', C=' + eC + ')</span></div>';
-  html += '<div class="ef-output-grid">';
-  for (let ob = 0; ob < eB; ob++) {
-    html += '<div class="ef-output-row">';
-    for (let ol = 0; ol < eL; ol++) {
-      const p = blToPos(ob, ol);
-      const active = efStep === p;
-      const done = p <= efStep;
-      html += '<div class="ef-output-cell-group' + (active ? ' active' : '') + '">';
-      html += `<span class="ef-output-pos">[${ob},${ol}]</span>`;
-      html += '<div class="ef-output-vec">';
-      for (let c = 0; c < eC; c++) {
-        const cellCls = active ? 'mat-cell r cur' :
-                        done ? 'mat-cell r done' : 'mat-cell r empty';
-        const val = done ? Y[ob][ol][c] : '';
-        html += `<div class="${cellCls}" style="width:36px;height:36px;font-size:0.78rem" `
-          + `onclick="efTraceBack(${ob},${ol},${c})">${val}</div>`;
-      }
-      html += '</div></div>';
+  // X tensor with active row highlighted
+  const xCellRenderer = (val, p, r, c, isActiveRow) => {
+    if (val === 1) {
+      return { text: '1', cls: isActiveRow ? 'mat-cell a cur' : 'mat-cell a' };
     }
-    html += '</div>';
-  }
-  html += '</div></div>';
-
-  html += '</div>'; // ef-layout
-
-  // Matmul flow: One-Hot × W = Intermediate Σ_h→ Output
-  html += '<div class="ef-matmul-flow">';
-
-  // One-hot column
-  html += '<div class="ef-flow-section">';
-  html += `<div class="ef-flow-label">X[${b},${l},:]</div>`;
-  html += renderOneHot(b, l);
+    return { text: '0', cls: isActiveRow ? 'mat-cell a dim' : 'mat-cell a dim' };
+  };
+  html += '<div class="ef-tensor-block">';
+  html += '<div class="ef-tensor-label">X <span class="ef-dim">(B=' + eB + ', L=' + eL + ', H=' + eH + ')</span></div>';
+  html += renderStackedTensor(X, {
+    top: 'h &rarr;', topContracted: true,
+    left: 'l &darr;', leftContracted: false,
+    pageLabel: 'b'
+  }, { activePage: b, activeRow: l, cellRenderer: xCellRenderer, cellSize: 32 });
   html += '</div>';
 
-  html += '<div class="ef-flow-sym">&times;</div>';
-
-  // W table with fading
-  html += '<div class="ef-flow-section">';
-  html += '<div class="ef-flow-label">W</div>';
-  html += renderWTable(tok);
+  // W tensor with active row
+  html += '<div class="ef-tensor-block">';
+  html += '<div class="ef-tensor-label">W <span class="ef-dim">(H=' + eH + ', C=' + eC + ')</span></div>';
+  html += renderGrid2D(W, {
+    top: 'c &rarr;', topContracted: false,
+    left: 'h &darr;', leftContracted: true
+  }, { cellClass: 'mat-cell b', cellSize: 38, highlightRow: tok, fadedRows: true });
   html += '</div>';
 
-  html += '<div class="ef-flow-sym">=</div>';
-
-  // Intermediate H×C grid
-  html += '<div class="ef-flow-section">';
-  html += `<div class="ef-flow-label">X[${b},${l},:] &middot; W</div>`;
-  html += renderIntermediate(b, l);
+  // Y tensor — filled up to current step
+  html += '<div class="ef-tensor-block">';
+  html += '<div class="ef-tensor-label">Y <span class="ef-dim">(B=' + eB + ', L=' + eL + ', C=' + eC + ')</span></div>';
+  html += renderStackedTensor(Y, {
+    top: 'c &rarr;', topContracted: false,
+    left: 'l &darr;', leftContracted: false,
+    pageLabel: 'b'
+  }, { emptyPages: true, doneUpTo: efStep, activePage: b, cellSize: 32, onCellClick: 'efTraceBack' });
   html += '</div>';
 
-  html += '<div class="ef-flow-sym">&Sigma;<sub style="font-size:0.6em">h</sub>&rarr;</div>';
+  html += '</div>'; // ef-overview-tensors
 
-  // Output vector
-  html += '<div class="ef-flow-section">';
-  html += `<div class="ef-flow-label">Y[${b},${l},:]</div>`;
-  html += renderOutputVec(b, l);
-  html += '</div>';
-
-  html += '</div>'; // ef-matmul-flow
+  // Contraction detail panel below
+  html += renderContractionDetail(b, l);
 
   wrap.innerHTML = html;
 }
@@ -280,8 +427,8 @@ function efUpdateFormula() {
     for (let h = 0; h < eH; h++) {
       const xVal = X[b][l][h];
       const wVal = W[h][c];
-      const style = h === tok ? 'font-weight:700' : 'opacity:0.3';
-      terms.push(`<span style="${style}"><span class="fa">X[${b},${l},${h}]</span>&middot;<span class="fb">W[${h},${c}]</span> = ${xVal}&times;${wVal}</span>`);
+      const cls = h === tok ? 'ef-term-live' : 'ef-term-zero';
+      terms.push(`<span class="${cls}"><span class="fa">X[${b},${l},${h}]</span>&middot;<span class="fb">W[${h},${c}]</span> = ${xVal}&times;${wVal}</span>`);
     }
     f.innerHTML = `Y[${b},${l},${c}] = &Sigma;<sub>h</sub> X[${b},${l},h]&middot;W[h,${c}] = ${terms.join(' + ')} = <span class="fc">${Y[b][l][c]}</span>`
       + `<br><em style="color:#999;font-size:0.78rem">One-hot selects row ${tok} of W &mdash; it's just a lookup!</em>`;
@@ -289,15 +436,14 @@ function efUpdateFormula() {
   }
 
   if (efStep < 0) {
-    f.innerHTML = `Each position (b,l) holds a one-hot vector. Multiplying by W selects a row &mdash; embedding lookup IS matrix multiplication. Press &#9654; to step through positions.`;
+    f.innerHTML = `<span class="ei-contract" style="font-size:0.82rem">h</span> is the contracted axis &mdash; each position's one-hot selects a row of W. Press &#9654; to step through.`;
   } else {
     const [b, l] = posTobl(efStep);
     const tok = tokenIds[b][l];
-    // Full matmul decomposition
     let terms = [];
     for (let h = 0; h < eH; h++) {
-      const style = h === tok ? 'font-weight:700' : 'opacity:0.3';
-      terms.push(`<span style="${style}">${X[b][l][h]}&middot;<span class="fb">W[${h},:]</span></span>`);
+      const cls = h === tok ? 'ef-term-live' : 'ef-term-zero';
+      terms.push(`<span class="${cls}">${X[b][l][h]}&middot;<span class="fb">W[${h},:]</span></span>`);
     }
     f.innerHTML = `Y[${b},${l},:] = &Sigma;<sub>h</sub> X[${b},${l},h]&middot;W[h,:] = ${terms.join(' + ')} = <span class="fb">W[${tok},:]</span> = <span class="fc">[${Y[b][l].join(', ')}]</span>`;
   }
@@ -320,7 +466,7 @@ function efUpdateDots() {
 // ── Trace-back ──
 export function efTraceBack(b, l, c) {
   if (efSelectedCell && efSelectedCell.b === b && efSelectedCell.l === l && efSelectedCell.c === c) {
-    efSelectedCell = null; // toggle off
+    efSelectedCell = null;
   } else {
     efSelectedCell = { b, l, c };
   }
@@ -351,7 +497,7 @@ function efPlay() {
   if (efStep >= totalPositions() - 1) efStep = -1;
   efPlaying = true;
   const btn = document.getElementById('pbEF');
-  if (btn) btn.textContent = '⏸';
+  if (btn) btn.textContent = '\u23F8';
   efTick();
 }
 
@@ -359,7 +505,7 @@ export function efPause() {
   efPlaying = false;
   clearTimeout(efTm);
   const btn = document.getElementById('pbEF');
-  if (btn) btn.textContent = '▶';
+  if (btn) btn.textContent = '\u25B6';
 }
 
 function efTick() {

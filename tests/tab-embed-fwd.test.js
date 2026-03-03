@@ -22,12 +22,17 @@ describe('tab-embed-fwd', () => {
     expect(getEfState().efStep).toBe(-1);
   });
 
-  it('renders token grid and embedding table at step -1', () => {
+  it('renders stacked tensor X and grid W at step -1', () => {
     efRender();
     const wrap = document.getElementById('efDisplay');
-    expect(wrap.innerHTML).toContain('Tokens X');
-    expect(wrap.innerHTML).toContain('Embedding W');
-    expect(wrap.innerHTML).toContain('Output Y');
+    // Stacked tensor for X
+    expect(wrap.querySelector('.ef-stacked-tensor')).not.toBeNull();
+    // Grid for W
+    expect(wrap.querySelector('.ef-tensor-with-axes')).not.toBeNull();
+    // Tensor labels
+    expect(wrap.innerHTML).toContain('X');
+    expect(wrap.innerHTML).toContain('W');
+    expect(wrap.innerHTML).toContain('Y');
   });
 
   it('step forward advances position', () => {
@@ -71,18 +76,6 @@ describe('tab-embed-fwd', () => {
     expect(getEfState().efStep).toBe(3);
   });
 
-  it('row selection: correct row of W is active for current token', () => {
-    efFwd(); // step 0 = position (0,0)
-    efRender();
-    const s = getEfState();
-    const tok = s.tokenIds[0][0];
-    const wrap = document.getElementById('efDisplay');
-    // The active row label should contain the token's h value
-    const activeLabels = wrap.querySelectorAll('.ef-w-rowlabel.active');
-    expect(activeLabels.length).toBe(1);
-    expect(activeLabels[0].textContent).toBe('h=' + tok);
-  });
-
   it('forward output Y matches row selection from W', () => {
     const s = getEfState();
     for (let b = 0; b < 2; b++) {
@@ -105,42 +98,57 @@ describe('tab-embed-fwd', () => {
     expect(getEfState().efSelectedCell).toBeNull();
   });
 
-  // ── New matmul flow tests ──
+  // ── Stacked tensor tests ──
 
-  it('renders mini one-hot dots in token cells (overview mode)', () => {
+  it('stacked tensor shows B pages for X', () => {
     efRender();
     const wrap = document.getElementById('efDisplay');
-    const dots = wrap.querySelectorAll('.ef-mini-onehot');
-    // One mini-onehot per token cell (B*L = 6)
-    expect(dots.length).toBe(6);
-    // Each has eH dots
+    const pages = wrap.querySelectorAll('.ef-tensor-page');
     const s = getEfState();
-    dots.forEach(dotGroup => {
-      expect(dotGroup.querySelectorAll('.ef-mini-dot').length).toBe(s.eH);
-    });
+    // X has B pages, Y has B pages = 2*B total in overview
+    expect(pages.length).toBe(s.eB * 2);
   });
 
-  it('renders mini one-hot dots with correct active dot', () => {
+  it('axis labels present with contracted coloring for h', () => {
     efRender();
     const wrap = document.getElementById('efDisplay');
-    const s = getEfState();
-    const firstToken = s.tokenIds[0][0];
-    const firstDotGroup = wrap.querySelector('.ef-mini-onehot');
-    const activeDots = firstDotGroup.querySelectorAll('.ef-mini-dot.active');
-    expect(activeDots.length).toBe(1);
-    // The active dot index should match the token id
-    const allDots = [...firstDotGroup.querySelectorAll('.ef-mini-dot')];
-    const activeIndex = allDots.indexOf(activeDots[0]);
-    expect(activeIndex).toBe(firstToken);
+    const contractedLabels = wrap.querySelectorAll('.ef-axis-label.contracted');
+    // h axis appears on X (top) and W (left) = 2 contracted labels
+    expect(contractedLabels.length).toBe(2);
   });
 
-  it('renders one-hot column when position is active', () => {
-    efFwd(); // step 0
+  it('prior pill renders with tooltip content', () => {
+    efRender();
+    const wrap = document.getElementById('efDisplay');
+    const pill = wrap.querySelector('.ef-prior-pill');
+    expect(pill).not.toBeNull();
+    expect(pill.textContent).toContain('F.one_hot');
+    const tooltip = wrap.querySelector('.ef-pill-tooltip');
+    expect(tooltip).not.toBeNull();
+    expect(tooltip.textContent).toContain('tok[');
+  });
+
+  // ── Contraction detail tests ──
+
+  it('contraction detail appears in active mode', () => {
+    efFwd();
+    efRender();
+    const wrap = document.getElementById('efDisplay');
+    expect(wrap.querySelector('.ef-contraction-detail')).not.toBeNull();
+  });
+
+  it('overview mode has no contraction detail', () => {
+    efRender();
+    const wrap = document.getElementById('efDisplay');
+    expect(wrap.querySelector('.ef-contraction-detail')).toBeNull();
+  });
+
+  it('contraction detail: one-hot column has eH rows', () => {
+    efFwd();
     efRender();
     const wrap = document.getElementById('efDisplay');
     const onehotCol = wrap.querySelector('.ef-onehot-col');
     expect(onehotCol).not.toBeNull();
-    // Should have eH rows
     const s = getEfState();
     const rows = onehotCol.querySelectorAll('.ef-onehot-row');
     expect(rows.length).toBe(s.eH);
@@ -159,9 +167,7 @@ describe('tab-embed-fwd', () => {
     const s = getEfState();
     const tok = s.tokenIds[0][0];
     const cells = interGrid.querySelectorAll('.mat-cell');
-    // Total cells = eH * eC
     expect(cells.length).toBe(s.eH * s.eC);
-    // Non-token rows should show "0"
     for (let h = 0; h < s.eH; h++) {
       for (let c = 0; c < s.eC; c++) {
         const cell = cells[h * s.eC + c];
@@ -181,7 +187,6 @@ describe('tab-embed-fwd', () => {
     const s = getEfState();
     const tok = s.tokenIds[0][0];
     const cells = interGrid.querySelectorAll('.mat-cell');
-    // Token row should show W values
     for (let c = 0; c < s.eC; c++) {
       const cell = cells[tok * s.eC + c];
       expect(cell.textContent).toBe(String(s.W[tok][c]));
@@ -189,36 +194,55 @@ describe('tab-embed-fwd', () => {
     }
   });
 
-  it('W table rows are faded when position is active', () => {
+  it('W grid rows are faded in contraction detail when position is active', () => {
     efFwd();
     efRender();
     const wrap = document.getElementById('efDisplay');
-    const fadedCells = wrap.querySelectorAll('.ef-w-row-faded');
+    // Contraction detail W table has faded rows
+    const contraction = wrap.querySelector('.ef-contraction-detail');
+    const fadedCells = contraction.querySelectorAll('.ef-w-row-faded');
     const s = getEfState();
     // (eH - 1) rows faded × eC cells each
     expect(fadedCells.length).toBe((s.eH - 1) * s.eC);
   });
 
-  it('matmul flow layout appears in active mode', () => {
-    efFwd();
+  it('W grid has active row label for current token', () => {
+    efFwd(); // step 0 = position (0,0)
     efRender();
+    const s = getEfState();
+    const tok = s.tokenIds[0][0];
     const wrap = document.getElementById('efDisplay');
-    expect(wrap.querySelector('.ef-matmul-flow')).not.toBeNull();
+    const activeLabels = wrap.querySelectorAll('.ef-w-rowlabel.active');
+    expect(activeLabels.length).toBe(1);
+    expect(activeLabels[0].textContent).toBe('h=' + tok);
   });
 
-  it('overview mode has no matmul flow', () => {
-    efRender();
-    const wrap = document.getElementById('efDisplay');
-    expect(wrap.querySelector('.ef-matmul-flow')).toBeNull();
-  });
-
-  it('formula bar shows matmul decomposition in active mode', () => {
+  it('formula bar shows Σ_h decomposition in active mode', () => {
     efFwd();
     efRender();
     const f = document.getElementById('fEF');
     const s = getEfState();
-    // Should contain Σ and W[h,:] terms
     expect(f.innerHTML).toContain('W[');
     expect(f.innerHTML).toContain(s.Y[0][0].join(', '));
+  });
+
+  it('overview formula mentions contracted axis h', () => {
+    efRender();
+    const f = document.getElementById('fEF');
+    expect(f.innerHTML).toContain('contracted');
+  });
+
+  it('active page highlights correct batch in X stacked tensor', () => {
+    efJumpToPos(3); // position 3 = (b=1, l=0)
+    efRender();
+    const wrap = document.getElementById('efDisplay');
+    const activePages = wrap.querySelectorAll('.ef-tensor-page.active-page');
+    // One for X, one for Y
+    expect(activePages.length).toBe(2);
+    // Both should have b=1 in their header
+    activePages.forEach(page => {
+      const header = page.querySelector('.ef-page-header');
+      expect(header.textContent).toContain('b=1');
+    });
   });
 });
