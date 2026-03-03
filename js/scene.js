@@ -35,9 +35,9 @@ export function makePlusTex() {
 export function initScene() {
   const canvas = document.getElementById('mainCanvas');
   const W = canvas.width, H = canvas.height;
-  const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
+  const renderer = new THREE.WebGLRenderer({canvas, antialias: true, alpha: true});
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.setSize(W, H); renderer.setClearColor(0xfafafa, 1);
+  renderer.setSize(W, H); renderer.setClearColor(0x000000, 0);
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(38, W / H, 0.1, 200);
   scene.add(new THREE.AmbientLight(0xffffff, 0.82));

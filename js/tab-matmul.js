@@ -263,13 +263,8 @@ export function mmToggle() {
     pl1 = true;
     document.getElementById('pbMM').textContent = '⏸';
     mmTickBuild();
-  } else if (mmPhase === 'collapse') {
-    if (colDir !== 0) { mmPauseAll(); return; }
-    if (collapseT >= 1) collapseT = 0;
-    if (plusPlanes.length === 0) addPlusPlanes();
-    document.getElementById('pbMM').textContent = '⏸';
-    runColAnim(+1);
-  } else {
+  } else if (mmPhase === 'collapse' || mmPhase === 'done') {
+    // Collapse/done: restart build from scratch
     mmReset();
     mmToggle();
   }
@@ -294,7 +289,7 @@ export function mmBuildDone() {
   document.getElementById('pbMM').textContent = '▶';
   mmUpdateCanvasTitle();
   const fEl = document.getElementById('fMM');
-  if (fEl) fEl.innerHTML = `All <span class="fc">${J}</span> slices built. Press ▶ to collapse them into the result, or drag the slider.`;
+  if (fEl) fEl.innerHTML = `All <span class="fc">${J}</span> slices built. Drag the slider to collapse them into the result.`;
 }
 
 export function mmFwd() {
@@ -304,50 +299,16 @@ export function mmFwd() {
       t1++; applyS1(t1);
       if (t1 >= totalSteps1() - 1) mmBuildDone();
     }
-  } else if (mmPhase === 'collapse') {
-    mmPauseAll();
-    collapseT = Math.min(1, collapseT + 0.1);
-    applyCollapse(collapseT);
-    mmUpdateCanvasTitle();
-    if (collapseT >= 1) mmPhase = 'done';
   }
+  // Collapse is slider-only — no stepping
 }
 
 export function mmBack() {
   if (mmPhase === 'build') {
     mmPauseAll();
     if (t1 > -1) { t1--; applyS1(t1); }
-  } else if (mmPhase === 'collapse') {
-    mmPauseAll();
-    if (collapseT <= 0) {
-      mmPhase = 'build';
-      removePlusPlanes();
-      document.getElementById('spCollapse').disabled = true;
-      collapseT = 0;
-      t1 = totalSteps1() - 1;
-      ensureAllGreen();
-      for (let j = 0; j < J; j++) {
-        const py = packedY(j);
-        for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
-          const b = boxes[i][j][k];
-          b.mesh.position.y = py; b.edges.position.y = py; b.spr.position.y = py;
-        }
-      }
-      applyS1(t1);
-      mmUpdateCanvasTitle();
-      return;
-    }
-    collapseT = Math.max(0, collapseT - 0.1);
-    applyCollapse(collapseT);
-    mmUpdateCanvasTitle();
-  } else {
-    mmPauseAll();
-    mmPhase = 'collapse';
-    collapseT = Math.max(0, 1 - 0.1);
-    if (plusPlanes.length === 0) addPlusPlanes();
-    applyCollapse(collapseT);
-    mmUpdateCanvasTitle();
   }
+  // Collapse is slider-only — no stepping back through it
 }
 
 export function mmReset() {
@@ -434,9 +395,8 @@ export function applyCollapse(t) {
       if (!showJ) continue;
       b.mesh.position.y = y; b.edges.position.y = y; b.spr.position.y = y;
       b.mat.color.copy(col); b.em.color.copy(col);
-      if (j === 0 && t > 0) {
-        const displayVal = Math.round(Cube[i][0][k] + (Res[i][k] - Cube[i][0][k]) * e);
-        b.spr.material.map = makeTex(displayVal, '#ffffff'); b.spr.material.needsUpdate = true;
+      if (j === 0 && t >= 1) {
+        b.spr.material.map = makeTex(Res[i][k], '#ffffff'); b.spr.material.needsUpdate = true;
       }
     }
   }
@@ -459,7 +419,7 @@ export function applyCollapse(t) {
 
   const fEl = document.getElementById('fMM');
   if (fEl) {
-    if (t <= 0) fEl.innerHTML = `The <span class="fc">${J}</span> slices are each A[:,j]⊗B[j,:]. Drag the slider or press ▶ to merge them.`;
+    if (t <= 0) fEl.innerHTML = `The <span class="fc">${J}</span> slices are each A[:,j]⊗B[j,:]. Drag the slider to merge them.`;
     else if (t >= 1) fEl.innerHTML = `Done — <span class="fc">${J}</span> slices collapsed into one <span class="fr">${I}×${K}</span> result matrix = A @ B.`;
     else fEl.innerHTML = `Collapsing… (${Math.round(t * 100)}%)`;
   }
