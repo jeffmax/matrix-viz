@@ -489,11 +489,12 @@ function runColAnim(dir) {
 
 export function carryIntroToMatmul(introAVec, introBVec) {
   const newJ = introBVec.length;
+  const newK = Math.max(1, newJ - 1); // non-square B for pedagogical clarity
   const newA = Array.from({length: I}, (_, i) => Array.from({length: newJ}, (_, j) => introAVec[i] * introBVec[j]));
-  const newB = Array.from({length: newJ}, () => Array.from({length: K}, () => rand()));
-  const newCube = Array.from({length: I}, (_, i) => Array.from({length: newJ}, (_, j) => Array.from({length: K}, (_, k) => newA[i][j] * newB[j][k])));
-  const newRes = Array.from({length: I}, (_, i) => Array.from({length: K}, (_, k) => newA[i].reduce((s, _, j) => s + newA[i][j] * newB[j][k], 0)));
-  setData({J: newJ, A: newA, B: newB, Cube: newCube, Res: newRes});
+  const newB = Array.from({length: newJ}, () => Array.from({length: newK}, () => rand()));
+  const newCube = Array.from({length: I}, (_, i) => Array.from({length: newJ}, (_, j) => Array.from({length: newK}, (_, k) => newA[i][j] * newB[j][k])));
+  const newRes = Array.from({length: I}, (_, i) => Array.from({length: newK}, (_, k) => newA[i].reduce((s, _, j) => s + newA[i][j] * newB[j][k], 0)));
+  setData({J: newJ, K: newK, A: newA, B: newB, Cube: newCube, Res: newRes});
 }
 
 export function mmUpdateCanvasTitle() {

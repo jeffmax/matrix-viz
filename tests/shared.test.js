@@ -47,10 +47,10 @@ describe('computeData', () => {
 });
 
 describe('default dimensions', () => {
-  it('defaults to I=3, J=3, K=2 (non-square B)', () => {
+  it('defaults to I=3, J=3, K=3', () => {
     expect(I).toBe(3);
     expect(J).toBe(3);
-    expect(K).toBe(2);
+    expect(K).toBe(3);
   });
 });
 

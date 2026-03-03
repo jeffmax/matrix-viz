@@ -7,9 +7,10 @@ import { boxes, paintBox, packedY, plusPlanes, addPlusPlanes, removePlusPlanes }
 let dpStep = -1, dpPlaying = false, dpTm = null;
 export let dpCollapseT = 0;
 let dpSelectedI = -1, dpSelectedK = -1;
+let dpHoverJ = -1;
 
 export function resetDpState() {
-  dpStep = -1; dpSelectedI = -1; dpSelectedK = -1; dpCollapseT = 0;
+  dpStep = -1; dpSelectedI = -1; dpSelectedK = -1; dpCollapseT = 0; dpHoverJ = -1;
 }
 
 /* @testable */
@@ -139,13 +140,15 @@ function dpRenderMatrices() {
   aHtml += `<div class="dp-mat-label"><span style="color:#e06000;font-weight:600">A</span> (${I}×${J})</div>`;
   aHtml += `<div class="grid-with-row-btns">`;
   aHtml += `<div class="dp-grid" style="grid-template-columns:repeat(${J},44px)">`;
+  const exploring = dpSelectedI >= 0 && dpStep < 0;
   for (let i = 0; i < I; i++) for (let j = 0; j < J; j++) {
     let cls = 'mat-cell neutral editable';
     if (curI >= 0 && i === curI) {
       if (curJ >= 0 && j === curJ) cls += ' cur';
       else cls += ' hi';
     }
-    aHtml += `<div class="${cls}" data-edit-a="${i},${j}">${A[i][j]}</div>`;
+    const hoverAttr = (exploring && i === curI) ? ` data-hover-j="${j}"` : '';
+    aHtml += `<div class="${cls}" data-edit-a="${i},${j}"${hoverAttr}>${A[i][j]}</div>`;
   }
   aHtml += `</div>${dimBtnsV('I')}</div>`;
   aHtml += dimBtnsH('J');
@@ -161,13 +164,13 @@ function dpRenderMatrices() {
       if (curJ >= 0 && j === curJ) cls += ' cur';
       else cls += ' hi';
     }
-    bHtml += `<div class="${cls}" data-edit-b="${j},${k}">${B[j][k]}</div>`;
+    const hoverAttr = (exploring && k === curK) ? ` data-hover-j="${j}"` : '';
+    bHtml += `<div class="${cls}" data-edit-b="${j},${k}"${hoverAttr}>${B[j][k]}</div>`;
   }
   bHtml += `</div>${dimBtnsV('J')}</div>`;
   bHtml += dimBtnsH('K');
   bHtml += '</div>';
 
-  const exploring = dpSelectedI >= 0 && dpStep < 0;
   let rHtml = '<div class="dp-mat-block">';
   rHtml += `<div class="dp-mat-label"><span style="color:#1a9a40;font-weight:600">Result</span> (${I}×${K})</div>`;
   rHtml += '<div class="grid-with-row-btns">';
@@ -216,6 +219,12 @@ function dpRenderMatrices() {
   container.querySelectorAll('[data-edit-b]').forEach(el => {
     const [cj, ck] = el.dataset.editB.split(',').map(Number);
     el.onclick = function() { editCellInline(this, B[cj][ck], '#1a60b0', function(v) { B[cj][ck] = v; recomputeFromMatrices(); }); };
+  });
+  // Hover handlers for A/B cells in selected row/column
+  container.querySelectorAll('[data-hover-j]').forEach(el => {
+    const hj = +el.dataset.hoverJ;
+    el.onmouseenter = () => dpHoverCell(hj);
+    el.onmouseleave = () => dpClearHover();
   });
 }
 
@@ -290,7 +299,14 @@ function dpHighlightCubeColumn() {
         paintBox(i, j, k, 0x50c878, 0.78, 0, Res[i][k]);
       }
     } else if (selI >= 0 && i === selI && k === selK) {
-      if (dpTermByTerm() && selJ >= 0 && j === selJ) {
+      if (dpHoverJ >= 0 && j === dpHoverJ) {
+        // Hovered cell: bright orange with factor display
+        const factorStr = A[i][j] + '×' + B[j][k];
+        paintBox(i, j, k, 0xe06000, 0.95, 0x2a0e00, factorStr);
+      } else if (dpHoverJ >= 0) {
+        // Non-hovered cells in column: dimmed
+        paintBox(i, j, k, 0xf0a040, 0.50, 0, Cube[i][j][k]);
+      } else if (dpTermByTerm() && selJ >= 0 && j === selJ) {
         paintBox(i, j, k, 0xe06000, 0.95, 0x2a0e00, Cube[i][j][k]);
       } else if (dpTermByTerm() && selJ >= 0 && j < selJ) {
         paintBox(i, j, k, 0x50c878, 0.78, 0, Cube[i][j][k]);
@@ -375,9 +391,28 @@ function dpRenderColumnDetail() {
 export function dpJumpToCell(ti, tk) {
   dpPause();
   dpStep = -1;
+  dpHoverJ = -1;
   dpSelectedI = ti;
   dpSelectedK = tk;
   dpRenderAll();
+}
+
+export function dpHoverCell(j) {
+  if (dpSelectedI < 0 || dpSelectedK < 0 || dpStep >= 0) return;
+  dpHoverJ = j;
+  document.querySelectorAll('[data-hover-j]').forEach(el => {
+    el.classList.toggle('cur', +el.dataset.hoverJ === j);
+  });
+  dpHighlightCubeColumn();
+}
+
+export function dpClearHover() {
+  if (dpHoverJ < 0) return;
+  dpHoverJ = -1;
+  document.querySelectorAll('[data-hover-j]').forEach(el => {
+    el.classList.remove('cur');
+  });
+  dpHighlightCubeColumn();
 }
 
 export function dpToggle() {

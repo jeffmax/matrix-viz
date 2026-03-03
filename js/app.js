@@ -15,7 +15,7 @@ import { mmPauseAll, mmReset, mmToggle, mmFwd, mmBack, mmScrubCollapse,
 import { dpPause, dpRenderAll, dpReset, dpApplyCollapse, dpScrubCollapse,
          dpToggle, dpFwd, dpBack, dpJumpToCell,
          resetDpState, dpCollapseT, setDpCollapseT,
-         dpRenderVectorIntro } from './tab-dotprod.js';
+         dpRenderVectorIntro, dpHoverCell, dpClearHover } from './tab-dotprod.js';
 
 // ── Register callbacks for shared.js ──
 registerCallbacks({
@@ -276,6 +276,8 @@ window.dpToggle = dpToggle;
 window.dpReset = dpReset;
 window.dpJumpToCell = dpJumpToCell;
 window.dpScrubCollapse = dpScrubCollapse;
+window.dpHoverCell = dpHoverCell;
+window.dpClearHover = dpClearHover;
 // Snap-back
 window.snapToDefault = snapToDefault;
 // Copy torch code

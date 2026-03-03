@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { computeData, I, K } from '../js/shared.js';
 import { initScene } from '../js/scene.js';
 import { rebuildBoxes, ensureAllGreen, addPlusPlanes } from '../js/cube-manager.js';
-import { dpJumpToCell, dpFwd, getDpState, dpReset, dpTermByTerm } from '../js/tab-dotprod.js';
+import { dpJumpToCell, dpFwd, getDpState, dpReset, dpTermByTerm, dpHoverCell, dpClearHover } from '../js/tab-dotprod.js';
 
 describe('Bug 3A: dpJumpToCell always enters selection mode', () => {
   beforeEach(() => {
@@ -71,5 +71,36 @@ describe('Bug 3B: dpTermByTerm reads checkbox', () => {
     }
     chk.checked = true;
     expect(dpTermByTerm()).toBe(false);
+  });
+});
+
+describe('Tab 2 hover: A/B cell hover highlights cube', () => {
+  beforeEach(() => {
+    computeData(true);
+    initScene();
+    rebuildBoxes();
+    ensureAllGreen();
+    addPlusPlanes();
+    dpReset();
+  });
+
+  it('dpHoverCell sets hover state when a result cell is selected', () => {
+    dpJumpToCell(0, 0);
+    dpHoverCell(1);
+    const state = getDpState();
+    expect(state.dpSelectedI).toBe(0);
+    expect(state.dpSelectedK).toBe(0);
+    // dpHoverJ is internal, but we can verify it works by clearing
+    dpClearHover();
+    // Should not throw and state should remain selected
+    expect(getDpState().dpSelectedI).toBe(0);
+  });
+
+  it('dpHoverCell does nothing when no result cell is selected', () => {
+    // No cell selected — hover should be ignored
+    dpHoverCell(1);
+    dpClearHover();
+    const state = getDpState();
+    expect(state.dpSelectedI).toBe(-1);
   });
 });

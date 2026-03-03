@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════════════
 
 // Dimensions
-export let I = 3, J = 3, K = 2;
+export let I = 3, J = 3, K = 3;
 
 // Data arrays
 export let A = [], B = [], Cube = [], Res = [];
