@@ -5,12 +5,12 @@ import { I, J, K, A, B, Cube, Res, currentMode, labelA, labelB, editCellInline, 
 import { boxes, paintBox, packedY, plusPlanes, addPlusPlanes, removePlusPlanes } from './cube-manager.js';
 
 let dpStep = -1, dpPlaying = false, dpTm = null;
-export let dpCollapseT = 0;
+export let dpCollapseT = 1;
 let dpSelectedI = -1, dpSelectedK = -1;
 let dpHoverJ = -1;
 
 export function resetDpState() {
-  dpStep = -1; dpSelectedI = -1; dpSelectedK = -1; dpCollapseT = 0; dpHoverJ = -1;
+  dpStep = -1; dpSelectedI = -1; dpSelectedK = -1; dpCollapseT = 1; dpHoverJ = -1;
 }
 
 /* @testable */
@@ -58,8 +58,8 @@ export function dpScrubCollapse(t) {
   dpApplyCollapse(t);
   const title = document.getElementById('dpCanvasTitle');
   if (title) {
-    if (t <= 0) title.textContent = 'The same cube — click a result cell to select a column';
-    else if (t >= 1) title.textContent = 'Collapsed — each cell is a dot product sum';
+    if (t >= 1) title.textContent = 'Collapsed — each cell is a dot product sum';
+    else if (t <= 0) title.textContent = 'Stacked — click a result cell to select a column';
     else title.textContent = `Collapsing… (${Math.round(t * 100)}%) — click a result cell to explore`;
   }
 }
@@ -86,11 +86,13 @@ function dpDecodeStep(s) {
 }
 
 export function dpRenderAll() {
-  dpRenderMatrices();
+  dpRenderGridA();
+  dpRenderGridB();
+  dpRenderResult();
   dpRenderDots();
   dpRenderFormula();
   dpHighlightCubeColumn();
-  dpRenderColumnDetail();
+  dpRenderSubViz();
 }
 
 export function dpRenderVectorIntro(targetId) {
@@ -124,9 +126,8 @@ export function dpRenderVectorIntro(targetId) {
     + `\n<span style="color:#999;font-size:0.62rem;font-style:italic"><span class="ei-contract" style="font-weight:700">j</span> in both inputs, not in output → summed</span>`;
 }
 
-function dpRenderMatrices() {
-  const container = document.getElementById('dpMatrices');
-  if (!container) return;
+// ── Decode current selection state ──
+function dpCurrentSelection() {
   let curI, curK, curJ;
   if (dpSelectedI >= 0 && dpSelectedK >= 0 && dpStep < 0) {
     curI = dpSelectedI; curK = dpSelectedK; curJ = -1;
@@ -135,12 +136,17 @@ function dpRenderMatrices() {
     curI = dec.i; curK = dec.k; curJ = dec.j;
   }
   const completedUpTo = dpStep < 0 ? -1 : (dpTermByTerm() ? Math.floor((dpStep) / J) - ((dpStep % J === J - 1) ? 0 : 1) : dpStep - 1);
-
-  let aHtml = '<div class="dp-mat-block">';
-  aHtml += `<div class="dp-mat-label"><span style="color:#e06000;font-weight:600">${labelA}</span> (${I}×${J})</div>`;
-  aHtml += `<div class="grid-with-row-btns">`;
-  aHtml += `<div class="dp-grid" style="grid-template-columns:repeat(${J},44px)">`;
   const exploring = dpSelectedI >= 0 && dpStep < 0;
+  return { curI, curK, curJ, completedUpTo, exploring };
+}
+
+function dpRenderGridA() {
+  const container = document.getElementById('dpGridA');
+  if (!container) return;
+  const { curI, curJ, exploring } = dpCurrentSelection();
+
+  let html = '';
+  container.style.gridTemplateColumns = `repeat(${J},44px)`;
   for (let i = 0; i < I; i++) for (let j = 0; j < J; j++) {
     let cls = 'mat-cell neutral editable';
     if (curI >= 0 && i === curI) {
@@ -148,16 +154,40 @@ function dpRenderMatrices() {
       else cls += ' hi';
     }
     const hoverAttr = (exploring && i === curI) ? ` data-hover-j="${j}"` : '';
-    aHtml += `<div class="${cls}" data-edit-a="${i},${j}"${hoverAttr}>${A[i][j]}</div>`;
+    html += `<div class="${cls}" data-edit-a="${i},${j}"${hoverAttr}>${A[i][j]}</div>`;
   }
-  aHtml += `</div>${dimBtnsV('I')}</div>`;
-  aHtml += dimBtnsH('J');
-  aHtml += '</div>';
+  container.innerHTML = html;
 
-  let bHtml = '<div class="dp-mat-block">';
-  bHtml += `<div class="dp-mat-label"><span style="color:#1a60b0;font-weight:600">${labelB}</span> (${J}×${K})</div>`;
-  bHtml += `<div class="grid-with-row-btns">`;
-  bHtml += `<div class="dp-grid" style="grid-template-columns:repeat(${K},44px)">`;
+  // Title
+  const titleEl = document.getElementById('dpTitleA');
+  if (titleEl) titleEl.innerHTML = `<span style="color:#e06000;font-weight:600">${labelA}</span> <span style="color:#aaa;font-size:0.68rem">(${I}×${J})</span>`;
+
+  // Dim buttons
+  const rowBtns = document.getElementById('dpDimRowBtnsA');
+  if (rowBtns) rowBtns.innerHTML = dimBtnsV('I');
+  const colBtns = document.getElementById('dpDimColBtnsA');
+  if (colBtns) colBtns.innerHTML = dimBtnsH('J');
+
+  // Wire up edit handlers
+  container.querySelectorAll('[data-edit-a]').forEach(el => {
+    const [ci, cj] = el.dataset.editA.split(',').map(Number);
+    el.onclick = function() { editCellInline(this, A[ci][cj], '#e06000', function(v) { A[ci][cj] = v; recomputeFromMatrices(); }); };
+  });
+  // Hover handlers
+  container.querySelectorAll('[data-hover-j]').forEach(el => {
+    const hj = +el.dataset.hoverJ;
+    el.onmouseenter = () => dpHoverCell(hj);
+    el.onmouseleave = () => dpClearHover();
+  });
+}
+
+function dpRenderGridB() {
+  const container = document.getElementById('dpGridB');
+  if (!container) return;
+  const { curK, curJ, exploring } = dpCurrentSelection();
+
+  let html = '';
+  container.style.gridTemplateColumns = `repeat(${K},44px)`;
   for (let j = 0; j < J; j++) for (let k = 0; k < K; k++) {
     let cls = 'mat-cell neutral-b editable';
     if (curK >= 0 && k === curK) {
@@ -165,16 +195,41 @@ function dpRenderMatrices() {
       else cls += ' hi';
     }
     const hoverAttr = (exploring && k === curK) ? ` data-hover-j="${j}"` : '';
-    bHtml += `<div class="${cls}" data-edit-b="${j},${k}"${hoverAttr}>${B[j][k]}</div>`;
+    html += `<div class="${cls}" data-edit-b="${j},${k}"${hoverAttr}>${B[j][k]}</div>`;
   }
-  bHtml += `</div>${dimBtnsV('J')}</div>`;
-  bHtml += dimBtnsH('K');
-  bHtml += '</div>';
+  container.innerHTML = html;
 
-  let rHtml = '<div class="dp-mat-block">';
-  rHtml += `<div class="dp-mat-label"><span style="color:#1a9a40;font-weight:600">Result</span> (${I}×${K})</div>`;
-  rHtml += '<div class="grid-with-row-btns">';
-  rHtml += `<div class="dp-grid" style="grid-template-columns:repeat(${K},44px)">`;
+  // Title
+  const titleEl = document.getElementById('dpTitleB');
+  if (titleEl) titleEl.innerHTML = `<span style="color:#1a60b0;font-weight:600">${labelB}</span> <span style="color:#aaa;font-size:0.68rem">(${J}×${K})</span>`;
+
+  // Dim buttons
+  const rowBtns = document.getElementById('dpDimRowBtnsB');
+  if (rowBtns) rowBtns.innerHTML = dimBtnsV('J');
+  const colBtns = document.getElementById('dpDimColBtnsB');
+  if (colBtns) colBtns.innerHTML = dimBtnsH('K');
+
+  // Wire up edit handlers
+  container.querySelectorAll('[data-edit-b]').forEach(el => {
+    const [cj, ck] = el.dataset.editB.split(',').map(Number);
+    el.onclick = function() { editCellInline(this, B[cj][ck], '#1a60b0', function(v) { B[cj][ck] = v; recomputeFromMatrices(); }); };
+  });
+  // Hover handlers
+  container.querySelectorAll('[data-hover-j]').forEach(el => {
+    const hj = +el.dataset.hoverJ;
+    el.onmouseenter = () => dpHoverCell(hj);
+    el.onmouseleave = () => dpClearHover();
+  });
+}
+
+function dpRenderResult() {
+  const container = document.getElementById('dpResultGrid');
+  if (!container) return;
+  const { curI, curK, curJ, completedUpTo, exploring } = dpCurrentSelection();
+  const collapsed = dpCollapseT >= 1;
+
+  let html = '';
+  container.style.gridTemplateColumns = `repeat(${K},44px)`;
   for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
     const cellIdx = i * K + k;
     const curCellIdx = curI >= 0 ? curI * K + curK : -1;
@@ -183,6 +238,7 @@ function dpRenderMatrices() {
     if (exploring) {
       val = Res[i][k];
       if (cellIdx === curCellIdx) cls += ' cur';
+      else if (collapsed) cls += ' muted';
       else cls += ' done';
     } else if (cellIdx === curCellIdx) {
       cls += ' cur';
@@ -198,34 +254,88 @@ function dpRenderMatrices() {
       val = Res[i][k];
     } else if (dpStep < 0) {
       val = Res[i][k];
-      cls += ' done';
+      if (collapsed && dpSelectedI < 0) cls += ' done';
+      else cls += ' done';
     } else {
       cls += ' empty';
     }
-    rHtml += `<div class="${cls}" onclick="dpJumpToCell(${i},${k})" style="cursor:pointer">${val}</div>`;
+    html += `<div class="${cls}" onclick="dpJumpToCell(${i},${k})" style="cursor:pointer">${val}</div>`;
   }
-  rHtml += '</div>';
-  rHtml += '<div style="width:30px"></div>'; // spacer matching dimBtnsV width
-  rHtml += '</div>';
-  rHtml += '<div style="height:25px"></div>'; // spacer matching dimBtnsH height
-  rHtml += '</div>';
+  container.innerHTML = html;
+}
 
-  container.innerHTML = aHtml + '<div class="mm-sym">&times;</div>' + bHtml + '<div class="mm-sym">=</div>' + rHtml;
+function dpRenderSubViz() {
+  const el = document.getElementById('dpSubViz');
+  if (!el) return;
 
-  container.querySelectorAll('[data-edit-a]').forEach(el => {
-    const [ci, cj] = el.dataset.editA.split(',').map(Number);
-    el.onclick = function() { editCellInline(this, A[ci][cj], '#e06000', function(v) { A[ci][cj] = v; recomputeFromMatrices(); }); };
-  });
-  container.querySelectorAll('[data-edit-b]').forEach(el => {
-    const [cj, ck] = el.dataset.editB.split(',').map(Number);
-    el.onclick = function() { editCellInline(this, B[cj][ck], '#1a60b0', function(v) { B[cj][ck] = v; recomputeFromMatrices(); }); };
-  });
-  // Hover handlers for A/B cells in selected row/column
-  container.querySelectorAll('[data-hover-j]').forEach(el => {
-    const hj = +el.dataset.hoverJ;
-    el.onmouseenter = () => dpHoverCell(hj);
-    el.onmouseleave = () => dpClearHover();
-  });
+  let i, k, curJ;
+  if (dpSelectedI >= 0 && dpSelectedK >= 0 && dpStep < 0) {
+    i = dpSelectedI; k = dpSelectedK; curJ = J - 1;
+  } else {
+    const dec = dpDecodeStep(dpStep);
+    i = dec.i; k = dec.k; curJ = dec.j;
+  }
+  if (i < 0) {
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = '';
+
+  const upToJ = (dpStep >= 0 && dpTermByTerm()) ? curJ : J - 1;
+
+  let html = `<div style="font-size:0.72rem;color:#888;font-weight:500">Row ${i} of ${labelA} · Column ${k} of ${labelB}</div>`;
+
+  // Visual: row vector · column vector = scalar
+  html += '<div class="dp-sub-viz-vectors">';
+  // A[i,:] as horizontal row
+  html += '<div class="dp-sub-viz-vec">';
+  for (let j = 0; j < J; j++) {
+    let cls = 'mat-cell neutral';
+    if (dpTermByTerm() && j === curJ) cls += ' cur';
+    html += `<div class="${cls}" style="width:36px;height:36px;font-size:0.78rem">${A[i][j]}</div>`;
+  }
+  html += '</div>';
+  html += '<span style="font-size:1.1rem;color:#bbb;font-weight:300">·</span>';
+  // B[:,k] as vertical column
+  html += '<div class="dp-sub-viz-vec col">';
+  for (let j = 0; j < J; j++) {
+    let cls = 'mat-cell neutral-b';
+    if (dpTermByTerm() && j === curJ) cls += ' cur';
+    html += `<div class="${cls}" style="width:36px;height:36px;font-size:0.78rem">${B[j][k]}</div>`;
+  }
+  html += '</div>';
+  html += '<span style="font-size:1.1rem;color:#bbb;font-weight:300">=</span>';
+  // Result scalar
+  let sum = 0;
+  for (let j = 0; j <= upToJ; j++) sum += A[i][j] * B[j][k];
+  const finalSum = (dpStep >= 0 && dpTermByTerm() && curJ < J - 1);
+  html += `<div class="mat-cell r cur" style="width:40px;height:40px;font-size:0.95rem;font-weight:700">${finalSum ? sum : Res[i][k]}</div>`;
+  html += '</div>';
+
+  // Element-wise products
+  html += '<div class="dp-products" style="justify-content:center"><span style="color:#666;font-size:0.75rem">Products:</span> ';
+  for (let j = 0; j < J; j++) {
+    const prod = A[i][j] * B[j][k];
+    let cls = 'dp-term dp-term-prod';
+    if (dpTermByTerm()) {
+      if (j === curJ) cls += ' cur';
+      else if (j > upToJ) cls += ' dim';
+    }
+    html += `<span class="${cls}">${prod}</span>`;
+    if (j < J - 1) html += ' <span style="color:#ccc">+</span> ';
+  }
+  html += '</div>';
+
+  // Partial/full sum
+  if (dpTermByTerm() && dpStep >= 0 && curJ < J - 1) {
+    html += `<div class="dp-sum-line" style="justify-content:center"><span style="color:#666;font-size:0.75rem">Partial sum (j=0..${curJ}):</span> <span class="dp-accum">${sum}</span></div>`;
+  } else {
+    let fullSum = 0;
+    for (let j = 0; j < J; j++) fullSum += A[i][j] * B[j][k];
+    html += `<div class="dp-sum-line" style="justify-content:center"><span style="color:#666;font-size:0.75rem">Sum:</span> <span class="dp-accum">${fullSum}</span> = Result[${i},${k}]</div>`;
+  }
+
+  el.innerHTML = html;
 }
 
 function dpRenderDots() {
@@ -251,20 +361,18 @@ function dpRenderFormula() {
     i = dpSelectedI; k = dpSelectedK; curJ = J - 1;
     f.innerHTML = `Result[<span class="fa">${i}</span>,<span class="fb">${k}</span>] = `
       + Array.from({length: J}, (_, j) => `<span class="fa">${A[i][j]}</span>·<span class="fb">${B[j][k]}</span>`).join(' + ')
-      + ` = <span class="fc">${Res[i][k]}</span>`
-      + `  <em class="dp-connection">This is cube column [${i}, ·, ${k}] summed along j.</em>`;
+      + ` = <span class="fc">${Res[i][k]}</span>`;
     return;
   }
   const dec = dpDecodeStep(dpStep);
   i = dec.i; k = dec.k; curJ = dec.j;
   if (dpStep < 0) {
-    f.innerHTML = 'Click a result cell to see its dot product as a column through the cube. Or press ▶ to step through all.';
+    f.innerHTML = 'Click a result cell to see its dot product. Or press ▶ to step through all.';
     return;
   }
   if (dpTermByTerm()) {
     f.innerHTML = `Result[<span class="fa">${i}</span>,<span class="fb">${k}</span>]: term j=<span class="fc">${curJ}</span>: `
-      + `<span class="fa">${A[i][curJ]}</span> × <span class="fb">${B[curJ][k]}</span> = <span class="fc">${A[i][curJ] * B[curJ][k]}</span>`
-      + `  <em class="dp-connection">Each term is one cell in tab ①'s cube at [${i},${curJ},${k}]. The dot product looks DOWN through the cube.</em>`;
+      + `<span class="fa">${A[i][curJ]}</span> × <span class="fb">${B[curJ][k]}</span> = <span class="fc">${A[i][curJ] * B[curJ][k]}</span>`;
   } else {
     f.innerHTML = `Result[<span class="fa">${i}</span>,<span class="fb">${k}</span>] = `
       + Array.from({length: J}, (_, j) => `<span class="fa">${A[i][j]}</span>·<span class="fb">${B[j][k]}</span>`).join(' + ')
@@ -325,67 +433,6 @@ function dpHighlightCubeColumn() {
       paintBox(i, j, k, 0x50c878, 0.12, 0, null);
     }
   }
-}
-
-function dpRenderColumnDetail() {
-  const el = document.getElementById('dpColumnDetail');
-  if (!el) return;
-
-  let i, k, curJ;
-  if (dpSelectedI >= 0 && dpSelectedK >= 0 && dpStep < 0) {
-    i = dpSelectedI; k = dpSelectedK; curJ = J - 1;
-  } else {
-    const dec = dpDecodeStep(dpStep);
-    i = dec.i; k = dec.k; curJ = dec.j;
-  }
-  if (i < 0) {
-    el.innerHTML = '<div class="dp-detail-title">Column detail</div>Click a result cell to see the dot product extracted from the cube';
-    return;
-  }
-
-  const upToJ = (dpStep >= 0 && dpTermByTerm()) ? curJ : J - 1;
-
-  let html = '<div class="dp-detail-title">Cube column [' + i + ', ·, ' + k + '] = element-wise products</div>';
-  html += '<div class="dp-row-vals"><span style="color:#e06000;font-weight:600">A[' + i + ',:]</span> = [ ';
-  for (let j = 0; j < J; j++) {
-    let cls = 'dp-term dp-term-a';
-    if (dpTermByTerm() && j === curJ) cls += ' cur';
-    html += `<span class="${cls}">${A[i][j]}</span>`;
-    if (j < J - 1) html += ' ';
-  }
-  html += ' ]</div>';
-
-  html += '<div class="dp-col-vals"><span style="color:#1a60b0;font-weight:600">B[:,' + k + ']</span> = [ ';
-  for (let j = 0; j < J; j++) {
-    let cls = 'dp-term dp-term-b';
-    if (dpTermByTerm() && j === curJ) cls += ' cur';
-    html += `<span class="${cls}">${B[j][k]}</span>`;
-    if (j < J - 1) html += ' ';
-  }
-  html += ' ]</div>';
-
-  html += '<div class="dp-products"><span style="color:#666">Cube[' + i + ',j,' + k + ']:</span> ';
-  let sum = 0;
-  for (let j = 0; j < J; j++) {
-    const prod = A[i][j] * B[j][k];
-    let cls = 'dp-term dp-term-prod';
-    if (dpTermByTerm()) {
-      if (j === curJ) cls += ' cur';
-      else if (j > upToJ) cls += ' dim';
-    }
-    if (j <= upToJ) sum += prod;
-    html += `<span class="${cls}">${prod}</span>`;
-    if (j < J - 1) html += ' <span style="color:#ccc">+</span> ';
-  }
-  html += '</div>';
-
-  if (dpTermByTerm() && curJ < J - 1) {
-    html += `<div class="dp-sum-line"><span style="color:#666">Partial sum (j=0..${curJ}):</span> <span class="dp-accum">${sum}</span></div>`;
-  } else {
-    html += `<div class="dp-sum-line"><span style="color:#666">Sum:</span> <span class="dp-accum">${sum}</span> = Result[${i},${k}]</div>`;
-  }
-
-  el.innerHTML = html;
 }
 
 export function dpJumpToCell(ti, tk) {
@@ -460,22 +507,11 @@ export function dpReset() {
   dpPause();
   dpStep = -1;
   dpSelectedI = -1; dpSelectedK = -1;
-  // Reset collapse and restore plus planes
-  dpCollapseT = 0;
+  dpCollapseT = 1;
   const dpSlider = document.getElementById('dpCollapseSlider');
-  if (dpSlider) dpSlider.value = 0;
+  if (dpSlider) dpSlider.value = 1000;
   if (boxes.length) {
-    // Restore box positions to stacked
-    for (let j = 0; j < J; j++) {
-      const py = packedY(j);
-      for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
-        const b = boxes[i][j][k];
-        b.mesh.position.y = py; b.edges.position.y = py; b.spr.position.y = py;
-        b.mesh.visible = true; b.edges.visible = true;
-      }
-    }
-    removePlusPlanes();
-    if (J > 1) addPlusPlanes();
+    dpApplyCollapse(1);
   }
   dpRenderAll();
 }

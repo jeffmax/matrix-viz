@@ -56,7 +56,8 @@ registerCallbacks({
       renderEinsumBadge('einsumMatmul', 'matmul');
     } else if (currentMode === 'dotprod') {
       rebuildBoxes(); removePlusPlanes();
-      ensureAllGreen(); addPlusPlanes();
+      ensureAllGreen();
+      dpApplyCollapse(1);
       dpRenderAll(); renderEinsumBadge('einsumDotprod', 'dotprod');
     } else {
       clearBoxes();
@@ -269,7 +270,8 @@ function selectPreset(id) {
       mmUpdateCanvasTitle();
       renderEinsumBadge('einsumMatmul', 'matmul');
     } else {
-      ensureAllGreen(); addPlusPlanes();
+      ensureAllGreen();
+      dpApplyCollapse(dpCollapseT);
       dpRenderAll();
       renderEinsumBadge('einsumDotprod', 'dotprod');
     }
@@ -319,7 +321,7 @@ function rebuild(rnd) {
   if (currentMode === 'matmul' || currentMode === 'dotprod') {
     rebuildBoxes();
     removePlusPlanes();
-    if (currentMode === 'dotprod') { ensureAllGreen(); addPlusPlanes(); }
+    if (currentMode === 'dotprod') { ensureAllGreen(); dpApplyCollapse(dpCollapseT); }
   } else {
     clearBoxes();
     removePlusPlanes();

@@ -166,13 +166,21 @@ function buildDOM() {
       <button id="pbDP">▶</button>
       <input type="range" id="spDP" value="600">
       <input type="checkbox" id="chkDpCol">
-      <input type="range" id="dpCollapseSlider" min="0" max="1000" value="0">
+      <input type="range" id="dpCollapseSlider" min="0" max="1000" value="1000">
       <div id="dpCanvasHost"></div>
       <div id="dpCanvasTitle"></div>
-      <div id="dpMatrices"></div>
+      <div id="dpGridA"></div>
+      <div id="dpTitleA"></div>
+      <div id="dpDimRowBtnsA"></div>
+      <div id="dpDimColBtnsA"></div>
+      <div id="dpGridB"></div>
+      <div id="dpTitleB"></div>
+      <div id="dpDimRowBtnsB"></div>
+      <div id="dpDimColBtnsB"></div>
+      <div id="dpResultGrid"></div>
+      <div id="dpSubViz"></div>
       <div id="fDP"></div>
       <div id="dDP"></div>
-      <div id="dpColumnDetail"></div>
       <div id="einsumDotprod"></div>
     </div>
 

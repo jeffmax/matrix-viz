@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { computeData, I, K } from '../js/shared.js';
 import { initScene } from '../js/scene.js';
 import { rebuildBoxes, ensureAllGreen, addPlusPlanes } from '../js/cube-manager.js';
-import { dpJumpToCell, dpFwd, getDpState, dpReset, dpTermByTerm, dpHoverCell, dpClearHover } from '../js/tab-dotprod.js';
+import { dpJumpToCell, dpFwd, getDpState, dpReset, dpTermByTerm, dpHoverCell, dpClearHover, dpApplyCollapse } from '../js/tab-dotprod.js';
 
 describe('Bug 3A: dpJumpToCell always enters selection mode', () => {
   beforeEach(() => {
@@ -102,5 +102,22 @@ describe('Tab 2 hover: A/B cell hover highlights cube', () => {
     dpClearHover();
     const state = getDpState();
     expect(state.dpSelectedI).toBe(-1);
+  });
+});
+
+describe('Dot product collapse default', () => {
+  beforeEach(() => {
+    computeData(true);
+    initScene();
+    rebuildBoxes();
+    ensureAllGreen();
+  });
+
+  it('dpReset defaults to collapsed (collapseT=1)', () => {
+    // First set to some other value
+    dpApplyCollapse(0.5);
+    dpReset();
+    const state = getDpState();
+    expect(state.dpCollapseT).toBe(1);
   });
 });
