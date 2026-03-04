@@ -872,11 +872,9 @@ input[type=range] { width: 88px; accent-color: #333; }
     <button class="tier2-tab active" id="tab-inner" onclick="setMode('inner')">Inner Product</button>
     <button class="tier2-tab"        id="tab-intro" onclick="setMode('intro')">Outer Product</button>
   </div>
-  <!-- Tier 2b: Matrix Multiply sub-tabs -->
+  <!-- Tier 2b: Matrix Multiply (single tab, no sub-tabs) -->
   <div class="tier2-row hidden" id="tier2-matmul">
-    <button class="tier2-tab active" id="tab-matmul" onclick="setMode('matmul')">Outer Product View</button>
-    <span class="tier2-link">⇄</span>
-    <button class="tier2-tab"        id="tab-dotprod" onclick="setMode('dotprod')">Dot Product View</button>
+    <button class="tier2-tab active" id="tab-matmul" onclick="setMode('matmul')">Matrix Multiply</button>
   </div>
   <!-- Tier 2c: Embeddings sub-tabs -->
   <div class="tier2-row hidden" id="tier2-embed">
@@ -957,75 +955,7 @@ input[type=range] { width: 88px; accent-color: #333; }
   </div>
 </div>
 
-<!-- TAB 2 — Dot Product: Row · Column with cube-column visualization -->
-<div id="ctrl-dotprod" class="hidden tab-container">
-  <div class="controls-row">
-    <div class="playback">
-      <button class="play-btn" onclick="dpBack()" title="Step back">|◀</button>
-      <button class="play-btn" onclick="dpFwd()" title="Step forward">▶|</button>
-      <button class="play-btn secondary" id="pbDP" onclick="dpToggle()" title="Play / pause">▶</button>
-      <button class="play-btn subtle" onclick="dpReset()" title="Reset">↺</button>
-      <button class="ctrl-btn primary" onclick="rebuild(true)" style="margin-left:6px">Randomize</button>
-      <div class="slider-wrap">
-        <span>slow</span>
-        <input type="range" id="spDP" min="200" max="1200" value="200" step="50">
-        <span>fast</span>
-      </div>
-      <label class="check-wrap">
-        <input type="checkbox" id="chkDpCol">
-        Column by column (skip terms)
-      </label>
-    </div>
-    <div class="einsum-badge" id="einsumDotprod"></div>
-  </div>
-  <div class="mm-row">
-    <div class="mm-mat-area" id="dpPanelA">
-      <div class="mat-title" id="dpTitleA">A</div>
-      <div class="grid-with-row-btns">
-        <div class="grid" id="dpGridA"></div>
-        <div id="dpDimRowBtnsA"></div>
-      </div>
-      <div id="dpDimColBtnsA"></div>
-    </div>
-    <div class="mm-sym">×</div>
-    <div class="mm-mat-area" id="dpPanelB">
-      <div class="mat-title" id="dpTitleB">B</div>
-      <div class="grid-with-row-btns">
-        <div class="grid" id="dpGridB"></div>
-        <div id="dpDimRowBtnsB"></div>
-      </div>
-      <div id="dpDimColBtnsB"></div>
-    </div>
-    <div class="mm-sym">=</div>
-    <div class="mm-cube-area">
-      <div class="canvas-title" id="dpCanvasTitle">Result — collapsed</div>
-      <div id="dpCanvasHost"></div>
-      <div class="canvas-hint">Drag to rotate · <button class="ctrl-btn" style="font-size:0.62rem;height:22px;padding:0 8px" onclick="snapToDefault()">Reset view</button></div>
-      <div class="slider-wrap" id="dpCollapseWrap" style="margin-top:6px">
-        <span>stacked</span>
-        <input type="range" id="dpCollapseSlider" min="0" max="1000" value="1000" step="1"
-               oninput="dpScrubCollapse(this.value/1000)">
-        <span>summed</span>
-      </div>
-    </div>
-    <div class="dp-result-area" id="dpResultArea">
-      <div class="mat-title">Result</div>
-      <div class="result-hint" id="dpResultHint">click cell to trace inputs</div>
-      <div class="dp-result-grid" id="dpResultGrid"></div>
-    </div>
-  </div>
-  <div class="dp-sub-viz" id="dpSubViz" style="display:none"></div>
-  <div class="formula-bar">
-    <div class="formula-text" id="fDP">Click a result cell to see its dot product as a column through the cube</div>
-    <div class="step-dots" id="dDP"></div>
-  </div>
-  <div style="font-size:0.68rem;color:#bbb;margin-top:4px;text-align:center">
-    See this as a full matrix multiply animation at <a href="http://matrixmultiplication.xyz" target="_blank" style="color:#999">matrixmultiplication.xyz</a>
-    · <a href="#" onclick="setMode('matmul');return false" style="font-size:0.62rem;color:#999">See how this cube builds from outer product slices →</a>
-  </div>
-</div>
-
-<!-- TAB 1 — Matrix Multiply: Build & Collapse (unified) -->
+<!-- TAB — Matrix Multiply: unified build + explore -->
 <div id="ctrl-matmul" class="hidden tab-container">
   <div class="controls-row">
     <div class="playback">
@@ -1039,9 +969,13 @@ input[type=range] { width: 88px; accent-color: #333; }
         <input type="range" id="spMM" min="100" max="1800" value="100" step="50">
         <span>fast</span>
       </div>
+      <span class="build-mode-toggle" style="display:inline-flex;gap:10px;align-items:center;margin-left:8px;font-size:0.72rem;color:#777">
+        <label style="cursor:pointer"><input type="radio" name="buildMode" value="outer" checked onchange="setBuildMode('outer')" style="accent-color:#333"> Outer Product</label>
+        <label style="cursor:pointer"><input type="radio" name="buildMode" value="dot" onchange="setBuildMode('dot')" style="accent-color:#333"> Dot Product</label>
+      </span>
       <label class="check-wrap">
-        <input type="checkbox" id="chkElem">
-        Show outer products element by element
+        <input type="checkbox" id="chkDetail">
+        <span id="chkDetailLabel">Element by element</span>
       </label>
     </div>
     <div class="einsum-badge" id="einsumMatmul"></div>
@@ -1084,20 +1018,19 @@ input[type=range] { width: 88px; accent-color: #333; }
       <div class="dp-result-grid" id="mmResultGrid"></div>
     </div>
   </div>
-  <!-- Outer-product visual display — shown only in elem-by-elem mode -->
+  <!-- Outer-product visual display — shown only during outer-product build -->
   <div id="opDisplay" class="op-display hidden"></div>
+  <!-- Sub-viz: row · column breakdown — shown in exploration + dp build -->
+  <div class="dp-sub-viz" id="dpSubViz" style="display:none"></div>
   <div class="formula-bar">
     <div class="formula-text" id="fMM">Press ▶ to build the cube slice by slice, then collapse into the result</div>
     <div class="step-dots" id="dMM"></div>
   </div>
   <div class="legend">
-    <div class="legend-item"><div class="legend-swatch" style="background:#ff9a3c"></div>A[:,j] column</div>
-    <div class="legend-item"><div class="legend-swatch" style="background:#4a90d9"></div>B[j,:] row</div>
-    <div class="legend-item"><div class="legend-swatch" style="background:#50c878"></div>Filled slice</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#ff9a3c"></div>A column / selected</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#4a90d9"></div>B row / selected</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#50c878"></div>Filled / done</div>
     <div class="legend-item"><div class="legend-swatch" style="background:#2ab0a0"></div>Active cell</div>
-  </div>
-  <div style="font-size:0.62rem;color:#999;margin-top:2px;text-align:center">
-    <a href="#" onclick="setMode('dotprod');return false" style="color:#999">See this same cube from the dot-product perspective →</a>
   </div>
 </div>
 

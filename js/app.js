@@ -12,11 +12,8 @@ import { initIntroVecs, renderIntro, pauseIntro, resetIntroStep,
 import { mmPauseAll, mmReset, mmToggle, mmFwd, mmBack, mmScrubCollapse,
          resetMmBuildState, applyS1, renderA, renderB,
          mmUpdateCanvasTitle, collapseT, mmPhase, applyCollapse, mmRestoreView,
-         mmRenderResult, mmSelectResultCell } from './tab-matmul.js';
-import { dpPause, dpRenderAll, dpReset, dpApplyCollapse, dpScrubCollapse,
-         dpToggle, dpFwd, dpBack, dpJumpToCell,
-         resetDpState, dpCollapseT, setDpCollapseT,
-         dpRenderVectorIntro, dpHoverCell, dpClearHover } from './tab-dotprod.js';
+         mmRenderResult, mmSelectResultCell, mmJumpToCell, mmHoverCell, mmClearHover,
+         setBuildMode, dpRenderVectorIntro, buildMode } from './tab-matmul.js';
 import { efInit, efRender, efFwd, efBack, efToggle, efReset, efPause,
          efJumpToPos, efTraceBack, efChangeDim } from './tab-embed-fwd.js';
 import { ebInit, ebRender, ebFwd, ebBack, ebToggle, ebReset, ebPause,
@@ -29,25 +26,19 @@ import { ipInit, ipRender, ipPause, ipReset, ipToggle, ipFwd, ipBack,
 // TIER STATE
 // ══════════════════════════════════════════════════
 let currentTier = 'blocks';
-let lastBlocksMode = 'inner';   // remember last sub-tab per tier
-let lastMatmulMode = 'matmul';
+let lastBlocksMode = 'inner';
 let lastEmbedMode = 'embed-fwd';
 
 // ── Register callbacks for shared.js ──
 registerCallbacks({
   onDimChange: (oldI, oldJ, oldK) => {
-    // Resize intro vectors
     resizeIntroVecs();
-    // Clear preset on dimension change
     deselectPreset();
 
-    // Reset animation state across all tabs
     mmPauseAll();
     resetMmBuildState();
     pauseIntro();
     resetIntroStep();
-    dpPause();
-    resetDpState();
 
     if (currentMode === 'matmul') {
       rebuildBoxes(); removePlusPlanes();
@@ -55,11 +46,6 @@ registerCallbacks({
       document.getElementById('spCollapse').value = 0;
       document.getElementById('spCollapse').disabled = true;
       renderEinsumBadge('einsumMatmul', 'matmul');
-    } else if (currentMode === 'dotprod') {
-      rebuildBoxes(); removePlusPlanes();
-      ensureAllGreen();
-      dpApplyCollapse(1);
-      dpRenderAll(); renderEinsumBadge('einsumDotprod', 'dotprod');
     } else {
       clearBoxes();
       removePlusPlanes();
@@ -73,9 +59,6 @@ registerCallbacks({
       rebuildBoxes(); removePlusPlanes();
       applyS1(-1);
       renderA(-1, -1, -1); renderB(-1, -1, -1);
-    } else if (currentMode === 'dotprod') {
-      dpReset();
-      dpRenderAll();
     }
   }
 });
@@ -85,25 +68,21 @@ registerCallbacks({
 // ══════════════════════════════════════════════════
 function setTier(tier) {
   currentTier = tier;
-  // Update tier1 buttons
   document.getElementById('tier1-blocks').classList.toggle('active', tier === 'blocks');
   document.getElementById('tier1-matmul').classList.toggle('active', tier === 'matmul');
   document.getElementById('tier1-embed').classList.toggle('active', tier === 'embed');
-  // Show/hide tier2 rows
   document.getElementById('tier2-blocks').classList.toggle('hidden', tier !== 'blocks');
   document.getElementById('tier2-matmul').classList.toggle('hidden', tier !== 'matmul');
   document.getElementById('tier2-embed').classList.toggle('hidden', tier !== 'embed');
-  // Show/hide preset bar
   document.getElementById('presetBar').classList.toggle('hidden', tier !== 'matmul');
   const descEl = document.getElementById('presetDesc');
   if (tier !== 'matmul') descEl.classList.add('hidden');
   else if (activePreset) descEl.classList.remove('hidden');
 
-  // Switch to last-used sub-tab for this tier
   if (tier === 'blocks') {
     setMode(lastBlocksMode);
   } else if (tier === 'matmul') {
-    setMode(lastMatmulMode);
+    setMode('matmul');
   } else {
     setMode(lastEmbedMode);
   }
@@ -116,19 +95,16 @@ function setMode(m) {
   const prev = currentMode;
   setCurrentMode(m);
 
-  // Track last sub-tab per tier
   if (m === 'inner' || m === 'intro') lastBlocksMode = m;
-  if (m === 'matmul' || m === 'dotprod') lastMatmulMode = m;
   if (m === 'embed-fwd' || m === 'embed-bwd') lastEmbedMode = m;
 
   if (prev === 'inner') ipPause();
   if (prev === 'intro') pauseIntro();
-  if (prev === 'dotprod') dpPause();
   if (prev === 'matmul') mmPauseAll();
   if (prev === 'embed-fwd') efPause();
   if (prev === 'embed-bwd') ebPause();
 
-  const allTabs = ['inner', 'intro', 'dotprod', 'matmul', 'embed-fwd', 'embed-bwd'];
+  const allTabs = ['inner', 'intro', 'matmul', 'embed-fwd', 'embed-bwd'];
   for (const t of allTabs) {
     const tabBtn = document.getElementById('tab-' + t);
     const navBtn = document.getElementById('tab-' + t + '-nav');
@@ -149,7 +125,7 @@ function setMode(m) {
     document.getElementById('tier2-embed').classList.add('hidden');
     document.getElementById('presetBar').classList.add('hidden');
     document.getElementById('presetDesc').classList.add('hidden');
-  } else if ((m === 'matmul' || m === 'dotprod') && currentTier !== 'matmul') {
+  } else if (m === 'matmul' && currentTier !== 'matmul') {
     currentTier = 'matmul';
     document.getElementById('tier1-matmul').classList.add('active');
     document.getElementById('tier1-blocks').classList.remove('active');
@@ -171,18 +147,6 @@ function setMode(m) {
     document.getElementById('presetDesc').classList.add('hidden');
   }
 
-  // ── Sync collapse state between matmul perspectives ──
-  if (prev === 'matmul' && m === 'dotprod') {
-    if (mmPhase === 'collapse' || mmPhase === 'done') {
-      setDpCollapseT(collapseT);
-    }
-  }
-  if (prev === 'dotprod' && m === 'matmul') {
-    if (dpCollapseT > 0) {
-      mmScrubCollapse(dpCollapseT);
-    }
-  }
-
   if (m === 'inner') {
     ipRender();
     renderEinsumBadge('einsumInner', 'inner');
@@ -196,20 +160,6 @@ function setMode(m) {
   if (m === 'intro') {
     renderIntro();
     renderEinsumBadge('einsumIntro', 'intro');
-  }
-  if (m === 'dotprod') {
-    moveCanvasTo('dpCanvasHost');
-    if (!sc) initScene();
-    if (!boxes.length) rebuildBoxes();
-    removePlusPlanes();
-    const savedT = dpCollapseT;
-    const dpSlider = document.getElementById('dpCollapseSlider');
-    if (dpSlider) dpSlider.value = Math.round(savedT * 1000);
-    ensureAllGreen();
-    setDpCollapseT(savedT);
-    dpApplyCollapse(savedT);
-    renderEinsumBadge('einsumDotprod', 'dotprod');
-    dpRenderAll();
   }
   if (m === 'embed-fwd') {
     efRender();
@@ -237,37 +187,24 @@ function selectPreset(id) {
   const data = loadPreset(id);
   if (!data) return;
 
-  // Update shared state with preset data
   setData({ I: data.I, J: data.J, K: data.K, A: data.A, B: data.B, labelA: data.labelA, labelB: data.labelB });
   recomputeFromMatrices();
 
-  // Reset animation state
   mmPauseAll(); resetMmBuildState();
-  dpPause(); resetDpState();
 
-  // Rebuild 3D if on a matmul tab
-  if (currentMode === 'matmul' || currentMode === 'dotprod') {
+  if (currentMode === 'matmul') {
     rebuildBoxes(); removePlusPlanes();
-    if (currentMode === 'matmul') {
-      document.getElementById('spCollapse').value = 0;
-      document.getElementById('spCollapse').disabled = true;
-      applyS1(-1); renderA(-1, -1, -1); renderB(-1, -1, -1);
-      mmUpdateCanvasTitle();
-      renderEinsumBadge('einsumMatmul', 'matmul');
-    } else {
-      ensureAllGreen();
-      dpApplyCollapse(dpCollapseT);
-      dpRenderAll();
-      renderEinsumBadge('einsumDotprod', 'dotprod');
-    }
+    document.getElementById('spCollapse').value = 0;
+    document.getElementById('spCollapse').disabled = true;
+    applyS1(-1); renderA(-1, -1, -1); renderB(-1, -1, -1);
+    mmUpdateCanvasTitle();
+    renderEinsumBadge('einsumMatmul', 'matmul');
   }
 
-  // Update preset pill highlights
   document.querySelectorAll('.preset-pill').forEach(el => el.classList.remove('active'));
   const pill = document.getElementById('preset-' + id);
   if (pill) pill.classList.add('active');
 
-  // Show description
   const descEl = document.getElementById('presetDesc');
   if (descEl && data.desc) {
     descEl.innerHTML = data.desc;
@@ -291,11 +228,9 @@ function rebuild(rnd) {
   resetMmBuildState();
   ipPause();
   pauseIntro(); resetIntroStep();
-  dpPause(); resetDpState();
   efPause(); ebPause();
   setBuildComplete(false);
 
-  // Clear preset on randomize/reset
   deselectPreset();
 
   computeData(rnd);
@@ -304,10 +239,9 @@ function rebuild(rnd) {
   efInit(rnd);
   ebInit(rnd);
 
-  if (currentMode === 'matmul' || currentMode === 'dotprod') {
+  if (currentMode === 'matmul') {
     rebuildBoxes();
     removePlusPlanes();
-    if (currentMode === 'dotprod') { ensureAllGreen(); dpApplyCollapse(dpCollapseT); }
   } else {
     clearBoxes();
     removePlusPlanes();
@@ -320,7 +254,6 @@ function rebuild(rnd) {
   applyS1(-1);
   if (currentMode === 'inner') { ipRender(); renderEinsumBadge('einsumInner', 'inner'); }
   if (currentMode === 'intro') { renderIntro(); renderEinsumBadge('einsumIntro', 'intro'); }
-  if (currentMode === 'dotprod') { dpRenderAll(); renderEinsumBadge('einsumDotprod', 'dotprod'); }
   if (currentMode === 'matmul') { renderEinsumBadge('einsumMatmul', 'matmul'); }
   if (currentMode === 'embed-fwd') { efRender(); renderEinsumBadge('einsumEmbedFwd', 'embed-fwd'); }
   if (currentMode === 'embed-bwd') { ebRender(); renderEinsumBadge('einsumEmbedBwd', 'embed-bwd'); }
@@ -401,8 +334,6 @@ export function renderEinsumBadge(containerId, tab) {
     el.innerHTML = `einsum('<span class="ei-contract">i</span>, <span class="ei-contract">i</span> → ', a, b)`;
   } else if (tab === 'intro') {
     el.innerHTML = `einsum('<span class="ei-free">i</span>, <span class="ei-free">k</span> → <span class="ei-free">ik</span>', a, b)`;
-  } else if (tab === 'dotprod') {
-    el.innerHTML = `einsum('<span class="ei-free">i</span><span class="ei-contract">j</span>, <span class="ei-contract">j</span><span class="ei-free">k</span> → <span class="ei-free">ik</span>', A, B)`;
   } else if (tab === 'matmul') {
     el.innerHTML = `einsum('<span class="ei-free">i</span><span class="ei-contract">j</span>, <span class="ei-contract">j</span><span class="ei-free">k</span> → <span class="ei-free">ik</span>', A, B)`;
   } else if (tab === 'embed-fwd') {
@@ -410,9 +341,7 @@ export function renderEinsumBadge(containerId, tab) {
   } else if (tab === 'embed-bwd') {
     el.innerHTML = `einsum('<span class="ei-contract">b</span><span class="ei-contract">l</span><span class="ei-free">h</span>, <span class="ei-contract">b</span><span class="ei-contract">l</span><span class="ei-free">c</span> → <span class="ei-free">h</span><span class="ei-free">c</span>', X, G)`;
   }
-  // Remove old active-tab markers
   document.querySelectorAll('.copy-torch-btn.active-tab').forEach(b => b.classList.remove('active-tab'));
-  // Append copy button
   el.innerHTML += ` <button class="copy-torch-btn active-tab" onclick="copyTorchCode('${tab}')">📋 torch</button>`;
 }
 
@@ -447,16 +376,12 @@ function updateShelfContent() {
   } else if (currentMode === 'matmul') {
     el.innerHTML =
       `<div class="broadcast-rules">`
-      + `<strong>Outer product perspective</strong>`
-      + `<p style="margin-top:6px">Matrix multiplication as a sum of rank-1 outer products:</p>`
-      + `<p style="margin-top:4px"><strong>Result = &Sigma;<sub>j</sub> A[:,j] &otimes; B[j,:]</strong></p>`
-      + `<p style="margin-top:6px">Each slice j of the cube is one outer product A[:,j] &otimes; B[j,:]. `
-      + `Building the cube shows all J slices; collapsing sums them along the j axis into the final result.</p>`
-      + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic">This decomposition is key to understanding LoRA (low-rank adaptation) and why attention heads can be viewed as outer product accumulators.</p>`
+      + `<strong>Matrix multiply perspectives</strong>`
+      + `<p style="margin-top:6px"><strong>Outer product:</strong> Result = &Sigma;<sub>j</sub> A[:,j] &otimes; B[j,:] — each slice j is one rank-1 outer product.</p>`
+      + `<p style="margin-top:6px"><strong>Dot product:</strong> Result[i,k] = A[i,:] &middot; B[:,k] — each cell is a row-column dot product.</p>`
+      + `<p style="margin-top:6px">Both perspectives build the same 3D cube Cube[i,j,k] = A[i,j]&times;B[j,k]. The outer product fills it slice by slice (along j); the dot product fills it column by column (along i,k). Collapsing sums along j to produce the result.</p>`
+      + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic">The rank-1 decomposition is key to LoRA and attention head analysis. The dot product view is the standard algorithm.</p>`
       + `</div>`;
-  } else if (currentMode === 'dotprod') {
-    el.innerHTML = '<div class="dp-vector-intro" id="shelfDpIntro"></div>';
-    dpRenderVectorIntro('shelfDpIntro');
   } else if (currentMode === 'embed-fwd') {
     el.innerHTML =
       `<div class="broadcast-rules">`
@@ -515,22 +440,17 @@ window.resetIntro = resetIntro;
 window.introEditCell = introEditCell;
 window.introHover = introHover;
 window.introClearHover = introClearHover;
-// Matrix Multiply — Outer Product View
+// Matrix Multiply
 window.mmBack = mmBack;
 window.mmFwd = mmFwd;
 window.mmToggle = mmToggle;
 window.mmReset = mmReset;
 window.mmScrubCollapse = mmScrubCollapse;
 window.mmSelectResultCell = mmSelectResultCell;
-// Matrix Multiply — Dot Product View
-window.dpBack = dpBack;
-window.dpFwd = dpFwd;
-window.dpToggle = dpToggle;
-window.dpReset = dpReset;
-window.dpJumpToCell = dpJumpToCell;
-window.dpScrubCollapse = dpScrubCollapse;
-window.dpHoverCell = dpHoverCell;
-window.dpClearHover = dpClearHover;
+window.mmJumpToCell = mmJumpToCell;
+window.mmHoverCell = mmHoverCell;
+window.mmClearHover = mmClearHover;
+window.setBuildMode = setBuildMode;
 // Embedding Forward (hidden, kept for future use)
 window.efFwd = efFwd;
 window.efBack = efBack;

@@ -104,7 +104,7 @@ function buildDOM() {
     <button id="tier1-matmul" class="tier1-tab"></button>
     <button id="tier1-embed" class="tier1-tab"></button>
     <div id="tier2-blocks"><button id="tab-inner" class="tier2-tab active"></button><button id="tab-intro" class="tier2-tab"></button></div>
-    <div id="tier2-matmul" class="hidden"><button id="tab-matmul" class="tier2-tab active"></button><button id="tab-dotprod" class="tier2-tab"></button></div>
+    <div id="tier2-matmul" class="hidden"><button id="tab-matmul" class="tier2-tab active"></button></div>
     <div id="tier2-embed" class="hidden"><button id="tab-embed-fwd-nav" class="tier2-tab active"></button><button id="tab-embed-bwd-nav" class="tier2-tab"></button></div>
     <div id="presetBar"></div>
     <div id="presetDesc" class="hidden"></div>
@@ -139,11 +139,12 @@ function buildDOM() {
       <div id="einsumIntro"></div>
     </div>
 
-    <!-- Tab 1 — Matmul -->
+    <!-- Tab — Matmul (unified) -->
     <div id="ctrl-matmul" class="hidden">
       <button id="pbMM">▶</button>
       <input type="range" id="spMM" value="700">
-      <input type="checkbox" id="chkElem">
+      <input type="checkbox" id="chkDetail">
+      <span id="chkDetailLabel">Element by element</span>
       <input type="range" id="spCollapse" min="0" max="1000" value="0" disabled>
       <div id="mmCanvasHost"><canvas id="mainCanvas" width="420" height="380"></canvas></div>
       <div id="canvasTitle"></div>
@@ -158,33 +159,10 @@ function buildDOM() {
       <div id="mmResultHint"></div>
       <div id="mmResultGrid"></div>
       <div id="opDisplay" class="hidden"></div>
+      <div id="dpSubViz" style="display:none"></div>
       <div id="fMM"></div>
       <div id="dMM"></div>
       <div id="einsumMatmul"></div>
-    </div>
-
-    <!-- Tab 2 — Dot product -->
-    <div id="ctrl-dotprod" class="hidden">
-      <button id="pbDP">▶</button>
-      <input type="range" id="spDP" value="600">
-      <input type="checkbox" id="chkDpCol">
-      <input type="range" id="dpCollapseSlider" min="0" max="1000" value="1000">
-      <div id="dpCanvasHost"></div>
-      <div id="dpCanvasTitle"></div>
-      <div id="dpGridA"></div>
-      <div id="dpTitleA"></div>
-      <div id="dpDimRowBtnsA"></div>
-      <div id="dpDimColBtnsA"></div>
-      <div id="dpGridB"></div>
-      <div id="dpTitleB"></div>
-      <div id="dpDimRowBtnsB"></div>
-      <div id="dpDimColBtnsB"></div>
-      <div id="dpResultHint"></div>
-      <div id="dpResultGrid"></div>
-      <div id="dpSubViz"></div>
-      <div id="fDP"></div>
-      <div id="dDP"></div>
-      <div id="einsumDotprod"></div>
     </div>
 
     <!-- Tab 3 — Embedding Forward -->

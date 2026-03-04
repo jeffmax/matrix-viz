@@ -24,8 +24,7 @@ js/
   presets.js            11 named matrix multiply examples (identity, row selection, one-hot lookup, etc.)
   tab-inner.js          Inner Product tab: a · b step-through (2D, Building Blocks tier)
   tab-intro.js          Outer Product tab: a ⊗ b broadcast animation (2D, Building Blocks tier)
-  tab-matmul.js         MatMul Outer Product View: Build & Collapse (3D, Matrix Multiply tier)
-  tab-dotprod.js        MatMul Dot Product View: row · column (3D, Matrix Multiply tier)
+  tab-matmul.js         Matrix Multiply: unified build (outer product / dot product toggle) + exploration + collapse (3D)
   tab-embed-fwd.js      Embedding Forward (hidden, kept for future use)
   tab-embed-bwd.js      Embedding Backward (hidden, kept for future use)
   app.js                Entry point: two-tier nav, preset system, mode switching, rebuild, einsum badge
@@ -37,24 +36,22 @@ tests/
   shared.test.js        computeData correctness tests
   tab-inner.test.js     Inner product tab tests (step, resize, render)
   tab-intro.test.js     Outer product tab tests (double-play bug)
-  tab-matmul.test.js    MatMul outer product view tests (highlight timer bug)
-  tab-dotprod.test.js   Dot product view tests (cell selection, checkbox)
+  tab-matmul.test.js    MatMul tab tests (highlight timer, build modes, exploration, hover)
   e2e/
-    smoke.spec.js       Playwright browser smoke tests (8 tests)
+    smoke.spec.js       Playwright browser smoke tests (9 tests)
 .gitignore              node_modules/
 ```
 
 ### Import graph (no circular dependencies)
 
 ```
-shared.js        ← scene.js, cube-manager.js, presets.js, tab-inner.js, tab-intro.js, tab-matmul.js, tab-dotprod.js, app.js
-scene.js         ← cube-manager.js, tab-matmul.js, tab-dotprod.js, app.js
-cube-manager.js  ← tab-matmul.js, tab-dotprod.js, app.js
+shared.js        ← scene.js, cube-manager.js, presets.js, tab-inner.js, tab-intro.js, tab-matmul.js, app.js
+scene.js         ← cube-manager.js, tab-matmul.js, app.js
+cube-manager.js  ← tab-matmul.js, app.js
 presets.js       ← app.js
 tab-inner.js     ← app.js
 tab-intro.js     ← app.js
 tab-matmul.js    ← app.js
-tab-dotprod.js   ← app.js
 ```
 
 ### Key patterns
@@ -74,20 +71,20 @@ tab-dotprod.js   ← app.js
 ### Unit tests (Vitest)
 
 ```bash
-npm test           # runs vitest (102 tests across 9 files)
+npm test           # runs vitest (105 tests across 8 files)
 ```
 
 - **Framework**: Vitest with jsdom environment
 - **Setup**: `tests/setup.js` mocks THREE.js, canvas context, and builds all required DOM elements
 - **Key rule**: Never import `app.js` in tests — it runs `rebuild(true)` + `setMode('intro')` at module init. Import individual modules directly.
-- **Testable exports**: Functions marked `/* @testable */` are exported primarily for testing (e.g., `getOpHiTm`, `getDpState`, `dpTermByTerm`, `introAnimDuration`)
+- **Testable exports**: Functions marked `/* @testable */` are exported primarily for testing (e.g., `getOpHiTm`, `getMmState`, `getBuildMode`, `introAnimDuration`)
 - **Writing new tests**: Add regression tests for bugs, put them in `tests/tab-*.test.js`
 - **Exclusion**: `vitest.config.js` excludes `tests/e2e/**` so Playwright tests don't conflict
 
 ### Browser tests (Playwright)
 
 ```bash
-npm run test:e2e   # runs playwright test (8 smoke tests, chromium)
+npm run test:e2e   # runs playwright test (9 smoke tests, chromium)
 ```
 
 - **Framework**: Playwright with chromium
@@ -114,13 +111,19 @@ npm run test:e2e   # runs playwright test (8 smoke tests, chromium)
 ```
 Tier 1:  [Building Blocks]  [Matrix Multiply]          ← top-level toggle
 Tier 2a: [Inner Product]  [Outer Product]               ← when Building Blocks active
-Tier 2b: [Outer Product View]  [Dot Product View]       ← when Matrix Multiply active
+Tier 2b: [Matrix Multiply]                              ← single tab with build-mode toggle
          + preset bar (11 named examples)
+```
+
+Build mode toggle (radio buttons within the matmul tab):
+```
+(●) Outer Product    ( ) Dot Product    ☐ Element by element / Term by term
 ```
 
 - `setTier(tier)` toggles tier1 active states, shows/hides tier2 rows and preset bar
 - `setMode(m)` handles per-tab rendering and pausing, auto-selects correct tier
-- Each tier remembers its last-used sub-tab (`lastBlocksMode`, `lastMatmulMode`)
+- `setBuildMode(mode)` switches between outer/dot build, triggers full reset
+- Each tier remembers its last-used sub-tab (`lastBlocksMode`)
 
 ### Preset system
 
@@ -133,35 +136,31 @@ Tier 2b: [Outer Product View]  [Dot Product View]       ← when Matrix Multiply
 
 - **Inner Product** (2D, Building Blocks): `a · b = Σ a[i]×b[i]`, editable vectors, step-through
 - **Outer Product** (2D, Building Blocks): `a ⊗ b` broadcast animation, hover interaction
-- **Outer Product View** (3D, Matrix Multiply): builds cube slice by slice, then collapses
-- **Dot Product View** (3D, Matrix Multiply): row·column view for each result cell
+- **Matrix Multiply** (3D): unified tab with build-mode toggle (outer product / dot product), shared exploration mode, collapse slider
 - **Embed Forward/Backward** (hidden): modules stay in codebase, tab buttons hidden
-
-### Collapse sync
-
-When switching between Outer Product View and Dot Product View, `collapseT` is synced so the cube maintains its stacked/summed position.
 
 ### 3D
 
 - **Single canvas / single Three.js scene** shared across 3D tabs
 - All 3D state lives in `boxes[i][j][k]` — mesh, edges, value sprite per cell
 - Collapse animation driven by `collapseT ∈ [0,1]` — pure function `applyCollapse(t)` so it's scrubable and reversible
-- Outer product display panel shows A[:,j] ⊗ B[j,:] for each active slice:
-  - **Whole-slice mode** (elem-by-elem unchecked): broadcast animation
-  - **Element-by-element mode**: column vector, row vector, and result grid with current cell highlighted
-- **`buildComplete` flag** (shared.js): tracks whether a full computation has finished on either matmul tab. Set true by `mmBuildDone()` and dp stepping to end. Reset on `resetMmBuildState()`, `resetDpState()`, and `rebuild()`. Controls whether dot product tab shows results or empty grid.
+- **Build modes** (radio toggle in matmul tab):
+  - **Outer Product mode**: steps through j-slices, opDisplay shows broadcast animation. Detail checkbox = "Element by element"
+  - **Dot Product mode**: steps through (i,k) cells, sub-viz shows row·column breakdown. Detail checkbox = "Term by term"
+  - Toggling build mode mid-animation triggers full reset
+- **Exploration mode** (post-build): click any result cell → sub-viz shows row·column breakdown, cube highlights selected column, hover A/B cells to inspect individual j-factors
+- **`buildComplete` flag** (shared.js): tracks whether a full computation has finished. Set true by `mmBuildDone()`. Reset on `resetMmBuildState()` and `rebuild()`.
 
 ## Key design decisions made so far
 
-- **Two-tier navigation** replaces flat 5-tab bar: Building Blocks (Inner/Outer Product) and Matrix Multiply (Outer Product View / Dot Product View + 11 presets)
+- **Two-tier navigation**: Building Blocks (Inner/Outer Product) and Matrix Multiply (single unified tab with build-mode toggle + 11 presets)
 - Embedding tabs hidden from nav but modules kept for future reactivation
-- One Three.js scene for all 3D tabs — no jarring transitions when switching
+- One Three.js scene — single canvas, single `mmCanvasHost`
 - Speed slider: left = slow, right = fast (not reversed)
-- Element-by-element checkbox applies to ALL j-slices, not just the first
-- **Outer Product View** uses `mmPhase` state machine (`'build'` → `'collapse'` → `'done'`). Build auto-transitions to collapse after 600ms pause. Pressing ◀ during collapse reverses; if collapseT reaches 0, transitions back to build phase.
-- Collapse slider (labeled "stacked" / "summed") appears after build completes, scrubs collapse position
-- Collapse state synced between Outer Product View and Dot Product View
-- Step dots show one dot per j-slice (not per cell) to avoid clutter
+- Detail checkbox applies to ALL steps, not just the first (label updates per build mode)
+- **mmPhase state machine** (`'build'` → `'collapse'` → `'done'`). Both build modes end at `mmBuildDone()`.
+- Collapse slider (labeled "stacked" / "summed") enabled after build completes, scrubs collapse position
+- Step dots: one per j-slice (outer product mode) or one per (i,k) cell (dot product mode)
 - Max dimensions: I, J, K ∈ [1, 5] to keep performance smooth
 - Inner product tab has its own vector size (n=1..8), independent of matmul I/J/K
 - **3D axis mapping**: k→X (horizontal), j→Y (vertical/collapse axis), i→Z (depth). This makes the 3D cube slices visually align with the 2D outer product grid below (k=columns left-to-right, i=rows top-to-bottom from the overhead camera angle)
@@ -243,8 +242,10 @@ Building Blocks:
   Outer Product — a ⊗ b              (DONE — 2D broadcast animation, carries over to matmul)
 
 Matrix Multiply (+ 11 presets):
-  Outer Product View — Build & Collapse  (DONE — 3D cube build + collapse)
-  Dot Product View — row · column        (DONE — 3D cube column view)
+  Single tab with build-mode toggle:
+    Outer Product build → j-slices     (DONE — 3D cube build + collapse)
+    Dot Product build → (i,k) cells    (DONE — 3D cell-by-cell build)
+    Shared exploration mode post-build (DONE — sub-viz, hover, collapse slider)
 
 Future tabs (not yet in nav):
   Matrix-vector: y = A @ x           (column mixing, sliders)

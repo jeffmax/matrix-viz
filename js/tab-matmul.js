@@ -1,18 +1,27 @@
 // ══════════════════════════════════════════════════
-// TAB 1 — OUTER PRODUCTS, SLICE BY SLICE
-// Build cube slice by slice, then collapse via scrubable animation
+// MATRIX MULTIPLY — unified tab
+// Build mode: outer product (j-slices) or dot product (i,k cells)
+// Post-build: shared exploration with sub-viz, hover, collapse slider
 // ══════════════════════════════════════════════════
-import { I, J, K, A, B, Cube, Res, labelA, labelB, editCellInline, recomputeFromMatrices, dimBtnsH, dimBtnsV, setBuildComplete } from './shared.js';
+import { I, J, K, A, B, Cube, Res, labelA, labelB, editCellInline, recomputeFromMatrices, dimBtnsH, dimBtnsV, setBuildComplete, buildComplete } from './shared.js';
 import { makeTex } from './scene.js';
 import { boxes, plusPlanes, paintBox, paintSlice, ensureAllGreen, packedY, addPlusPlanes, removePlusPlanes } from './cube-manager.js';
 
 const THREE = window.THREE;
 
+// ══════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════
+
+// ── Build mode ──
+export let buildMode = 'outer'; // 'outer' | 'dot'
+
 // ── Build state ──
 let t1 = -1, pl1 = false, tm1 = null, lastOpJ = -1;
 
-// ── Result cell selection state ──
+// ── Result cell selection state (exploration) ──
 let mmSelectedI = -1, mmSelectedK = -1;
+let mmHoverJVal = -1;
 
 // ── Collapse state ──
 export let collapseT = 0;
@@ -23,12 +32,38 @@ const COL_SPEED = 0.0005;
 // ── Unified state machine ──
 export let mmPhase = 'build'; // 'build' | 'collapse' | 'done'
 
-function elemByElem() { return document.getElementById('chkElem').checked; }
-function totalSteps1() { return elemByElem() ? J * I * K : J; }
+// ══════════════════════════════════════════════════
+// BUILD MODE TOGGLE
+// ══════════════════════════════════════════════════
 
-function decodeS1(s) {
+export function setBuildMode(mode) {
+  if (mode === buildMode) return;
+  buildMode = mode;
+  // Update checkbox label
+  const lbl = document.getElementById('chkDetailLabel');
+  if (lbl) lbl.textContent = mode === 'outer' ? 'Element by element' : 'Term by term';
+  // Full reset
+  mmReset();
+}
+
+/* @testable */
+export function getBuildMode() { return buildMode; }
+
+// ── Detail checkbox ──
+function detailMode() {
+  const chk = document.getElementById('chkDetail');
+  return chk && chk.checked;
+}
+
+// ══════════════════════════════════════════════════
+// OUTER PRODUCT BUILD — step decoding
+// ══════════════════════════════════════════════════
+
+function opTotalSteps() { return detailMode() ? J * I * K : J; }
+
+function opDecodeStep(s) {
   if (s < 0) return {j: -1, cellI: -1, cellK: -1};
-  if (elemByElem()) {
+  if (detailMode()) {
     const sliceSize = I * K;
     const j = Math.floor(s / sliceSize);
     if (j >= J) return {j: J, cellI: -1, cellK: -1};
@@ -40,15 +75,41 @@ function decodeS1(s) {
   }
 }
 
+// ══════════════════════════════════════════════════
+// DOT PRODUCT BUILD — step decoding
+// ══════════════════════════════════════════════════
+
+function dpTotalSteps() { return detailMode() ? I * K * J : I * K; }
+
+function dpDecodeStep(s) {
+  if (s < 0) return {i: -1, k: -1, j: -1};
+  if (detailMode()) {
+    const cellIdx = Math.floor(s / J);
+    const j = s % J;
+    if (cellIdx >= I * K) return {i: -1, k: -1, j: -1};
+    return {i: Math.floor(cellIdx / K), k: cellIdx % K, j};
+  } else {
+    if (s >= I * K) return {i: -1, k: -1, j: -1};
+    return {i: Math.floor(s / K), k: s % K, j: -1};
+  }
+}
+
+// ── Unified step count ──
+function totalSteps() { return buildMode === 'outer' ? opTotalSteps() : dpTotalSteps(); }
+
+// ══════════════════════════════════════════════════
+// OUTER PRODUCT BUILD — cube painting
+// ══════════════════════════════════════════════════
+
 export function applyS1(s) {
   if (!boxes.length) return;
-  const {j, cellI, cellK} = decodeS1(s);
+  const {j, cellI, cellK} = opDecodeStep(s);
   for (let jj = 0; jj < J; jj++) {
     if (jj < j) paintSlice(jj, 'done');
     else paintSlice(jj, 'empty');
   }
-  if (j < 0) { renderA(-1, -1, -1); renderB(-1, -1, -1); setF1(s); setD1(s); updateOpDisplay(s); mmRenderResult(); return; }
-  if (j >= J) { ensureAllGreen(); renderA(-1, -1, -1); renderB(-1, -1, -1); setF1(s); setD1(s); updateOpDisplay(s); mmRenderResult(); return; }
+  if (j < 0) { renderA(-1, -1, -1); renderB(-1, -1, -1); setOpFormula(s); setOpDots(s); updateOpDisplay(s); mmRenderResult(); return; }
+  if (j >= J) { ensureAllGreen(); renderA(-1, -1, -1); renderB(-1, -1, -1); setOpFormula(s); setOpDots(s); updateOpDisplay(s); mmRenderResult(); return; }
 
   if (cellI < 0) {
     paintSlice(j, 'active');
@@ -64,10 +125,257 @@ export function applyS1(s) {
     renderA(j, cellI, -1);
     renderB(j, -1, cellK);
   }
-  setF1(s); setD1(s); updateOpDisplay(s); mmRenderResult();
+  setOpFormula(s); setOpDots(s); updateOpDisplay(s); mmRenderResult();
 }
 
-// ── Outer product animation duration tracking ──
+// ══════════════════════════════════════════════════
+// DOT PRODUCT BUILD — cube painting
+// ══════════════════════════════════════════════════
+
+function applyDpStep(s) {
+  if (!boxes.length) return;
+  const dec = dpDecodeStep(s);
+  const curI = dec.i, curK = dec.k, curJ = dec.j;
+  const completedUpTo = s < 0 ? -1 : (detailMode() ? Math.floor(s / J) - ((s % J === J - 1) ? 0 : 1) : s - 1);
+
+  // Paint cube
+  for (let i = 0; i < I; i++) for (let j = 0; j < J; j++) for (let k = 0; k < K; k++) {
+    const b = boxes[i][j][k];
+    const cellIdx = i * K + k;
+    if (curI >= 0 && i === curI && k === curK) {
+      if (detailMode() && curJ >= 0 && j === curJ) {
+        paintBox(i, j, k, 0xe06000, 0.95, 0x2a0e00, Cube[i][j][k]);
+      } else if (detailMode() && curJ >= 0 && j < curJ) {
+        paintBox(i, j, k, 0x50c878, 0.78, 0, Cube[i][j][k]);
+      } else if (!detailMode() || curJ < 0) {
+        paintBox(i, j, k, 0xf0a040, 0.95, 0x2a0e00, Cube[i][j][k]);
+      } else {
+        paintBox(i, j, k, 0xeeeeee, 0.30, 0, Cube[i][j][k]);
+      }
+    } else if (s >= 0 && cellIdx <= completedUpTo) {
+      paintBox(i, j, k, 0x50c878, 0.55, 0, Cube[i][j][k]);
+    } else if (s < 0) {
+      paintBox(i, j, k, 0x50c878, buildComplete ? 0.78 : 0.40, 0, Cube[i][j][k]);
+    } else {
+      paintBox(i, j, k, 0x50c878, 0.12, 0, null);
+    }
+  }
+
+  // Render grids
+  if (curI >= 0) {
+    renderA_dp(curI, curJ); renderB_dp(curK, curJ);
+  } else {
+    renderA(-1, -1, -1); renderB(-1, -1, -1);
+  }
+
+  dpRenderFormula(s);
+  dpRenderDots(s);
+  dpRenderResult(s);
+  dpRenderSubViz(s);
+}
+
+// ── DP grid rendering (during build) ──
+function renderA_dp(curI, curJ) {
+  const el = document.getElementById('gridA');
+  if (!el || !A.length) return;
+  const titleEl = document.getElementById('mmTitleA');
+  if (titleEl) titleEl.textContent = labelA;
+  el.style.gridTemplateColumns = `repeat(${J},44px)`;
+  let html = '';
+  for (let i = 0; i < I; i++) for (let j = 0; j < J; j++) {
+    let cls = 'mat-cell neutral editable';
+    if (curI >= 0 && i === curI) {
+      if (curJ >= 0 && j === curJ) cls += ' cur';
+      else cls += ' hi';
+    }
+    html += `<div class="${cls}" data-edit-a="${i},${j}">${A[i][j]}</div>`;
+  }
+  el.innerHTML = html;
+  el.querySelectorAll('[data-edit-a]').forEach(cell => {
+    const [ci, cj] = cell.dataset.editA.split(',').map(Number);
+    cell.onclick = function() { editCellInline(this, A[ci][cj], '#e06000', function(v) { A[ci][cj] = v; recomputeFromMatrices(); }); };
+  });
+  const rb = document.getElementById('dimRowBtnsA'); if (rb) rb.innerHTML = dimBtnsV('I');
+  const cb = document.getElementById('dimColBtnsA'); if (cb) cb.innerHTML = dimBtnsH('J', true);
+}
+
+function renderB_dp(curK, curJ) {
+  const el = document.getElementById('gridB');
+  if (!el || !B.length) return;
+  const titleEl = document.getElementById('mmTitleB');
+  if (titleEl) titleEl.textContent = labelB;
+  el.style.gridTemplateColumns = `repeat(${K},44px)`;
+  let html = '';
+  for (let j = 0; j < J; j++) for (let k = 0; k < K; k++) {
+    let cls = 'mat-cell neutral-b editable';
+    if (curK >= 0 && k === curK) {
+      if (curJ >= 0 && j === curJ) cls += ' cur';
+      else cls += ' hi';
+    }
+    html += `<div class="${cls}" data-edit-b="${j},${k}">${B[j][k]}</div>`;
+  }
+  el.innerHTML = html;
+  el.querySelectorAll('[data-edit-b]').forEach(cell => {
+    const [cj, ck] = cell.dataset.editB.split(',').map(Number);
+    cell.onclick = function() { editCellInline(this, B[cj][ck], '#1a60b0', function(v) { B[cj][ck] = v; recomputeFromMatrices(); }); };
+  });
+  const rb = document.getElementById('dimRowBtnsB'); if (rb) rb.innerHTML = dimBtnsV('J', true);
+  const cb = document.getElementById('dimColBtnsB'); if (cb) cb.innerHTML = dimBtnsH('K');
+}
+
+function dpRenderFormula(s) {
+  const f = document.getElementById('fMM');
+  if (!f) return;
+  const dec = dpDecodeStep(s);
+  const i = dec.i, k = dec.k, curJ = dec.j;
+  if (s < 0) {
+    f.innerHTML = 'Click a result cell or press ▶ to step through each row · column.';
+    return;
+  }
+  if (detailMode()) {
+    f.innerHTML = `Result[<span class="fa">${i}</span>,<span class="fb">${k}</span>]: term j=<span class="fc">${curJ}</span>: `
+      + `<span class="fa">${A[i][curJ]}</span> × <span class="fb">${B[curJ][k]}</span> = <span class="fc">${A[i][curJ] * B[curJ][k]}</span>`;
+  } else {
+    f.innerHTML = `Result[<span class="fa">${i}</span>,<span class="fb">${k}</span>] = `
+      + Array.from({length: J}, (_, j) => `<span class="fa">${A[i][j]}</span>·<span class="fb">${B[j][k]}</span>`).join(' + ')
+      + ` = <span class="fc">${Res[i][k]}</span>`;
+  }
+}
+
+function dpRenderDots(s) {
+  const el = document.getElementById('dMM');
+  if (!el) return;
+  el.innerHTML = '';
+  const total = I * K;
+  for (let d = 0; d < total; d++) {
+    const dot = document.createElement('div'); dot.className = 'step-dot';
+    const doneThresh = detailMode() ? (d + 1) * J - 1 : d;
+    const curThresh = detailMode() ? d * J : d;
+    if (s > doneThresh) dot.classList.add('done');
+    else if (s >= curThresh) dot.classList.add('cur');
+    el.appendChild(dot);
+  }
+}
+
+function dpRenderResult(s) {
+  const container = document.getElementById('mmResultGrid');
+  if (!container) return;
+  const dec = dpDecodeStep(s);
+  const curI = dec.i, curK = dec.k, curJ = dec.j;
+  const completedUpTo = s < 0 ? -1 : (detailMode() ? Math.floor(s / J) - ((s % J === J - 1) ? 0 : 1) : s - 1);
+
+  container.style.gridTemplateColumns = `repeat(${K},44px)`;
+  let html = '';
+  for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
+    const cellIdx = i * K + k;
+    const curCellIdx = curI >= 0 ? curI * K + curK : -1;
+    let cls = 'mat-cell r';
+    let val = '';
+    if (cellIdx === curCellIdx) {
+      cls += ' cur';
+      if (detailMode() && curJ >= 0) {
+        let partial = 0;
+        for (let jj = 0; jj <= curJ; jj++) partial += A[i][jj] * B[jj][k];
+        val = partial;
+      } else {
+        val = Res[i][k];
+      }
+    } else if (cellIdx <= completedUpTo) {
+      cls += ' done';
+      val = Res[i][k];
+    } else if (s < 0) {
+      if (buildComplete) {
+        val = Res[i][k];
+        cls += ' done';
+      } else {
+        cls += ' empty';
+      }
+    } else {
+      cls += ' empty';
+    }
+    html += `<div class="${cls}" onclick="mmJumpToCell(${i},${k})" style="cursor:pointer">${val}</div>`;
+  }
+  container.innerHTML = html;
+
+  const hint = document.getElementById('mmResultHint');
+  if (hint) hint.textContent = 'click cell to trace inputs';
+}
+
+function dpRenderSubViz(s) {
+  const el = document.getElementById('dpSubViz');
+  if (!el) return;
+  const dec = dpDecodeStep(s);
+  const i = dec.i, k = dec.k, curJ = dec.j;
+  if (i < 0) { el.style.display = 'none'; return; }
+  el.style.display = '';
+
+  const upToJ = (s >= 0 && detailMode()) ? curJ : J - 1;
+  renderSubVizHTML(el, i, k, curJ, upToJ, s >= 0 && detailMode());
+}
+
+// ══════════════════════════════════════════════════
+// SHARED SUB-VIZ RENDERING (exploration + dp build)
+// ══════════════════════════════════════════════════
+
+function renderSubVizHTML(el, i, k, curJ, upToJ, showPartial) {
+  let html = `<div style="font-size:0.72rem;color:#888;font-weight:500">Row ${i} of ${labelA} · Column ${k} of ${labelB}</div>`;
+
+  html += '<div class="dp-sub-viz-vectors">';
+  // A[i,:] as horizontal row
+  html += '<div class="dp-sub-viz-vec">';
+  for (let j = 0; j < J; j++) {
+    let cls = 'mat-cell neutral';
+    if (showPartial && j === curJ) cls += ' cur';
+    html += `<div class="${cls}" style="width:36px;height:36px;font-size:0.78rem">${A[i][j]}</div>`;
+  }
+  html += '</div>';
+  html += '<span style="font-size:1.1rem;color:#bbb;font-weight:300">·</span>';
+  // B[:,k] as vertical column
+  html += '<div class="dp-sub-viz-vec col">';
+  for (let j = 0; j < J; j++) {
+    let cls = 'mat-cell neutral-b';
+    if (showPartial && j === curJ) cls += ' cur';
+    html += `<div class="${cls}" style="width:36px;height:36px;font-size:0.78rem">${B[j][k]}</div>`;
+  }
+  html += '</div>';
+  html += '<span style="font-size:1.1rem;color:#bbb;font-weight:300">=</span>';
+  // Result scalar
+  let sum = 0;
+  for (let j = 0; j <= upToJ; j++) sum += A[i][j] * B[j][k];
+  const finalSum = (showPartial && curJ < J - 1);
+  html += `<div class="mat-cell r cur" style="width:40px;height:40px;font-size:0.95rem;font-weight:700">${finalSum ? sum : Res[i][k]}</div>`;
+  html += '</div>';
+
+  // Element-wise products
+  html += '<div class="dp-products" style="justify-content:center"><span style="color:#666;font-size:0.75rem">Products:</span> ';
+  for (let j = 0; j < J; j++) {
+    const prod = A[i][j] * B[j][k];
+    let cls = 'dp-term dp-term-prod';
+    if (showPartial) {
+      if (j === curJ) cls += ' cur';
+      else if (j > upToJ) cls += ' dim';
+    }
+    html += `<span class="${cls}">${prod}</span>`;
+    if (j < J - 1) html += ' <span style="color:#ccc">+</span> ';
+  }
+  html += '</div>';
+
+  // Partial/full sum
+  if (showPartial && curJ < J - 1) {
+    html += `<div class="dp-sum-line" style="justify-content:center"><span style="color:#666;font-size:0.75rem">Partial sum (j=0..${curJ}):</span> <span class="dp-accum">${sum}</span></div>`;
+  } else {
+    let fullSum = 0;
+    for (let j = 0; j < J; j++) fullSum += A[i][j] * B[j][k];
+    html += `<div class="dp-sum-line" style="justify-content:center"><span style="color:#666;font-size:0.75rem">Sum:</span> <span class="dp-accum">${fullSum}</span> = Result[${i},${k}]</div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════
+// OUTER PRODUCT ANIMATION DISPLAY
+// ══════════════════════════════════════════════════
+
 let lastAnimDuration = 0;
 
 // ── Outer product highlight animation ──
@@ -90,14 +398,14 @@ function opClearHi() {
   panel.querySelectorAll('.op-hi').forEach(el => el.classList.remove('op-hi'));
 }
 
-// ── Outer product visual display ──
 function updateOpDisplay(s) {
   const panel = document.getElementById('opDisplay');
-  const {j, cellI, cellK} = decodeS1(s);
+  if (!panel) return;
+  const {j, cellI, cellK} = opDecodeStep(s);
   if (j < 0 || j >= J) { panel.classList.add('hidden'); panel.innerHTML = ''; lastOpJ = -1; opStopHi(); return; }
   panel.classList.remove('hidden');
 
-  const ebe = elemByElem() && cellI >= 0;
+  const ebe = detailMode() && cellI >= 0;
   const sz = 32;
 
   if (!ebe) {
@@ -107,7 +415,6 @@ function updateOpDisplay(s) {
     const bDelay = 120, rDelay = 70;
     const rBase = animate ? Math.max(K - 1, I - 1) * bDelay + 200 : 0;
 
-    // A[:,j] with dotted border around original column
     let aGrid = '<div style="display:flex;gap:3px">';
     aGrid += '<div class="intro-orig-vec intro-orig-a"><div style="display:flex;flex-direction:column;gap:3px">';
     for (let i = 0; i < I; i++) {
@@ -125,7 +432,6 @@ function updateOpDisplay(s) {
     }
     aGrid += '</div>';
 
-    // B[j,:] with dotted border around original row
     let bGrid = '<div style="display:flex;flex-direction:column;gap:3px">';
     bGrid += '<div class="intro-orig-vec intro-orig-b"><div style="display:flex;gap:3px">';
     for (let k = 0; k < K; k++) {
@@ -164,10 +470,8 @@ function updateOpDisplay(s) {
       `<div style="text-align:center"><div style="font-size:0.58rem;color:#aaa;margin-bottom:3px">outer product</div>${rGrid}</div>` +
       `</div>`;
 
-    // Track animation duration for build timer sync
     lastAnimDuration = animate ? rBase + (I * K - 1) * rDelay + 450 : 0;
 
-    // Highlight input cells as each result cell appears
     if (animate) {
       const total = I * K;
       let idx = 0;
@@ -183,7 +487,7 @@ function updateOpDisplay(s) {
     return;
   }
 
-  // Elem-by-elem mode — no broadcast animation, so no delay needed
+  // Elem-by-elem mode
   lastAnimDuration = 0;
   lastOpJ = j;
   let aVec = '<div class="op-vec">';
@@ -222,11 +526,12 @@ function updateOpDisplay(s) {
     detail;
 }
 
-function setF1(s) {
+function setOpFormula(s) {
   const el = document.getElementById('fMM');
-  const {j, cellI, cellK} = decodeS1(s);
+  if (!el) return;
+  const {j, cellI, cellK} = opDecodeStep(s);
   if (s < 0) {
-    el.innerHTML = elemByElem()
+    el.innerHTML = detailMode()
       ? `Press ▶ — each slice fills element by element, showing A[:,j] ⊗ B[j,:]`
       : `Press ▶ — each j-slice fills all at once as A[:,j] ⊗ B[j,:]`;
     return;
@@ -242,40 +547,56 @@ function setF1(s) {
   }
 }
 
-function setD1(s) {
-  const el = document.getElementById('dMM'); el.innerHTML = '';
+function setOpDots(s) {
+  const el = document.getElementById('dMM'); if (!el) return;
+  el.innerHTML = '';
   const dotCount = J;
   for (let d = 0; d < dotCount; d++) {
     const dot = document.createElement('div'); dot.className = 'step-dot';
-    const doneThresh = elemByElem() ? (d + 1) * I * K - 1 : d;
-    const curThresh = elemByElem() ? d * I * K : d;
+    const doneThresh = detailMode() ? (d + 1) * I * K - 1 : d;
+    const curThresh = detailMode() ? d * I * K : d;
     if (s > doneThresh) dot.classList.add('done');
     else if (s >= curThresh) dot.classList.add('cur');
     el.appendChild(dot);
   }
 }
 
+// ══════════════════════════════════════════════════
+// SPEED
+// ══════════════════════════════════════════════════
+
 function spdMM() { return 1900 - parseInt(document.getElementById('spMM').value || 700); }
 
-// ── Playback ──
+// ══════════════════════════════════════════════════
+// PLAYBACK — dispatches to outer/dot based on buildMode
+// ══════════════════════════════════════════════════
+
 function mmStopBuildTimer() { pl1 = false; clearTimeout(tm1); }
 export function mmPauseBuild() { mmStopBuildTimer(); opStopHi(); }
 export function mmPauseAll() {
   mmPauseBuild();
   stopColAnim();
-  document.getElementById('pbMM').textContent = '▶';
+  const btn = document.getElementById('pbMM');
+  if (btn) btn.textContent = '▶';
+}
+
+function applyStep(s) {
+  if (buildMode === 'outer') {
+    applyS1(s);
+  } else {
+    applyDpStep(s);
+  }
 }
 
 export function mmToggle() {
   if (mmPhase === 'build') {
     if (pl1) { mmPauseAll(); return; }
-    if (t1 >= totalSteps1() - 1) t1 = -1;
+    if (t1 >= totalSteps() - 1) t1 = -1;
     mmClearSelection();
     pl1 = true;
     document.getElementById('pbMM').textContent = '⏸';
     mmTickBuild();
   } else if (mmPhase === 'collapse' || mmPhase === 'done') {
-    // Collapse/done: restart build from scratch
     mmReset();
     mmToggle();
   }
@@ -283,10 +604,11 @@ export function mmToggle() {
 
 function mmTickBuild() {
   if (!pl1) return;
-  if (t1 < totalSteps1() - 1) {
-    t1++; applyS1(t1);
-    if (t1 >= totalSteps1() - 1) { mmBuildDone(); return; }
-    tm1 = setTimeout(mmTickBuild, Math.max(spdMM(), lastAnimDuration));
+  if (t1 < totalSteps() - 1) {
+    t1++; applyStep(t1);
+    if (t1 >= totalSteps() - 1) { mmBuildDone(); return; }
+    const delay = buildMode === 'outer' ? Math.max(spdMM(), lastAnimDuration) : spdMM();
+    tm1 = setTimeout(mmTickBuild, delay);
   }
 }
 
@@ -296,31 +618,39 @@ export function mmBuildDone() {
   setBuildComplete(true);
   mmPhase = 'collapse';
   collapseT = 0;
+  if (buildMode === 'outer') {
+    ensureAllGreen();
+  }
   addPlusPlanes();
   document.getElementById('spCollapse').disabled = false;
   document.getElementById('pbMM').textContent = '▶';
   mmUpdateCanvasTitle();
+  mmRenderResult();
   const fEl = document.getElementById('fMM');
-  if (fEl) fEl.innerHTML = `All <span class="fc">${J}</span> slices built. Drag the slider to collapse them into the result.`;
+  if (fEl) {
+    if (buildMode === 'outer') {
+      fEl.innerHTML = `All <span class="fc">${J}</span> slices built. Drag the slider to collapse them into the result.`;
+    } else {
+      fEl.innerHTML = `All <span class="fc">${I * K}</span> cells computed. Drag the slider to collapse the cube.`;
+    }
+  }
 }
 
 export function mmFwd() {
   if (mmPhase === 'build') {
     mmPauseAll();
-    if (t1 < totalSteps1() - 1) {
-      t1++; applyS1(t1);
-      if (t1 >= totalSteps1() - 1) mmBuildDone();
+    if (t1 < totalSteps() - 1) {
+      t1++; applyStep(t1);
+      if (t1 >= totalSteps() - 1) mmBuildDone();
     }
   }
-  // Collapse is slider-only — no stepping
 }
 
 export function mmBack() {
   if (mmPhase === 'build') {
     mmPauseAll();
-    if (t1 > -1) { t1--; applyS1(t1); }
+    if (t1 > -1) { t1--; applyStep(t1); }
   }
-  // Collapse is slider-only — no stepping back through it
 }
 
 export function mmReset() {
@@ -328,8 +658,13 @@ export function mmReset() {
   mmPhase = 'build';
   t1 = -1; collapseT = 0; lastOpJ = -1; mmClearSelection();
   removePlusPlanes();
-  document.getElementById('spCollapse').disabled = true;
-  document.getElementById('spCollapse').value = 0;
+  const colSlider = document.getElementById('spCollapse');
+  if (colSlider) { colSlider.disabled = true; colSlider.value = 0; }
+  // Hide op display and sub-viz
+  const opPanel = document.getElementById('opDisplay');
+  if (opPanel) { opPanel.classList.add('hidden'); opPanel.innerHTML = ''; }
+  const subViz = document.getElementById('dpSubViz');
+  if (subViz) subViz.style.display = 'none';
   if (boxes.length) {
     for (let j = 0; j < J; j++) {
       const py = packedY(j);
@@ -339,7 +674,7 @@ export function mmReset() {
       }
     }
   }
-  applyS1(-1);
+  applyStep(-1);
   mmUpdateCanvasTitle();
 }
 
@@ -348,10 +683,11 @@ export function mmScrubCollapse(t) {
   mmClearSelection();
   if (mmPhase === 'build') {
     ensureAllGreen();
-    t1 = totalSteps1() - 1;
+    t1 = totalSteps() - 1;
   }
   mmPhase = 'collapse';
   collapseT = t;
+  setBuildComplete(true);
   if (t > 0 && plusPlanes.length === 0) addPlusPlanes();
   applyCollapse(collapseT);
   document.getElementById('spCollapse').disabled = false;
@@ -374,16 +710,19 @@ export function mmRestoreView() {
   mmPauseAll();
   if (mmPhase === 'build') {
     removePlusPlanes();
-    // Set lastOpJ before applyS1 to prevent re-triggering broadcast animation on restore
-    if (t1 >= 0) {
-      const {j} = decodeS1(t1);
-      lastOpJ = j;
-    }
-    applyS1(t1);
-    renderA(-1, -1, -1); renderB(-1, -1, -1);
-    if (t1 >= 0) {
-      const {j, cellI, cellK} = decodeS1(t1);
-      if (j >= 0 && j < J) { renderA(j, cellI, -1); renderB(j, -1, cellK); }
+    if (buildMode === 'outer') {
+      if (t1 >= 0) {
+        const {j} = opDecodeStep(t1);
+        lastOpJ = j;
+      }
+      applyS1(t1);
+      renderA(-1, -1, -1); renderB(-1, -1, -1);
+      if (t1 >= 0) {
+        const {j, cellI, cellK} = opDecodeStep(t1);
+        if (j >= 0 && j < J) { renderA(j, cellI, -1); renderB(j, -1, cellK); }
+      }
+    } else {
+      applyDpStep(t1);
     }
     document.getElementById('spCollapse').disabled = true;
     document.getElementById('spCollapse').value = 0;
@@ -403,7 +742,10 @@ export function mmRestoreView() {
   mmRenderResult();
 }
 
-// ── Collapse animation ──
+// ══════════════════════════════════════════════════
+// COLLAPSE ANIMATION
+// ══════════════════════════════════════════════════
+
 const grColor = new THREE.Color(0x50c878), puColor = new THREE.Color(0x7c6ff5);
 
 export function applyCollapse(t) {
@@ -472,12 +814,17 @@ function runColAnim(dir) {
   colAnimId = requestAnimationFrame(frame);
 }
 
+// ══════════════════════════════════════════════════
+// CANVAS TITLE
+// ══════════════════════════════════════════════════
+
 export function mmUpdateCanvasTitle() {
   const el = document.getElementById('canvasTitle');
   if (!el) return;
   if (mmPhase === 'build') {
     if (t1 < 0) el.textContent = 'Result — press ▶ to build';
-    else el.textContent = 'Result — building cube slices';
+    else if (buildMode === 'outer') el.textContent = 'Result — building cube slices';
+    else el.textContent = 'Result — building cell by cell';
   } else if (collapseT >= 1) {
     el.textContent = 'Result — summed';
   } else if (collapseT <= 0) {
@@ -487,42 +834,160 @@ export function mmUpdateCanvasTitle() {
   }
 }
 
-// ── Result cell selection ──
-export function mmSelectResultCell(i, k) {
+// ══════════════════════════════════════════════════
+// EXPLORATION MODE (post-build cell selection + hover)
+// ══════════════════════════════════════════════════
+
+export function mmJumpToCell(i, k) {
+  mmPauseAll();
+  t1 = -1;
+  mmHoverJVal = -1;
   mmSelectedI = i; mmSelectedK = k;
-  renderA(-1, -1, -1); renderB(-1, -1, -1);
+  // Render exploration state
+  mmRenderExploreGridA();
+  mmRenderExploreGridB();
   mmRenderResult();
-  mmHighlightCubeForSelection();
+  mmRenderExploreSubViz();
+  mmHighlightCubeForExploration();
+  const fEl = document.getElementById('fMM');
+  if (fEl) {
+    fEl.innerHTML = `Result[<span class="fa">${i}</span>,<span class="fb">${k}</span>] = `
+      + Array.from({length: J}, (_, j) => `<span class="fa">${A[i][j]}</span>·<span class="fb">${B[j][k]}</span>`).join(' + ')
+      + ` = <span class="fc">${Res[i][k]}</span>`;
+  }
 }
 
-function mmHighlightCubeForSelection() {
+/* @testable */
+export function getMmState() { return { t1, mmSelectedI, mmSelectedK, collapseT, mmPhase: mmPhase, buildMode }; }
+
+export function mmHoverCell(j) {
+  if (mmSelectedI < 0 || mmSelectedK < 0 || t1 >= 0) return;
+  mmHoverJVal = j;
+  document.querySelectorAll('[data-hover-j]').forEach(el => {
+    el.classList.toggle('cur', +el.dataset.hoverJ === j);
+  });
+  mmHighlightCubeForExploration();
+}
+
+export function mmClearHover() {
+  if (mmHoverJVal < 0) return;
+  mmHoverJVal = -1;
+  document.querySelectorAll('[data-hover-j]').forEach(el => {
+    el.classList.remove('cur');
+  });
+  mmHighlightCubeForExploration();
+}
+
+export function mmSelectResultCell(i, k) {
+  // During build, clicking result cells enters exploration via mmJumpToCell
+  // Post-build, same thing
+  mmJumpToCell(i, k);
+}
+
+function mmClearSelection() {
+  mmSelectedI = -1; mmSelectedK = -1; mmHoverJVal = -1;
+}
+
+function mmHighlightCubeForExploration() {
   if (!boxes.length) return;
   const collapsed = collapseT >= 1;
-  if (mmSelectedI < 0 || mmSelectedK < 0) return;
+  const selI = mmSelectedI, selK = mmSelectedK;
+
   for (let i = 0; i < I; i++) for (let j = 0; j < J; j++) for (let k = 0; k < K; k++) {
     const b = boxes[i][j][k];
     if (!b.mesh.visible) continue;
+
     if (collapsed) {
-      if (i === mmSelectedI && k === mmSelectedK) {
+      if (selI >= 0 && i === selI && k === selK) {
         paintBox(i, j, k, 0xf0a040, 0.95, 0x2a0e00, Res[i][k]);
       } else {
         paintBox(i, j, k, 0x50c878, 0.78, 0, Res[i][k]);
       }
-    } else {
-      if (i === mmSelectedI && k === mmSelectedK) {
-        paintBox(i, j, k, 0xf0a040, 0.95, 0x2a0e00, Cube[i][j][k]);
+    } else if (selI >= 0 && i === selI && k === selK) {
+      if (mmHoverJVal >= 0 && j === mmHoverJVal) {
+        const factorStr = A[i][j] + '×' + B[j][k];
+        paintBox(i, j, k, 0xe06000, 0.95, 0x2a0e00, factorStr);
+      } else if (mmHoverJVal >= 0) {
+        paintBox(i, j, k, 0xf0a040, 0.50, 0, Cube[i][j][k]);
       } else {
-        paintBox(i, j, k, 0x50c878, 0.25, 0, Cube[i][j][k]);
+        paintBox(i, j, k, 0xf0a040, 0.95, 0x2a0e00, Cube[i][j][k]);
       }
+    } else if (selI >= 0) {
+      paintBox(i, j, k, 0x50c878, 0.25, 0, Cube[i][j][k]);
+    } else {
+      paintBox(i, j, k, 0x50c878, buildComplete ? 0.78 : 0.40, 0, Cube[i][j][k]);
     }
   }
 }
 
-function mmClearSelection() {
-  mmSelectedI = -1; mmSelectedK = -1;
+function mmRenderExploreGridA() {
+  const el = document.getElementById('gridA');
+  if (!el || !A.length) return;
+  const titleEl = document.getElementById('mmTitleA');
+  if (titleEl) titleEl.textContent = labelA;
+  el.style.gridTemplateColumns = `repeat(${J},44px)`;
+  const exploring = mmSelectedI >= 0 && t1 < 0;
+  let html = '';
+  for (let i = 0; i < I; i++) for (let j = 0; j < J; j++) {
+    let cls = 'mat-cell neutral editable';
+    if (mmSelectedI >= 0 && i === mmSelectedI) cls += ' hi';
+    const hoverAttr = (exploring && i === mmSelectedI) ? ` data-hover-j="${j}"` : '';
+    html += `<div class="${cls}" data-edit-a="${i},${j}"${hoverAttr}>${A[i][j]}</div>`;
+  }
+  el.innerHTML = html;
+  el.querySelectorAll('[data-edit-a]').forEach(cell => {
+    const [ci, cj] = cell.dataset.editA.split(',').map(Number);
+    cell.onclick = function() { editCellInline(this, A[ci][cj], '#e06000', function(v) { A[ci][cj] = v; recomputeFromMatrices(); }); };
+  });
+  el.querySelectorAll('[data-hover-j]').forEach(cell => {
+    const hj = +cell.dataset.hoverJ;
+    cell.onmouseenter = () => mmHoverCell(hj);
+    cell.onmouseleave = () => mmClearHover();
+  });
+  const rb = document.getElementById('dimRowBtnsA'); if (rb) rb.innerHTML = dimBtnsV('I');
+  const cb = document.getElementById('dimColBtnsA'); if (cb) cb.innerHTML = dimBtnsH('J', true);
 }
 
-// ── 2D Side Grids ──
+function mmRenderExploreGridB() {
+  const el = document.getElementById('gridB');
+  if (!el || !B.length) return;
+  const titleEl = document.getElementById('mmTitleB');
+  if (titleEl) titleEl.textContent = labelB;
+  el.style.gridTemplateColumns = `repeat(${K},44px)`;
+  const exploring = mmSelectedK >= 0 && t1 < 0;
+  let html = '';
+  for (let j = 0; j < J; j++) for (let k = 0; k < K; k++) {
+    let cls = 'mat-cell neutral-b editable';
+    if (mmSelectedK >= 0 && k === mmSelectedK) cls += ' hi';
+    const hoverAttr = (exploring && k === mmSelectedK) ? ` data-hover-j="${j}"` : '';
+    html += `<div class="${cls}" data-edit-b="${j},${k}"${hoverAttr}>${B[j][k]}</div>`;
+  }
+  el.innerHTML = html;
+  el.querySelectorAll('[data-edit-b]').forEach(cell => {
+    const [cj, ck] = cell.dataset.editB.split(',').map(Number);
+    cell.onclick = function() { editCellInline(this, B[cj][ck], '#1a60b0', function(v) { B[cj][ck] = v; recomputeFromMatrices(); }); };
+  });
+  el.querySelectorAll('[data-hover-j]').forEach(cell => {
+    const hj = +cell.dataset.hoverJ;
+    cell.onmouseenter = () => mmHoverCell(hj);
+    cell.onmouseleave = () => mmClearHover();
+  });
+  const rb = document.getElementById('dimRowBtnsB'); if (rb) rb.innerHTML = dimBtnsV('J', true);
+  const cb = document.getElementById('dimColBtnsB'); if (cb) cb.innerHTML = dimBtnsH('K');
+}
+
+function mmRenderExploreSubViz() {
+  const el = document.getElementById('dpSubViz');
+  if (!el) return;
+  if (mmSelectedI < 0 || mmSelectedK < 0) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  renderSubVizHTML(el, mmSelectedI, mmSelectedK, J - 1, J - 1, false);
+}
+
+// ══════════════════════════════════════════════════
+// 2D SIDE GRIDS (during outer-product build)
+// ══════════════════════════════════════════════════
+
 export function renderA(j, curI, curK) {
   const el = document.getElementById('gridA');
   if (!el || !A.length) return;
@@ -559,6 +1024,10 @@ export function renderB(j, curI, curK) {
   const cb = document.getElementById('dimColBtnsB'); if (cb) cb.innerHTML = dimBtnsH('K');
 }
 
+// ══════════════════════════════════════════════════
+// RESULT GRID
+// ══════════════════════════════════════════════════
+
 export function mmRenderResult() {
   const container = document.getElementById('mmResultGrid');
   if (!container) return;
@@ -566,39 +1035,85 @@ export function mmRenderResult() {
   let html = '';
   const showValues = mmPhase === 'done' || mmPhase === 'collapse' || collapseT >= 1;
   const hasSelection = mmSelectedI >= 0 && mmSelectedK >= 0;
-  // Compute completed j-slices for partial sums during build
-  const buildPartial = mmPhase === 'build' && t1 >= 0;
-  let completedJ = -1;
-  if (buildPartial) {
-    const {j} = decodeS1(t1);
-    completedJ = j >= J ? J - 1 : j;
-  }
-  for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
-    let cls = 'mat-cell r';
-    let val = '';
-    if (showValues) {
-      if (hasSelection && i === mmSelectedI && k === mmSelectedK) cls += ' cur';
+  const exploring = hasSelection && t1 < 0;
+
+  if (exploring || showValues) {
+    // Post-build or exploration mode
+    for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
+      let cls = 'mat-cell r';
+      if (exploring && i === mmSelectedI && k === mmSelectedK) cls += ' cur';
+      else if (exploring) cls += ' muted';
+      else if (hasSelection && i === mmSelectedI && k === mmSelectedK) cls += ' cur';
       else if (hasSelection) cls += ' muted';
       else cls += ' done';
-      val = Res[i][k];
-    } else if (buildPartial) {
-      cls += ' partial';
-      let partial = 0;
-      for (let jj = 0; jj <= completedJ; jj++) partial += Cube[i][jj][k];
-      val = partial;
-    } else {
-      cls += ' empty';
+      html += `<div class="${cls}" onclick="mmSelectResultCell(${i},${k})" style="cursor:pointer">${Res[i][k]}</div>`;
     }
-    const onclick = showValues ? ` onclick="mmSelectResultCell(${i},${k})" style="cursor:pointer"` : '';
-    html += `<div class="${cls}"${onclick}>${val}</div>`;
+  } else if (buildMode === 'outer' && mmPhase === 'build') {
+    // OP build: partial sums
+    const buildPartial = t1 >= 0;
+    let completedJ = -1;
+    if (buildPartial) {
+      const {j} = opDecodeStep(t1);
+      completedJ = j >= J ? J - 1 : j;
+    }
+    for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
+      let cls = 'mat-cell r';
+      let val = '';
+      if (buildPartial) {
+        cls += ' partial';
+        let partial = 0;
+        for (let jj = 0; jj <= completedJ; jj++) partial += Cube[i][jj][k];
+        val = partial;
+      } else {
+        cls += ' empty';
+      }
+      html += `<div class="${cls}">${val}</div>`;
+    }
+  } else {
+    // DP build or empty: handled by dpRenderResult
+    return;
   }
   container.innerHTML = html;
 
-  // Update result hint
   const hint = document.getElementById('mmResultHint');
   if (hint) {
     if (hasSelection) hint.textContent = `Result[${mmSelectedI}, ${mmSelectedK}] — row ${mmSelectedI} · col ${mmSelectedK}`;
     else if (showValues) hint.textContent = 'click cell to trace inputs';
     else hint.textContent = '';
   }
+}
+
+// ══════════════════════════════════════════════════
+// DOT PRODUCT VECTOR INTRO (shelf content)
+// ══════════════════════════════════════════════════
+
+export function dpRenderVectorIntro(targetId) {
+  const el = document.getElementById(targetId || 'shelfContent');
+  if (!el) return;
+  const aRow = Array.from({length: J}, (_, j) => A[0][j]);
+  const bCol = Array.from({length: J}, (_, j) => B[j][0]);
+  const products = aRow.map((v, j) => v * bCol[j]);
+  const sum = products.reduce((s, v) => s + v, 0);
+
+  const aVals = aRow.join(', ');
+  const bVals = bCol.join(', ');
+  const mulStr = aRow.map((v, j) => `<span class="fa">${v}</span>×<span class="fb">${bCol[j]}</span>`).join(' + ');
+  const prodStr = products.join(' + ');
+
+  el.innerHTML =
+    `<span class="dvi-title">What is a dot product?</span>`
+    + `\n<span style="color:#999"># two vectors (from row 0 of A, col 0 of B):</span>`
+    + `\n<span class="fa">a</span> = torch.tensor([${aVals}])`
+    + `\n<span class="fb">b</span> = torch.tensor([${bVals}])`
+    + `\n`
+    + `\n<span style="color:#999"># the dot product:</span>`
+    + `\ntorch.dot(<span class="fa">a</span>, <span class="fb">b</span>)  <span style="color:#999"># = <span class="fc" style="font-weight:700">${sum}</span></span>`
+    + `\n`
+    + `\n<span style="color:#999"># what it does:</span>`
+    + `\n  ${mulStr}`
+    + `\n  = ${prodStr}`
+    + `\n  = <span class="fc" style="font-weight:700">${sum}</span>`
+    + `<span class="dvi-note">Multiply matching elements, then sum.</span>`
+    + `\n\n<span style="color:#999;font-size:0.68rem">einsum('<span class="ei-contract" style="font-weight:700">j</span>,<span class="ei-contract" style="font-weight:700">j</span>->', <span class="fa">a</span>, <span class="fb">b</span>)</span>`
+    + `\n<span style="color:#999;font-size:0.62rem;font-style:italic"><span class="ei-contract" style="font-weight:700">j</span> in both inputs, not in output → summed</span>`;
 }
