@@ -58,9 +58,9 @@ export function dpScrubCollapse(t) {
   dpApplyCollapse(t);
   const title = document.getElementById('dpCanvasTitle');
   if (title) {
-    if (t >= 1) title.textContent = 'Collapsed — each cell is a dot product sum';
-    else if (t <= 0) title.textContent = 'Stacked — click a result cell to select a column';
-    else title.textContent = `Collapsing… (${Math.round(t * 100)}%) — click a result cell to explore`;
+    if (t >= 1) title.textContent = 'Result — collapsed';
+    else if (t <= 0) title.textContent = 'Result — stacked';
+    else title.textContent = `Result — collapsing (${Math.round(t * 100)}%)`;
   }
 }
 

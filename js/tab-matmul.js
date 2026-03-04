@@ -44,8 +44,8 @@ export function applyS1(s) {
     if (jj < j) paintSlice(jj, 'done');
     else paintSlice(jj, 'empty');
   }
-  if (j < 0) { renderA(-1, -1, -1); renderB(-1, -1, -1); setF1(s); setD1(s); updateOpDisplay(s); return; }
-  if (j >= J) { ensureAllGreen(); renderA(-1, -1, -1); renderB(-1, -1, -1); setF1(s); setD1(s); updateOpDisplay(s); return; }
+  if (j < 0) { renderA(-1, -1, -1); renderB(-1, -1, -1); setF1(s); setD1(s); updateOpDisplay(s); mmRenderResult(); return; }
+  if (j >= J) { ensureAllGreen(); renderA(-1, -1, -1); renderB(-1, -1, -1); setF1(s); setD1(s); updateOpDisplay(s); mmRenderResult(); return; }
 
   if (cellI < 0) {
     paintSlice(j, 'active');
@@ -61,7 +61,7 @@ export function applyS1(s) {
     renderA(j, cellI, -1);
     renderB(j, -1, cellK);
   }
-  setF1(s); setD1(s); updateOpDisplay(s);
+  setF1(s); setD1(s); updateOpDisplay(s); mmRenderResult();
 }
 
 // ── Outer product highlight animation ──
@@ -345,6 +345,7 @@ export function mmScrubCollapse(t) {
   document.getElementById('pbMM').textContent = '▶';
   if (collapseT >= 1) mmPhase = 'done';
   mmUpdateCanvasTitle();
+  mmRenderResult();
 }
 
 export function resetMmBuildState() {
@@ -376,6 +377,7 @@ export function mmRestoreView() {
     renderA(-1, -1, -1); renderB(-1, -1, -1);
   }
   mmUpdateCanvasTitle();
+  mmRenderResult();
 }
 
 // ── Collapse animation ──
@@ -460,8 +462,8 @@ export function carryIntroToMatmul(introAVec, introBVec) {
 export function mmUpdateCanvasTitle() {
   const el = document.getElementById('canvasTitle');
   if (!el) return;
-  if (mmPhase === 'build') el.textContent = 'Cube[i, j, k] = A[i,j] × B[j,k]';
-  else el.textContent = 'Summing out j — slices collapse to result';
+  if (mmPhase === 'build') el.textContent = 'Result — building cube slices';
+  else el.textContent = 'Result — collapsing to sum';
 }
 
 // ── 2D Side Grids ──
@@ -497,4 +499,19 @@ export function renderB(j, curI, curK) {
   }
   const rb = document.getElementById('dimRowBtnsB'); if (rb) rb.innerHTML = dimBtnsV('J', true);
   const cb = document.getElementById('dimColBtnsB'); if (cb) cb.innerHTML = dimBtnsH('K');
+}
+
+export function mmRenderResult() {
+  const container = document.getElementById('mmResultGrid');
+  if (!container) return;
+  container.style.gridTemplateColumns = `repeat(${K},44px)`;
+  let html = '';
+  const showValues = mmPhase === 'done' || collapseT >= 1;
+  for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
+    let cls = 'mat-cell r';
+    if (showValues) cls += ' done';
+    else cls += ' empty';
+    html += `<div class="${cls}">${showValues ? Res[i][k] : ''}</div>`;
+  }
+  container.innerHTML = html;
 }

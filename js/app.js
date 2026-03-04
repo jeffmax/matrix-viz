@@ -11,7 +11,8 @@ import { introA, introB, initIntroVecs, renderIntro, pauseIntro, resetIntroStep,
          introEditCell, introHover, introClearHover } from './tab-intro.js';
 import { mmPauseAll, mmReset, mmToggle, mmFwd, mmBack, mmScrubCollapse,
          resetMmBuildState, applyS1, renderA, renderB, carryIntroToMatmul,
-         mmUpdateCanvasTitle, collapseT, mmPhase, applyCollapse, mmRestoreView } from './tab-matmul.js';
+         mmUpdateCanvasTitle, collapseT, mmPhase, applyCollapse, mmRestoreView,
+         mmRenderResult } from './tab-matmul.js';
 import { dpPause, dpRenderAll, dpReset, dpApplyCollapse, dpScrubCollapse,
          dpToggle, dpFwd, dpBack, dpJumpToCell,
          resetDpState, dpCollapseT, setDpCollapseT,

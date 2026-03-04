@@ -425,9 +425,8 @@ input[type=range] { width: 88px; accent-color: #333; }
 /* ── Sub-viz: hybrid row/column decomposition ── */
 .dp-sub-viz {
   display: flex; flex-direction: column; align-items: center;
-  gap: 10px; margin-top: 10px; padding: 12px 16px;
-  background: #fafafa; border: 1px solid #e8e8e8; border-radius: 6px;
-  max-width: 700px; width: 100%;
+  gap: 10px; margin-top: 6px;
+  min-height: 36px;
 }
 .dp-sub-viz-vectors {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
@@ -996,7 +995,7 @@ input[type=range] { width: 88px; accent-color: #333; }
     </div>
     <div class="mm-sym">=</div>
     <div class="mm-cube-area">
-      <div class="canvas-title" id="dpCanvasTitle">Collapsed — each cell is a dot product sum</div>
+      <div class="canvas-title" id="dpCanvasTitle">Result — collapsed</div>
       <div id="dpCanvasHost"></div>
       <div class="canvas-hint">Drag to rotate · <button class="ctrl-btn" style="font-size:0.62rem;height:22px;padding:0 8px" onclick="snapToDefault()">Reset view</button></div>
       <div class="slider-wrap" id="dpCollapseWrap" style="margin-top:6px">
@@ -1062,7 +1061,7 @@ input[type=range] { width: 88px; accent-color: #333; }
     </div>
     <div class="mm-sym">=</div>
     <div class="mm-cube-area">
-      <div class="canvas-title" id="canvasTitle">Cube[i, j, k] = A[i,j] × B[j,k]</div>
+      <div class="canvas-title" id="canvasTitle">Result — building cube slices</div>
       <div id="mmCanvasHost">
         <canvas id="mainCanvas" width="420" height="380"></canvas>
       </div>
@@ -1073,6 +1072,10 @@ input[type=range] { width: 88px; accent-color: #333; }
                oninput="mmScrubCollapse(this.value/1000)" disabled>
         <span>summed</span>
       </div>
+    </div>
+    <div class="dp-result-area" id="mmResultArea">
+      <div class="mat-title">Result</div>
+      <div class="dp-result-grid" id="mmResultGrid"></div>
     </div>
   </div>
   <!-- Outer-product visual display — shown only in elem-by-elem mode -->

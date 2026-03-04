@@ -155,6 +155,7 @@ function buildDOM() {
       <div id="dimColBtnsA"></div>
       <div id="dimRowBtnsB"></div>
       <div id="dimColBtnsB"></div>
+      <div id="mmResultGrid"></div>
       <div id="opDisplay" class="hidden"></div>
       <div id="fMM"></div>
       <div id="dMM"></div>
