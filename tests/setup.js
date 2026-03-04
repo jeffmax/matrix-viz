@@ -155,6 +155,7 @@ function buildDOM() {
       <div id="dimColBtnsA"></div>
       <div id="dimRowBtnsB"></div>
       <div id="dimColBtnsB"></div>
+      <div id="mmResultHint"></div>
       <div id="mmResultGrid"></div>
       <div id="opDisplay" class="hidden"></div>
       <div id="fMM"></div>
@@ -178,6 +179,7 @@ function buildDOM() {
       <div id="dpTitleB"></div>
       <div id="dpDimRowBtnsB"></div>
       <div id="dpDimColBtnsB"></div>
+      <div id="dpResultHint"></div>
       <div id="dpResultGrid"></div>
       <div id="dpSubViz"></div>
       <div id="fDP"></div>

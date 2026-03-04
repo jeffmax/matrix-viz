@@ -262,6 +262,13 @@ function dpRenderResult() {
     html += `<div class="${cls}" onclick="dpJumpToCell(${i},${k})" style="cursor:pointer">${val}</div>`;
   }
   container.innerHTML = html;
+
+  // Update result hint
+  const hint = document.getElementById('dpResultHint');
+  if (hint) {
+    if (dpSelectedI >= 0 && dpSelectedK >= 0) hint.textContent = `Result[${dpSelectedI}, ${dpSelectedK}] — row ${dpSelectedI} · col ${dpSelectedK}`;
+    else hint.textContent = 'click cell to trace inputs';
+  }
 }
 
 function dpRenderSubViz() {

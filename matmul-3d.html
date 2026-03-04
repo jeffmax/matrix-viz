@@ -48,6 +48,7 @@ body {
 #mainCanvas:active { cursor: grabbing; }
 
 .mat-title { font-size: 0.68rem; color: #aaa; text-transform: uppercase; letter-spacing: .08em; }
+.result-hint { font-size: 0.62rem; color: #bbb; font-style: italic; letter-spacing: .02em; }
 
 /* ── Dimension +/- buttons ── */
 .dim-btn {
@@ -1007,6 +1008,7 @@ input[type=range] { width: 88px; accent-color: #333; }
     </div>
     <div class="dp-result-area" id="dpResultArea">
       <div class="mat-title">Result</div>
+      <div class="result-hint" id="dpResultHint">click cell to trace inputs</div>
       <div class="dp-result-grid" id="dpResultGrid"></div>
     </div>
   </div>
@@ -1075,6 +1077,7 @@ input[type=range] { width: 88px; accent-color: #333; }
     </div>
     <div class="dp-result-area" id="mmResultArea">
       <div class="mat-title">Result</div>
+      <div class="result-hint" id="mmResultHint"></div>
       <div class="dp-result-grid" id="mmResultGrid"></div>
     </div>
   </div>

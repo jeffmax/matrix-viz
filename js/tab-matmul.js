@@ -11,6 +11,9 @@ const THREE = window.THREE;
 // ── Build state ──
 let t1 = -1, pl1 = false, tm1 = null, lastOpJ = -1;
 
+// ── Result cell selection state ──
+let mmSelectedI = -1, mmSelectedK = -1;
+
 // ── Collapse state ──
 export let collapseT = 0;
 let colAnimId = null;
@@ -260,6 +263,7 @@ export function mmToggle() {
   if (mmPhase === 'build') {
     if (pl1) { mmPauseAll(); return; }
     if (t1 >= totalSteps1() - 1) t1 = -1;
+    mmClearSelection();
     pl1 = true;
     document.getElementById('pbMM').textContent = '⏸';
     mmTickBuild();
@@ -314,7 +318,7 @@ export function mmBack() {
 export function mmReset() {
   mmPauseAll();
   mmPhase = 'build';
-  t1 = -1; collapseT = 0; lastOpJ = -1;
+  t1 = -1; collapseT = 0; lastOpJ = -1; mmClearSelection();
   removePlusPlanes();
   document.getElementById('spCollapse').disabled = true;
   document.getElementById('spCollapse').value = 0;
@@ -333,6 +337,7 @@ export function mmReset() {
 
 export function mmScrubCollapse(t) {
   stopColAnim();
+  mmClearSelection();
   if (mmPhase === 'build') {
     ensureAllGreen();
     t1 = totalSteps1() - 1;
@@ -351,6 +356,7 @@ export function mmScrubCollapse(t) {
 export function resetMmBuildState() {
   t1 = -1; collapseT = 0; lastOpJ = -1;
   mmPhase = 'build';
+  mmClearSelection();
   opStopHi();
 }
 
@@ -462,8 +468,51 @@ export function carryIntroToMatmul(introAVec, introBVec) {
 export function mmUpdateCanvasTitle() {
   const el = document.getElementById('canvasTitle');
   if (!el) return;
-  if (mmPhase === 'build') el.textContent = 'Result — building cube slices';
-  else el.textContent = 'Result — collapsing to sum';
+  if (mmPhase === 'build') {
+    if (t1 < 0) el.textContent = 'Result — press ▶ to build';
+    else el.textContent = 'Result — building cube slices';
+  } else if (collapseT >= 1) {
+    el.textContent = 'Result — summed';
+  } else if (collapseT <= 0) {
+    el.textContent = 'Result — stacked';
+  } else {
+    el.textContent = `Result — collapsing (${Math.round(collapseT * 100)}%)`;
+  }
+}
+
+// ── Result cell selection ──
+export function mmSelectResultCell(i, k) {
+  mmSelectedI = i; mmSelectedK = k;
+  renderA(-1, -1, -1); renderB(-1, -1, -1);
+  mmRenderResult();
+  mmHighlightCubeForSelection();
+}
+
+function mmHighlightCubeForSelection() {
+  if (!boxes.length) return;
+  const collapsed = collapseT >= 1;
+  if (mmSelectedI < 0 || mmSelectedK < 0) return;
+  for (let i = 0; i < I; i++) for (let j = 0; j < J; j++) for (let k = 0; k < K; k++) {
+    const b = boxes[i][j][k];
+    if (!b.mesh.visible) continue;
+    if (collapsed) {
+      if (i === mmSelectedI && k === mmSelectedK) {
+        paintBox(i, j, k, 0xf0a040, 0.95, 0x2a0e00, Res[i][k]);
+      } else {
+        paintBox(i, j, k, 0x50c878, 0.78, 0, Res[i][k]);
+      }
+    } else {
+      if (i === mmSelectedI && k === mmSelectedK) {
+        paintBox(i, j, k, 0xf0a040, 0.95, 0x2a0e00, Cube[i][j][k]);
+      } else {
+        paintBox(i, j, k, 0x50c878, 0.25, 0, Cube[i][j][k]);
+      }
+    }
+  }
+}
+
+function mmClearSelection() {
+  mmSelectedI = -1; mmSelectedK = -1;
 }
 
 // ── 2D Side Grids ──
@@ -476,6 +525,7 @@ export function renderA(j, curI, curK) {
   for (let i = 0; i < I; i++) for (let jj = 0; jj < J; jj++) {
     const d = document.createElement('div'); d.className = 'mat-cell neutral editable';
     if (j >= 0) { if (jj === j) { if (i === curI) d.classList.add('cur'); else d.classList.add('hi'); } else d.classList.add('dim'); }
+    else if (mmSelectedI >= 0 && i === mmSelectedI) d.classList.add('hi');
     d.textContent = A[i][jj];
     ((ci, cj) => { d.onclick = function() { editCellInline(this, A[ci][cj], '#e06000', function(v) { A[ci][cj] = v; recomputeFromMatrices(); }); }; })(i, jj);
     el.appendChild(d);
@@ -493,6 +543,7 @@ export function renderB(j, curI, curK) {
   for (let jj = 0; jj < J; jj++) for (let k = 0; k < K; k++) {
     const d = document.createElement('div'); d.className = 'mat-cell neutral-b editable';
     if (j >= 0) { if (jj === j) { if (k === curK) d.classList.add('cur'); else d.classList.add('hi'); } else d.classList.add('dim'); }
+    else if (mmSelectedK >= 0 && k === mmSelectedK) d.classList.add('hi');
     d.textContent = B[jj][k];
     ((cj, ck) => { d.onclick = function() { editCellInline(this, B[cj][ck], '#1a60b0', function(v) { B[cj][ck] = v; recomputeFromMatrices(); }); }; })(jj, k);
     el.appendChild(d);
@@ -507,11 +558,26 @@ export function mmRenderResult() {
   container.style.gridTemplateColumns = `repeat(${K},44px)`;
   let html = '';
   const showValues = mmPhase === 'done' || collapseT >= 1;
+  const hasSelection = mmSelectedI >= 0 && mmSelectedK >= 0;
   for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
     let cls = 'mat-cell r';
-    if (showValues) cls += ' done';
-    else cls += ' empty';
-    html += `<div class="${cls}">${showValues ? Res[i][k] : ''}</div>`;
+    if (showValues) {
+      if (hasSelection && i === mmSelectedI && k === mmSelectedK) cls += ' cur';
+      else if (hasSelection) cls += ' muted';
+      else cls += ' done';
+    } else {
+      cls += ' empty';
+    }
+    const onclick = showValues ? ` onclick="mmSelectResultCell(${i},${k})" style="cursor:pointer"` : '';
+    html += `<div class="${cls}"${onclick}>${showValues ? Res[i][k] : ''}</div>`;
   }
   container.innerHTML = html;
+
+  // Update result hint
+  const hint = document.getElementById('mmResultHint');
+  if (hint) {
+    if (hasSelection) hint.textContent = `Result[${mmSelectedI}, ${mmSelectedK}] — row ${mmSelectedI} · col ${mmSelectedK}`;
+    else if (showValues) hint.textContent = 'click cell to trace inputs';
+    else hint.textContent = '';
+  }
 }

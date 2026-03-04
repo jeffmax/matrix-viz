@@ -12,7 +12,7 @@ import { introA, introB, initIntroVecs, renderIntro, pauseIntro, resetIntroStep,
 import { mmPauseAll, mmReset, mmToggle, mmFwd, mmBack, mmScrubCollapse,
          resetMmBuildState, applyS1, renderA, renderB, carryIntroToMatmul,
          mmUpdateCanvasTitle, collapseT, mmPhase, applyCollapse, mmRestoreView,
-         mmRenderResult } from './tab-matmul.js';
+         mmRenderResult, mmSelectResultCell } from './tab-matmul.js';
 import { dpPause, dpRenderAll, dpReset, dpApplyCollapse, dpScrubCollapse,
          dpToggle, dpFwd, dpBack, dpJumpToCell,
          resetDpState, dpCollapseT, setDpCollapseT,
@@ -536,6 +536,7 @@ window.mmFwd = mmFwd;
 window.mmToggle = mmToggle;
 window.mmReset = mmReset;
 window.mmScrubCollapse = mmScrubCollapse;
+window.mmSelectResultCell = mmSelectResultCell;
 // Matrix Multiply — Dot Product View
 window.dpBack = dpBack;
 window.dpFwd = dpFwd;
