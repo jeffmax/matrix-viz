@@ -1,15 +1,16 @@
 // ══════════════════════════════════════════════════
 // TAB 0 — INTRO: OUTER PRODUCT a ⊗ b
-// Step 0: show vectors a (column) and b (row)
-// Step 1: a broadcasts rightward — columns appear one by one
-// Step 2: b broadcasts downward — rows appear one by one + result
+// Step 0: both vectors as horizontal 1D rows (editable)
+// Step 1: a reshapes to column, b stays as row (with annotations)
+// Step 2: broadcast animation — a copies right, b copies down, result
+// Step 3: static result with hover inspection
 // ══════════════════════════════════════════════════
 import { I, J, K, rand, editCellInline, dimBtnsH, dimBtnsV } from './shared.js';
 
 export let introA = [], introB = [];
 export let introStep = 0, introPlaying = false;
 let introTm = null, introHiTm = null;
-const INTRO_STEPS = 3;
+const INTRO_STEPS = 4;
 
 export function initIntroVecs(rnd) {
   introA = Array.from({length: I}, () => rnd ? rand() : 1);
@@ -31,7 +32,8 @@ export function renderIntro() {
   if (!wrap) return;
   if (introStep === 0) renderIntroStep0(wrap);
   else if (introStep === 1) renderIntroStep1(wrap);
-  else renderIntroStep2(wrap);
+  else if (introStep === 2) renderIntroStep2(wrap);
+  else renderIntroStep3(wrap);
   updateIntroDots();
   updateIntroFormula();
 }
@@ -48,8 +50,46 @@ function vecTipB() {
   return `<div class="vec-tip"><span class="fb">b</span> = torch.tensor([${vals}])</div>`;
 }
 
+// Step 0: Both vectors as horizontal 1D rows
 function renderIntroStep0(wrap) {
   let html = '<div class="intro-stage">';
+  // a as horizontal row
+  html += '<div class="intro-block">';
+  html += '<div class="intro-block-label"><span style="color:#e06000;font-weight:700">a</span></div>';
+  html += '<div class="grid-with-row-btns">';
+  html += `<div class="intro-grid" style="grid-template-columns:repeat(${I},44px)">`;
+  for (let i = 0; i < I; i++) {
+    html += `<div class="mat-cell a editable" onclick="introEditCell('a',${i})">${introA[i]}</div>`;
+  }
+  html += '</div>';
+  html += dimBtnsH('I');
+  html += '</div>';
+  html += shapeTag(`(${I},)`);
+  html += vecTipA();
+  html += '</div>';
+  html += '<div class="intro-sym">⊗</div>';
+  // b as horizontal row
+  html += '<div class="intro-block">';
+  html += '<div class="intro-block-label"><span style="color:#1a60b0;font-weight:700">b</span></div>';
+  html += '<div class="grid-with-row-btns">';
+  html += `<div class="intro-grid" style="grid-template-columns:repeat(${K},44px)">`;
+  for (let k = 0; k < K; k++) {
+    html += `<div class="mat-cell b editable" onclick="introEditCell('b',${k})">${introB[k]}</div>`;
+  }
+  html += '</div>';
+  html += dimBtnsH('K');
+  html += '</div>';
+  html += shapeTag(`(${K},)`);
+  html += vecTipB();
+  html += '</div>';
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+// Step 1: a reshaped to column, b stays as row (with reshape annotations)
+function renderIntroStep1(wrap) {
+  let html = '<div class="intro-stage">';
+  // a as vertical column
   html += '<div class="intro-block">';
   html += '<div class="intro-block-label"><span style="color:#e06000;font-weight:700">a</span> <span style="color:#aaa">column vector</span></div>';
   html += '<div class="grid-with-row-btns">';
@@ -60,10 +100,11 @@ function renderIntroStep0(wrap) {
   html += '</div>';
   html += dimBtnsV('I');
   html += '</div>';
-  html += shapeTag(`shape (${I}, <strong>1</strong>) — the <strong>1</strong> stretches →`);
+  html += shapeTag(`(${I},) → (${I}, <strong>1</strong>)`);
   html += vecTipA();
   html += '</div>';
   html += '<div class="intro-sym">⊗</div>';
+  // b as horizontal row
   html += '<div class="intro-block">';
   html += '<div class="intro-block-label"><span style="color:#1a60b0;font-weight:700">b</span> <span style="color:#aaa">row vector</span></div>';
   html += `<div class="intro-grid" style="grid-template-columns:repeat(${K},44px)">`;
@@ -72,14 +113,15 @@ function renderIntroStep0(wrap) {
   }
   html += '</div>';
   html += dimBtnsH('K');
-  html += shapeTag(`shape (<strong>1</strong>, ${K}) — the <strong>1</strong> stretches ↓`);
+  html += shapeTag(`(${K},) → (<strong>1</strong>, ${K})`);
   html += vecTipB();
   html += '</div>';
   html += '</div>';
   wrap.innerHTML = html;
 }
 
-function renderIntroStep1(wrap) {
+// Step 2: Broadcast animation (was step 1)
+function renderIntroStep2(wrap) {
   const delay = introDelay();
   const broadcastTime = Math.max((K - 2) * delay, (I - 2) * delay) + 400;
   let html = '<div class="intro-stage">';
@@ -159,7 +201,8 @@ function renderIntroStep1(wrap) {
   introHiTm = setTimeout(hiTick, broadcastTime);
 }
 
-function renderIntroStep2(wrap) {
+// Step 3: Static result with hover (was step 2)
+function renderIntroStep3(wrap) {
   const delay = introDelay();
   let html = '<div class="intro-stage">';
 
@@ -271,8 +314,10 @@ export function introEditCell(vec, idx) {
 function updateIntroFormula() {
   const f = document.getElementById('fIntro');
   if (introStep === 0) {
-    f.innerHTML = `<span class="fa">a</span> is (${I},1) and <span class="fb">b</span> is (1,${K}). Press ▶ to broadcast and multiply.`;
+    f.innerHTML = `<span class="fa">a</span> is (${I},) and <span class="fb">b</span> is (${K},). Press ▶ to see the outer product.`;
   } else if (introStep === 1) {
+    f.innerHTML = `Reshape: <span class="fa">a</span> becomes a column (${I}, 1) and <span class="fb">b</span> becomes a row (1, ${K}). Now they can broadcast.`;
+  } else if (introStep === 2) {
     f.innerHTML = `Broadcasting <span class="fa">a</span> across columns and <span class="fb">b</span> across rows, then multiplying element-wise, computes the outer product <span class="fc">a ⊗ b</span>.`;
   } else {
     f.innerHTML = `Each cell [i,k] = <span class="fa">a[i]</span> × <span class="fb">b[k]</span>. Hover to inspect. `
@@ -293,15 +338,15 @@ function updateIntroDots() {
 /* @testable */
 export function introAnimDuration() {
   const delay = introDelay();
-  if (introStep === 1) {
+  if (introStep === 2) {
     const broadcastTime = Math.max((K - 2) * delay, (I - 2) * delay) + 400;
     const resultTime = (I * K - 1) * Math.max(delay * 0.3, 60);
     return broadcastTime + resultTime + 500;
   }
-  if (introStep === 2) {
-    return 800; // No animation in step 2 — cells appear instantly
+  if (introStep === 3) {
+    return 800; // No animation in step 3 — cells appear instantly
   }
-  return 600;
+  return 800; // Steps 0 and 1 — no animation, short pause
 }
 
 export function stepFwdIntro() {

@@ -30,6 +30,7 @@ import { ipInit, ipRender, ipPause, ipReset, ipToggle, ipFwd, ipBack,
 let currentTier = 'blocks';
 let lastBlocksMode = 'inner';   // remember last sub-tab per tier
 let lastMatmulMode = 'matmul';
+let lastEmbedMode = 'embed-fwd';
 
 // ── Register callbacks for shared.js ──
 registerCallbacks({
@@ -85,9 +86,11 @@ function setTier(tier) {
   // Update tier1 buttons
   document.getElementById('tier1-blocks').classList.toggle('active', tier === 'blocks');
   document.getElementById('tier1-matmul').classList.toggle('active', tier === 'matmul');
+  document.getElementById('tier1-embed').classList.toggle('active', tier === 'embed');
   // Show/hide tier2 rows
   document.getElementById('tier2-blocks').classList.toggle('hidden', tier !== 'blocks');
   document.getElementById('tier2-matmul').classList.toggle('hidden', tier !== 'matmul');
+  document.getElementById('tier2-embed').classList.toggle('hidden', tier !== 'embed');
   // Show/hide preset bar
   document.getElementById('presetBar').classList.toggle('hidden', tier !== 'matmul');
   const descEl = document.getElementById('presetDesc');
@@ -97,8 +100,10 @@ function setTier(tier) {
   // Switch to last-used sub-tab for this tier
   if (tier === 'blocks') {
     setMode(lastBlocksMode);
-  } else {
+  } else if (tier === 'matmul') {
     setMode(lastMatmulMode);
+  } else {
+    setMode(lastEmbedMode);
   }
 }
 
@@ -112,6 +117,7 @@ function setMode(m) {
   // Track last sub-tab per tier
   if (m === 'inner' || m === 'intro') lastBlocksMode = m;
   if (m === 'matmul' || m === 'dotprod') lastMatmulMode = m;
+  if (m === 'embed-fwd' || m === 'embed-bwd') lastEmbedMode = m;
 
   if (prev === 'inner') ipPause();
   if (prev === 'intro') pauseIntro();
@@ -123,8 +129,10 @@ function setMode(m) {
   const allTabs = ['inner', 'intro', 'dotprod', 'matmul', 'embed-fwd', 'embed-bwd'];
   for (const t of allTabs) {
     const tabBtn = document.getElementById('tab-' + t);
+    const navBtn = document.getElementById('tab-' + t + '-nav');
     const ctrl = document.getElementById('ctrl-' + t);
     if (tabBtn) tabBtn.classList.toggle('active', m === t);
+    if (navBtn) navBtn.classList.toggle('active', m === t);
     if (ctrl) ctrl.classList.toggle('hidden', m !== t);
   }
 
@@ -133,18 +141,32 @@ function setMode(m) {
     currentTier = 'blocks';
     document.getElementById('tier1-blocks').classList.add('active');
     document.getElementById('tier1-matmul').classList.remove('active');
+    document.getElementById('tier1-embed').classList.remove('active');
     document.getElementById('tier2-blocks').classList.remove('hidden');
     document.getElementById('tier2-matmul').classList.add('hidden');
+    document.getElementById('tier2-embed').classList.add('hidden');
     document.getElementById('presetBar').classList.add('hidden');
     document.getElementById('presetDesc').classList.add('hidden');
   } else if ((m === 'matmul' || m === 'dotprod') && currentTier !== 'matmul') {
     currentTier = 'matmul';
     document.getElementById('tier1-matmul').classList.add('active');
     document.getElementById('tier1-blocks').classList.remove('active');
+    document.getElementById('tier1-embed').classList.remove('active');
     document.getElementById('tier2-matmul').classList.remove('hidden');
     document.getElementById('tier2-blocks').classList.add('hidden');
+    document.getElementById('tier2-embed').classList.add('hidden');
     document.getElementById('presetBar').classList.remove('hidden');
     if (activePreset) document.getElementById('presetDesc').classList.remove('hidden');
+  } else if ((m === 'embed-fwd' || m === 'embed-bwd') && currentTier !== 'embed') {
+    currentTier = 'embed';
+    document.getElementById('tier1-embed').classList.add('active');
+    document.getElementById('tier1-blocks').classList.remove('active');
+    document.getElementById('tier1-matmul').classList.remove('active');
+    document.getElementById('tier2-embed').classList.remove('hidden');
+    document.getElementById('tier2-blocks').classList.add('hidden');
+    document.getElementById('tier2-matmul').classList.add('hidden');
+    document.getElementById('presetBar').classList.add('hidden');
+    document.getElementById('presetDesc').classList.add('hidden');
   }
 
   const introCarry = prev === 'intro' && (m === 'matmul' || m === 'dotprod') && introA.length > 0;
@@ -428,6 +450,10 @@ function updateShelfContent() {
       + `<li>Dimensions of size 1 stretch to match</li>`
       + `<li>Missing dimensions are treated as size 1</li>`
       + `</ol>`
+      + `<p style="margin-top:6px"><strong><code>None</code> / <code>np.newaxis</code></strong> adds a size-1 dimension:</p>`
+      + `<ul style="font-size:0.70rem;color:#666;margin:4px 0 0 1.2em"><li><code>a[:, None]</code> reshapes <code>(I,)</code> → <code>(I, 1)</code></li>`
+      + `<li><code>b[None, :]</code> reshapes <code>(K,)</code> → <code>(1, K)</code></li></ul>`
+      + `<p style="margin-top:4px;font-size:0.68rem;color:#999">Once both have compatible shapes, NumPy/PyTorch broadcasts the size-1 dimensions to match.</p>`
       + `<div class="sidebar-link" style="margin-top:6px">See also: <a href="https://github.com/srush/Tensor-Puzzles" target="_blank">Sasha Rush's Tensor Puzzles</a></div>`
       + `</div>`;
   } else if (currentMode === 'matmul') {
@@ -464,12 +490,27 @@ function updateShelfContent() {
 }
 setOnShelfOpen(updateShelfContent);
 
+// ══════════════════════════════════════════════════
+// RIGHT-SIDE RULES DRAWER
+// ══════════════════════════════════════════════════
+let rulesOpen = false;
+function toggleRules() {
+  rulesOpen = !rulesOpen;
+  const shelf = document.getElementById('rulesShelf');
+  const handle = document.getElementById('rulesShelfHandle');
+  const backdrop = document.getElementById('rulesShelfBackdrop');
+  if (shelf) shelf.classList.toggle('open', rulesOpen);
+  if (handle) handle.classList.toggle('open', rulesOpen);
+  if (backdrop) backdrop.classList.toggle('open', rulesOpen);
+}
+
 // ── Wire up window globals for HTML onclick handlers ──
 window.rebuild = rebuild;
 window.setMode = setMode;
 window.setTier = setTier;
 window.selectPreset = selectPreset;
 window.toggleInfo = toggleInfo;
+window.toggleRules = toggleRules;
 window.changeDim = changeDim;
 // Building Blocks — Inner Product
 window.ipFwd = ipFwd;

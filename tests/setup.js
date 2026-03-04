@@ -102,8 +102,10 @@ function buildDOM() {
     <!-- Tier navigation -->
     <button id="tier1-blocks" class="tier1-tab active"></button>
     <button id="tier1-matmul" class="tier1-tab"></button>
+    <button id="tier1-embed" class="tier1-tab"></button>
     <div id="tier2-blocks"><button id="tab-inner" class="tier2-tab active"></button><button id="tab-intro" class="tier2-tab"></button></div>
     <div id="tier2-matmul" class="hidden"><button id="tab-matmul" class="tier2-tab active"></button><button id="tab-dotprod" class="tier2-tab"></button></div>
+    <div id="tier2-embed" class="hidden"><button id="tab-embed-fwd-nav" class="tier2-tab active"></button><button id="tab-embed-bwd-nav" class="tier2-tab"></button></div>
     <div id="presetBar"></div>
     <div id="presetDesc" class="hidden"></div>
 
@@ -111,6 +113,11 @@ function buildDOM() {
     <div id="infoShelfHandle"></div>
     <div id="infoShelfBackdrop"></div>
     <div id="infoShelf"><div id="shelfContent"></div></div>
+
+    <!-- Rules shelf -->
+    <div id="rulesShelfHandle"></div>
+    <div id="rulesShelfBackdrop"></div>
+    <div id="rulesShelf"></div>
 
     <!-- Inner Product tab -->
     <div id="ctrl-inner" class="hidden">

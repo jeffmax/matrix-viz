@@ -11,9 +11,6 @@ body {
   display: flex; flex-direction: column; align-items: center;
   padding: 24px 16px 60px; min-height: 100vh;
 }
-h1 { font-size: 1.2rem; font-weight: 400; color: #555; margin-bottom: 14px; }
-
-.top-controls { display: flex; gap: 14px; align-items: flex-end; margin-bottom: 18px; flex-wrap: wrap; justify-content: center; }
 .ctrl-btn { height: 30px; padding: 0 12px; border: 1px solid #ddd; border-radius: 4px; background: #fff; font-size: 0.75rem; color: #555; cursor: pointer; }
 .ctrl-btn.primary { background: #333; color: #fff; border-color: #333; }
 
@@ -35,6 +32,8 @@ h1 { font-size: 1.2rem; font-weight: 400; color: #555; margin-bottom: 14px; }
 .preset-pill:hover { background: #f0f0f0; color: #555; border-color: #ccc; }
 .preset-pill.active { background: #e06000; color: #fff; border-color: #e06000; }
 .preset-desc { font-size: 0.72rem; color: #555; line-height: 1.6; text-align: center; max-width: 700px; padding: 6px 12px; background: #fafafa; border: 1px solid #e8e8e8; border-radius: 6px; }
+.tab-desc { background: #f8f8f4; border: 1px solid #e0ddd4; border-radius: 8px;
+  padding: 10px 16px; font-size: 0.82rem; color: #444; max-width: 640px; text-align: left; line-height: 1.5; }
 .preset-desc strong { color: #333; }
 
 /* Legacy flat tabs (hidden, kept for compatibility) */
@@ -247,6 +246,32 @@ input[type=range] { width: 88px; accent-color: #333; }
 .info-shelf-handle:hover { background: #e8e8e8; color: #555; }
 .info-shelf-handle.open { left: 380px; }
 @media (max-width: 448px) { .info-shelf-handle.open { left: 85vw; } }
+
+/* ── Right-side rules shelf ── */
+.rules-shelf { position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 85vw;
+  background: #fff; z-index: 1000; box-shadow: -4px 0 24px rgba(0,0,0,0.12);
+  transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); overflow-y: auto; }
+.rules-shelf.open { transform: translateX(0); }
+.rules-shelf-inner { padding: 24px 20px 32px; display: flex; flex-direction: column; gap: 16px; }
+.rules-shelf-inner h3 { font-size: 0.88rem; color: #333; margin: 0; }
+.rules-shelf-inner h4 { font-size: 0.78rem; color: #555; margin: 12px 0 4px; }
+.rules-shelf-inner p { font-size: 0.72rem; color: #555; line-height: 1.6; margin: 4px 0; }
+.rules-shelf-inner ul, .rules-shelf-inner ol { font-size: 0.72rem; color: #555; line-height: 1.6; padding-left: 1.3em; margin: 4px 0; }
+.rules-shelf-inner li { margin-bottom: 2px; }
+.rules-shelf-inner code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-size: 0.70rem; }
+.rules-shelf-inner table { font-size: 0.68rem; border-collapse: collapse; width: 100%; margin: 6px 0; }
+.rules-shelf-inner th, .rules-shelf-inner td { border: 1px solid #e0e0e0; padding: 4px 8px; text-align: left; }
+.rules-shelf-inner th { background: #f8f8f8; font-weight: 600; }
+.rules-shelf-inner blockquote { background: #f8f8f4; border-left: 3px solid #e06000; padding: 8px 12px; margin: 6px 0;
+  font-size: 0.72rem; color: #444; font-style: italic; }
+.rules-shelf-handle { position: fixed; top: 50%; right: 0; transform: translateY(-50%); z-index: 1001;
+  width: 24px; height: 64px; background: #f0f0f0; border: 1px solid #ddd; border-right: none;
+  border-radius: 6px 0 0 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.06); transition: right 0.3s cubic-bezier(0.4,0,0.2,1), background 0.15s;
+  font-size: 0.7rem; color: #999; }
+.rules-shelf-handle:hover { background: #e8e8e8; color: #555; }
+.rules-shelf-handle.open { right: 420px; }
+@media (max-width: 448px) { .rules-shelf-handle.open { right: 85vw; } }
 
 /* ── Intro tab: outer product a ⊗ b ── */
 .intro-wrap {
@@ -748,13 +773,6 @@ input[type=range] { width: 88px; accent-color: #333; }
 </head>
 <body>
 
-<h1>Matrix Multiplication: Multiple Perspectives</h1>
-
-<div class="top-controls">
-  <button class="ctrl-btn primary" onclick="rebuild(true)">Randomize</button>
-  <button class="ctrl-btn" onclick="rebuild(false)">Reset (1s)</button>
-</div>
-
 <!-- Info shelf overlay -->
 <div id="infoShelfHandle" class="info-shelf-handle" onclick="toggleInfo()">ⓘ</div>
 <div id="infoShelfBackdrop" class="info-shelf-backdrop" onclick="toggleInfo()"></div>
@@ -765,12 +783,89 @@ input[type=range] { width: 88px; accent-color: #333; }
   </div>
 </div>
 
+<!-- Rules shelf (right side) -->
+<div id="rulesShelfHandle" class="rules-shelf-handle" onclick="toggleRules()">Σ</div>
+<div id="rulesShelfBackdrop" class="info-shelf-backdrop" onclick="toggleRules()"></div>
+<div id="rulesShelf" class="rules-shelf">
+  <div class="rules-shelf-inner">
+    <button class="info-shelf-close" onclick="toggleRules()">&times;</button>
+    <h3>Einsum Notation — Rules</h3>
+    <blockquote>The single master rule: einsum iterates over all index combinations, multiplies the corresponding elements, and sums over any index not in the output.</blockquote>
+
+    <h4>1. Basic Syntax</h4>
+    <p><code>"inputs -&gt; output"</code>, where inputs are comma-separated index strings for each operand.</p>
+
+    <h4>2. Index Letters</h4>
+    <p>Each letter represents one axis (dimension) of a tensor. The size of that dimension must be consistent wherever the letter appears.</p>
+
+    <h4>3. Free Indices (output indices)</h4>
+    <p>Any index that appears on the right side of <code>-&gt;</code> is a <strong>free index</strong> — it survives into the output.</p>
+
+    <h4>4. Contracted Indices (summed indices)</h4>
+    <p>Any index that appears in the input(s) but <strong>not</strong> in the output is a <strong>dummy index</strong> — it gets summed over (contracted).</p>
+    <ul>
+      <li><code>"ij,jk-&gt;ik"</code>: <code>j</code> is dummy → summed → matrix multiply</li>
+      <li><code>"ij-&gt;i"</code>: <code>j</code> is dummy → summed → row sums</li>
+    </ul>
+
+    <h4>5. Repeated Index Within One Operand → Diagonal</h4>
+    <p>Same letter twice in one operand constrains to the diagonal along those axes.</p>
+    <ul>
+      <li><code>"ii-&gt;i"</code>: diagonal elements → vector</li>
+      <li><code>"ii-&gt;"</code>: diagonal then sum → trace</li>
+    </ul>
+
+    <h4>6. Shared Index Across Operands → Alignment</h4>
+    <p>Same letter in two operands: aligned along that dimension before multiplying.</p>
+    <ul>
+      <li>In output → element-wise multiply (kept)</li>
+      <li>Not in output → multiply and sum (contracted)</li>
+    </ul>
+
+    <h4>7. The Optional Arrow (<code>-&gt;</code>)</h4>
+    <p><strong>With arrow:</strong> You fully control which indices appear in the output and in what order.</p>
+    <p><strong>Without arrow (implicit):</strong> Include each index appearing exactly once (alphabetical order), sum any appearing more than once.</p>
+
+    <h4>8. Batch / Spectator Indices</h4>
+    <p>An index in multiple operands <strong>and</strong> in the output is a batch index — no summation, operation performed independently per value.</p>
+    <p><code>"bij,bjk-&gt;bik"</code>: <code>b</code> is batch → batched matrix multiply</p>
+
+    <h4>9. Output Ordering</h4>
+    <p>The order of indices in the output string determines the shape. This lets you transpose implicitly: <code>"ij-&gt;ji"</code></p>
+
+    <h4>Quick Reference</h4>
+    <table>
+      <tr><th>Expression</th><th>What happens</th></tr>
+      <tr><td><code>"ij-&gt;ij"</code></td><td>Identity</td></tr>
+      <tr><td><code>"ij-&gt;ji"</code></td><td>Transpose</td></tr>
+      <tr><td><code>"ij-&gt;i"</code></td><td>Row sums</td></tr>
+      <tr><td><code>"ij-&gt;"</code></td><td>Sum all → scalar</td></tr>
+      <tr><td><code>"ii-&gt;i"</code></td><td>Diagonal</td></tr>
+      <tr><td><code>"ii-&gt;"</code></td><td>Trace</td></tr>
+      <tr><td><code>"ij,jk-&gt;ik"</code></td><td>Matrix multiply</td></tr>
+      <tr><td><code>"ij,ij-&gt;ij"</code></td><td>Element-wise multiply</td></tr>
+      <tr><td><code>"ij,ij-&gt;i"</code></td><td>Row-wise dot products</td></tr>
+      <tr><td><code>"i,j-&gt;ij"</code></td><td>Outer product</td></tr>
+      <tr><td><code>"i,i-&gt;"</code></td><td>Dot product</td></tr>
+      <tr><td><code>"bij,bjk-&gt;bik"</code></td><td>Batched matmul</td></tr>
+      <tr><td><code>"ij,kj-&gt;ik"</code></td><td>A @ B.T</td></tr>
+    </table>
+
+    <h4>Links</h4>
+    <ul>
+      <li><a href="https://einsum.joelburget.com/" target="_blank">einsum.joelburget.com</a></li>
+      <li><a href="https://github.com/pixqc/einsum-puzzles" target="_blank">Einsum Puzzles</a> (<a href="https://colab.research.google.com/github/pixqc/einsum-puzzles/blob/master/main.ipynb" target="_blank">Colab</a>)</li>
+    </ul>
+  </div>
+</div>
+
 <!-- Two-tier navigation -->
 <div class="nav-wrap" id="navWrap">
   <!-- Tier 1: top-level categories -->
   <div class="tier1-tabs">
-    <button class="tier1-tab active" id="tier1-blocks" onclick="setTier('blocks')">Building Blocks</button>
+    <button class="tier1-tab active" id="tier1-blocks" onclick="setTier('blocks')">Vector Operations</button>
     <button class="tier1-tab"        id="tier1-matmul" onclick="setTier('matmul')">Matrix Multiply</button>
+    <button class="tier1-tab"        id="tier1-embed" onclick="setTier('embed')">Embeddings</button>
   </div>
   <!-- Tier 2a: Building Blocks sub-tabs -->
   <div class="tier2-row" id="tier2-blocks">
@@ -783,28 +878,38 @@ input[type=range] { width: 88px; accent-color: #333; }
     <span class="tier2-link">⇄</span>
     <button class="tier2-tab"        id="tab-dotprod" onclick="setMode('dotprod')">Dot Product View</button>
   </div>
+  <!-- Tier 2c: Embeddings sub-tabs -->
+  <div class="tier2-row hidden" id="tier2-embed">
+    <button class="tier2-tab active" id="tab-embed-fwd-nav" onclick="setMode('embed-fwd')">Forward</button>
+    <button class="tier2-tab"        id="tab-embed-bwd-nav" onclick="setMode('embed-bwd')">Backward</button>
+  </div>
   <!-- Preset bar (Matrix Multiply tier only) -->
   <div class="preset-bar hidden" id="presetBar"></div>
   <!-- Preset description -->
   <div class="preset-desc hidden" id="presetDesc"></div>
 </div>
 
-<!-- Legacy tab buttons (hidden, for test compatibility) -->
+<!-- Legacy tab buttons (hidden, kept for compatibility) -->
 <div class="mode-tabs">
-  <button class="mode-tab" id="tab-embed-fwd"></button>
-  <button class="mode-tab" id="tab-embed-bwd"></button>
+  <button class="mode-tab" id="legacy-tab-embed-fwd"></button>
+  <button class="mode-tab" id="legacy-tab-embed-bwd"></button>
 </div>
 
 
 <!-- TAB: Inner Product (Building Blocks) -->
 <div id="ctrl-inner" class="tab-container">
   <div class="tab-inner">
+    <div class="tab-desc" id="innerDesc">
+      <strong>Inner (Dot) Product: a &middot; b</strong> &mdash; Multiply corresponding elements and sum to a <strong>scalar</strong>.
+      In einsum: <code>i,i&rarr;</code> &mdash; the shared index <em>i</em> is contracted, leaving no free indices.
+    </div>
     <div class="controls-row">
       <div class="playback">
         <button class="play-btn" onclick="ipBack()" title="Step back">◀</button>
         <button class="play-btn big" onclick="ipFwd()" title="Step forward">▶|</button>
         <button class="play-btn" id="pbInner" onclick="ipToggle()">▶</button>
         <button class="play-btn" onclick="ipReset()" title="Reset">↺</button>
+        <button class="ctrl-btn primary" onclick="rebuild(true)" style="margin-left:6px">Randomize</button>
         <div class="slider-wrap">
           <span>slow</span>
           <input type="range" id="spInner" min="200" max="1200" value="200" step="50">
@@ -824,12 +929,18 @@ input[type=range] { width: 88px; accent-color: #333; }
 <!-- TAB 0 — Broadcasting & Outer Product -->
 <div id="ctrl-intro" class="tab-container">
   <div class="tab-inner">
+    <div class="tab-desc" id="introDesc">
+      <strong>Outer Product: a &otimes; b</strong> &mdash; Every pair (a[i], b[k]) multiplied &rarr; a <strong>matrix</strong>.
+      In einsum: <code>i,k&rarr;ik</code> &mdash; both indices are free, so the result is 2D.
+      <em>Broadcasting view:</em> reshape a to a column via <code>a[:, None]</code>, b to a row via <code>b[None, :]</code>, then broadcast-multiply.
+    </div>
     <div class="controls-row">
       <div class="playback">
         <button class="play-btn" onclick="stepBackIntro()" title="Step back">◀</button>
         <button class="play-btn big" onclick="stepFwdIntro()" title="Step forward">▶|</button>
         <button class="play-btn" id="pbIntro" onclick="togglePlayIntro()">▶</button>
         <button class="play-btn" onclick="resetIntro()" title="Reset">↺</button>
+        <button class="ctrl-btn primary" onclick="rebuild(true)" style="margin-left:6px">Randomize</button>
         <div class="slider-wrap">
           <span>slow</span>
           <input type="range" id="spIntro" min="200" max="1200" value="200" step="50">
@@ -855,6 +966,7 @@ input[type=range] { width: 88px; accent-color: #333; }
         <button class="play-btn big" onclick="dpFwd()" title="Step forward">▶|</button>
         <button class="play-btn" id="pbDP" onclick="dpToggle()">▶</button>
         <button class="play-btn" onclick="dpReset()" title="Reset">↺</button>
+        <button class="ctrl-btn primary" onclick="rebuild(true)" style="margin-left:6px">Randomize</button>
         <div class="slider-wrap">
           <span>slow</span>
           <input type="range" id="spDP" min="200" max="1200" value="200" step="50">
@@ -902,6 +1014,7 @@ input[type=range] { width: 88px; accent-color: #333; }
       <button class="play-btn big" onclick="mmFwd()" title="Step forward">▶|</button>
       <button class="play-btn" id="pbMM" onclick="mmToggle()">▶</button>
       <button class="play-btn" onclick="mmReset()" title="Reset">↺</button>
+      <button class="ctrl-btn primary" onclick="rebuild(true)" style="margin-left:6px">Randomize</button>
       <div class="slider-wrap">
         <span>slow</span>
         <input type="range" id="spMM" min="100" max="1800" value="100" step="50">
@@ -970,6 +1083,7 @@ input[type=range] { width: 88px; accent-color: #333; }
         <button class="play-btn big" onclick="efFwd()" title="Step forward">▶|</button>
         <button class="play-btn" id="pbEF" onclick="efToggle()">▶</button>
         <button class="play-btn" onclick="efReset()" title="Reset">↺</button>
+        <button class="ctrl-btn primary" onclick="rebuild(true)" style="margin-left:6px">Randomize</button>
         <div class="slider-wrap">
           <span>slow</span>
           <input type="range" id="spEF" min="200" max="1200" value="200" step="50">
@@ -995,6 +1109,7 @@ input[type=range] { width: 88px; accent-color: #333; }
         <button class="play-btn big" onclick="ebFwd()" title="Step forward">▶|</button>
         <button class="play-btn" id="pbEB" onclick="ebToggle()">▶</button>
         <button class="play-btn" onclick="ebReset()" title="Reset">↺</button>
+        <button class="ctrl-btn primary" onclick="rebuild(true)" style="margin-left:6px">Randomize</button>
         <div class="slider-wrap">
           <span>slow</span>
           <input type="range" id="spEB" min="200" max="1200" value="200" step="50">
