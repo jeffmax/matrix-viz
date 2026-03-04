@@ -513,7 +513,7 @@ export function dpBack() {
 export function dpReset() {
   dpPause();
   dpStep = -1;
-  dpSelectedI = -1; dpSelectedK = -1;
+  dpSelectedI = -1; dpSelectedK = -1; dpHoverJ = -1;
   dpCollapseT = 1;
   const dpSlider = document.getElementById('dpCollapseSlider');
   if (dpSlider) dpSlider.value = 1000;

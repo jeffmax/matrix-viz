@@ -67,6 +67,9 @@ export function applyS1(s) {
   setF1(s); setD1(s); updateOpDisplay(s); mmRenderResult();
 }
 
+// ── Outer product animation duration tracking ──
+let lastAnimDuration = 0;
+
 // ── Outer product highlight animation ──
 let opHiTm = null;
 /* @testable */ export function getOpHiTm() { return opHiTm; }
@@ -161,6 +164,9 @@ function updateOpDisplay(s) {
       `<div style="text-align:center"><div style="font-size:0.58rem;color:#aaa;margin-bottom:3px">outer product</div>${rGrid}</div>` +
       `</div>`;
 
+    // Track animation duration for build timer sync
+    lastAnimDuration = animate ? rBase + (I * K - 1) * rDelay + 450 : 0;
+
     // Highlight input cells as each result cell appears
     if (animate) {
       const total = I * K;
@@ -177,7 +183,8 @@ function updateOpDisplay(s) {
     return;
   }
 
-  // Elem-by-elem mode
+  // Elem-by-elem mode — no broadcast animation, so no delay needed
+  lastAnimDuration = 0;
   lastOpJ = j;
   let aVec = '<div class="op-vec">';
   for (let i = 0; i < I; i++) {
@@ -279,7 +286,7 @@ function mmTickBuild() {
   if (t1 < totalSteps1() - 1) {
     t1++; applyS1(t1);
     if (t1 >= totalSteps1() - 1) { mmBuildDone(); return; }
-    tm1 = setTimeout(mmTickBuild, spdMM());
+    tm1 = setTimeout(mmTickBuild, Math.max(spdMM(), lastAnimDuration));
   }
 }
 
@@ -365,6 +372,11 @@ export function mmRestoreView() {
   mmPauseAll();
   if (mmPhase === 'build') {
     removePlusPlanes();
+    // Set lastOpJ before applyS1 to prevent re-triggering broadcast animation on restore
+    if (t1 >= 0) {
+      const {j} = decodeS1(t1);
+      lastOpJ = j;
+    }
     applyS1(t1);
     renderA(-1, -1, -1); renderB(-1, -1, -1);
     if (t1 >= 0) {
@@ -374,6 +386,9 @@ export function mmRestoreView() {
     document.getElementById('spCollapse').disabled = true;
     document.getElementById('spCollapse').value = 0;
   } else if (mmPhase === 'collapse' || mmPhase === 'done') {
+    lastOpJ = -1;
+    const opPanel = document.getElementById('opDisplay');
+    if (opPanel) { opPanel.classList.add('hidden'); opPanel.innerHTML = ''; }
     removePlusPlanes();
     ensureAllGreen();
     addPlusPlanes();
@@ -559,17 +574,31 @@ export function mmRenderResult() {
   let html = '';
   const showValues = mmPhase === 'done' || collapseT >= 1;
   const hasSelection = mmSelectedI >= 0 && mmSelectedK >= 0;
+  // Compute completed j-slices for partial sums during build
+  const buildPartial = mmPhase === 'build' && t1 >= 0;
+  let completedJ = -1;
+  if (buildPartial) {
+    const {j} = decodeS1(t1);
+    completedJ = j >= J ? J - 1 : j;
+  }
   for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
     let cls = 'mat-cell r';
+    let val = '';
     if (showValues) {
       if (hasSelection && i === mmSelectedI && k === mmSelectedK) cls += ' cur';
       else if (hasSelection) cls += ' muted';
       else cls += ' done';
+      val = Res[i][k];
+    } else if (buildPartial) {
+      cls += ' partial';
+      let partial = 0;
+      for (let jj = 0; jj <= completedJ; jj++) partial += Cube[i][jj][k];
+      val = partial;
     } else {
       cls += ' empty';
     }
     const onclick = showValues ? ` onclick="mmSelectResultCell(${i},${k})" style="cursor:pointer"` : '';
-    html += `<div class="${cls}"${onclick}>${showValues ? Res[i][k] : ''}</div>`;
+    html += `<div class="${cls}"${onclick}>${val}</div>`;
   }
   container.innerHTML = html;
 
