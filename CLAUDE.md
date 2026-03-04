@@ -18,10 +18,10 @@ ES modules require a local server — `file://` won't work due to CORS.
 ```
 matmul-3d.html          HTML + CSS (no inline JS)
 js/
-  shared.js             Global state (I,J,K, A,B,Cube,Res, labelA,labelB), dimensions, utilities, callback registry
+  shared.js             Global state (I,J,K, A,B,Cube,Res, labelA,labelB, buildComplete), dimensions, utilities, callback registry
   scene.js              Three.js scene, camera, custom orbit controls, render loop
   cube-manager.js       3D box mesh management, paint functions, plus planes
-  presets.js            12 named matrix multiply examples (identity, row selection, one-hot lookup, etc.)
+  presets.js            11 named matrix multiply examples (identity, row selection, one-hot lookup, etc.)
   tab-inner.js          Inner Product tab: a · b step-through (2D, Building Blocks tier)
   tab-intro.js          Outer Product tab: a ⊗ b broadcast animation (2D, Building Blocks tier)
   tab-matmul.js         MatMul Outer Product View: Build & Collapse (3D, Matrix Multiply tier)
@@ -29,8 +29,9 @@ js/
   tab-embed-fwd.js      Embedding Forward (hidden, kept for future use)
   tab-embed-bwd.js      Embedding Backward (hidden, kept for future use)
   app.js                Entry point: two-tier nav, preset system, mode switching, rebuild, einsum badge
-package.json            Dev server (serve), test script
-vitest.config.js        Vitest config (jsdom environment)
+package.json            Dev server (serve), test scripts
+vitest.config.js        Vitest config (jsdom environment, excludes e2e/)
+playwright.config.js    Playwright config (chromium, webServer on :3000)
 tests/
   setup.js              DOM stubs, THREE.js mock, canvas mock
   shared.test.js        computeData correctness tests
@@ -38,6 +39,8 @@ tests/
   tab-intro.test.js     Outer product tab tests (double-play bug)
   tab-matmul.test.js    MatMul outer product view tests (highlight timer bug)
   tab-dotprod.test.js   Dot product view tests (cell selection, checkbox)
+  e2e/
+    smoke.spec.js       Playwright browser smoke tests (8 tests)
 .gitignore              node_modules/
 ```
 
@@ -68,8 +71,10 @@ tab-dotprod.js   ← app.js
 
 ## Testing
 
+### Unit tests (Vitest)
+
 ```bash
-npm test           # runs vitest (14 tests across 4 files)
+npm test           # runs vitest (102 tests across 9 files)
 ```
 
 - **Framework**: Vitest with jsdom environment
@@ -77,6 +82,19 @@ npm test           # runs vitest (14 tests across 4 files)
 - **Key rule**: Never import `app.js` in tests — it runs `rebuild(true)` + `setMode('intro')` at module init. Import individual modules directly.
 - **Testable exports**: Functions marked `/* @testable */` are exported primarily for testing (e.g., `getOpHiTm`, `getDpState`, `dpTermByTerm`, `introAnimDuration`)
 - **Writing new tests**: Add regression tests for bugs, put them in `tests/tab-*.test.js`
+- **Exclusion**: `vitest.config.js` excludes `tests/e2e/**` so Playwright tests don't conflict
+
+### Browser tests (Playwright)
+
+```bash
+npm run test:e2e   # runs playwright test (8 smoke tests, chromium)
+```
+
+- **Framework**: Playwright with chromium
+- **Config**: `playwright.config.js` — starts dev server via `npm start` on port 3000
+- **Scope**: Smoke tests covering page load, tab navigation, preset loading, 2D tab rendering, tier switching, grid rendering
+- **WebGL limitation**: Headless chromium lacks WebGL, so 3D-dependent tests (cube building, collapse animation) use `page.evaluate()` with error handling or test only 2D aspects. WebGL errors are filtered from error assertions.
+- **Writing new e2e tests**: Add to `tests/e2e/smoke.spec.js`. Use `page.evaluate(() => window.fnName())` to call app functions directly when button selectors are fragile.
 
 ## Pre-commit hook
 
@@ -97,7 +115,7 @@ npm test           # runs vitest (14 tests across 4 files)
 Tier 1:  [Building Blocks]  [Matrix Multiply]          ← top-level toggle
 Tier 2a: [Inner Product]  [Outer Product]               ← when Building Blocks active
 Tier 2b: [Outer Product View]  [Dot Product View]       ← when Matrix Multiply active
-         + preset bar (12 named examples)
+         + preset bar (11 named examples)
 ```
 
 - `setTier(tier)` toggles tier1 active states, shows/hides tier2 rows and preset bar
@@ -106,7 +124,7 @@ Tier 2b: [Outer Product View]  [Dot Product View]       ← when Matrix Multiply
 
 ### Preset system
 
-- `js/presets.js` exports `PRESETS` array (12 examples), `loadPreset(id)`, `clearPreset()`
+- `js/presets.js` exports `PRESETS` array (11 examples), `loadPreset(id)`, `clearPreset()`
 - `shared.js` exports `labelA`/`labelB` — dynamic matrix labels used by rendering code
 - Selecting a preset loads its matrices via `setData()` + `recomputeFromMatrices()`
 - Randomize, dim change, or manual cell edit calls `deselectPreset()` (clears active pill + resets labels)
@@ -131,11 +149,11 @@ When switching between Outer Product View and Dot Product View, `collapseT` is s
 - Outer product display panel shows A[:,j] ⊗ B[j,:] for each active slice:
   - **Whole-slice mode** (elem-by-elem unchecked): broadcast animation
   - **Element-by-element mode**: column vector, row vector, and result grid with current cell highlighted
-- **Outer Product → MatMul carry-over**: switching from intro to matmul sets A = the intro's outer product (introA ⊗ introB), J = len(introB), B randomized
+- **`buildComplete` flag** (shared.js): tracks whether a full computation has finished on either matmul tab. Set true by `mmBuildDone()` and dp stepping to end. Reset on `resetMmBuildState()`, `resetDpState()`, and `rebuild()`. Controls whether dot product tab shows results or empty grid.
 
 ## Key design decisions made so far
 
-- **Two-tier navigation** replaces flat 5-tab bar: Building Blocks (Inner/Outer Product) and Matrix Multiply (Outer Product View / Dot Product View + 12 presets)
+- **Two-tier navigation** replaces flat 5-tab bar: Building Blocks (Inner/Outer Product) and Matrix Multiply (Outer Product View / Dot Product View + 11 presets)
 - Embedding tabs hidden from nav but modules kept for future reactivation
 - One Three.js scene for all 3D tabs — no jarring transitions when switching
 - Speed slider: left = slow, right = fast (not reversed)
@@ -224,7 +242,7 @@ Building Blocks:
   Inner Product — a · b              (DONE — 2D step-through)
   Outer Product — a ⊗ b              (DONE — 2D broadcast animation, carries over to matmul)
 
-Matrix Multiply (+ 12 presets):
+Matrix Multiply (+ 11 presets):
   Outer Product View — Build & Collapse  (DONE — 3D cube build + collapse)
   Dot Product View — row · column        (DONE — 3D cube column view)
 
