@@ -187,8 +187,9 @@ body {
 .controls-row { display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 10px; flex-wrap: wrap; }
 .controls-row .playback { margin-top: 0; }
 .playback { margin-top: 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
-.play-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid #ddd; background: #fff; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-.play-btn.big { width: 44px; height: 44px; border: 2px solid #333; font-size: 1.05rem; }
+.play-btn { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #333; background: #fff; font-size: 1.05rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.play-btn.secondary { width: 32px; height: 32px; border: 1px solid #bbb; font-size: 0.85rem; }
+.play-btn.subtle { width: 28px; height: 28px; border: 1px solid #ddd; font-size: 0.78rem; color: #aaa; }
 .slider-wrap { display: flex; align-items: center; gap: 6px; font-size: 0.65rem; color: #aaa; text-transform: uppercase; letter-spacing: .06em; }
 input[type=range] { width: 88px; accent-color: #333; }
 
@@ -904,10 +905,10 @@ input[type=range] { width: 88px; accent-color: #333; }
     </div>
     <div class="controls-row">
       <div class="playback">
-        <button class="play-btn" onclick="ipBack()" title="Step back">◀</button>
-        <button class="play-btn big" onclick="ipFwd()" title="Step forward">▶|</button>
-        <button class="play-btn" id="pbInner" onclick="ipToggle()">▶</button>
-        <button class="play-btn" onclick="ipReset()" title="Reset">↺</button>
+        <button class="play-btn" onclick="ipBack()" title="Step back">|◀</button>
+        <button class="play-btn" onclick="ipFwd()" title="Step forward">▶|</button>
+        <button class="play-btn secondary" id="pbInner" onclick="ipToggle()" title="Play / pause">▶</button>
+        <button class="play-btn subtle" onclick="ipReset()" title="Reset">↺</button>
         <button class="ctrl-btn primary" onclick="rebuild(true)" style="margin-left:6px">Randomize</button>
         <div class="slider-wrap">
           <span>slow</span>
@@ -935,10 +936,10 @@ input[type=range] { width: 88px; accent-color: #333; }
     </div>
     <div class="controls-row">
       <div class="playback">
-        <button class="play-btn" onclick="stepBackIntro()" title="Step back">◀</button>
-        <button class="play-btn big" onclick="stepFwdIntro()" title="Step forward">▶|</button>
-        <button class="play-btn" id="pbIntro" onclick="togglePlayIntro()">▶</button>
-        <button class="play-btn" onclick="resetIntro()" title="Reset">↺</button>
+        <button class="play-btn" onclick="stepBackIntro()" title="Step back">|◀</button>
+        <button class="play-btn" onclick="stepFwdIntro()" title="Step forward">▶|</button>
+        <button class="play-btn secondary" id="pbIntro" onclick="togglePlayIntro()" title="Play / pause">▶</button>
+        <button class="play-btn subtle" onclick="resetIntro()" title="Reset">↺</button>
         <button class="ctrl-btn primary" onclick="rebuild(true)" style="margin-left:6px">Randomize</button>
         <div class="slider-wrap">
           <span>slow</span>
@@ -960,10 +961,10 @@ input[type=range] { width: 88px; accent-color: #333; }
 <div id="ctrl-dotprod" class="hidden tab-container">
   <div class="controls-row">
     <div class="playback">
-      <button class="play-btn" onclick="dpBack()" title="Step back">◀</button>
-      <button class="play-btn big" onclick="dpFwd()" title="Step forward">▶|</button>
-      <button class="play-btn" id="pbDP" onclick="dpToggle()">▶</button>
-      <button class="play-btn" onclick="dpReset()" title="Reset">↺</button>
+      <button class="play-btn" onclick="dpBack()" title="Step back">|◀</button>
+      <button class="play-btn" onclick="dpFwd()" title="Step forward">▶|</button>
+      <button class="play-btn secondary" id="pbDP" onclick="dpToggle()" title="Play / pause">▶</button>
+      <button class="play-btn subtle" onclick="dpReset()" title="Reset">↺</button>
       <button class="ctrl-btn primary" onclick="rebuild(true)" style="margin-left:6px">Randomize</button>
       <div class="slider-wrap">
         <span>slow</span>
@@ -1020,6 +1021,7 @@ input[type=range] { width: 88px; accent-color: #333; }
   </div>
   <div style="font-size:0.68rem;color:#bbb;margin-top:4px;text-align:center">
     See this as a full matrix multiply animation at <a href="http://matrixmultiplication.xyz" target="_blank" style="color:#999">matrixmultiplication.xyz</a>
+    · <a href="#" onclick="setMode('matmul');return false" style="font-size:0.62rem;color:#999">See how this cube builds from outer product slices →</a>
   </div>
 </div>
 
@@ -1027,10 +1029,10 @@ input[type=range] { width: 88px; accent-color: #333; }
 <div id="ctrl-matmul" class="hidden tab-container">
   <div class="controls-row">
     <div class="playback">
-      <button class="play-btn" onclick="mmBack()" title="Step back / reverse">◀</button>
-      <button class="play-btn big" onclick="mmFwd()" title="Step forward">▶|</button>
-      <button class="play-btn" id="pbMM" onclick="mmToggle()">▶</button>
-      <button class="play-btn" onclick="mmReset()" title="Reset">↺</button>
+      <button class="play-btn" onclick="mmBack()" title="Step back / reverse">|◀</button>
+      <button class="play-btn" onclick="mmFwd()" title="Step forward">▶|</button>
+      <button class="play-btn secondary" id="pbMM" onclick="mmToggle()" title="Play / pause">▶</button>
+      <button class="play-btn subtle" onclick="mmReset()" title="Reset">↺</button>
       <button class="ctrl-btn primary" onclick="rebuild(true)" style="margin-left:6px">Randomize</button>
       <div class="slider-wrap">
         <span>slow</span>
@@ -1094,6 +1096,9 @@ input[type=range] { width: 88px; accent-color: #333; }
     <div class="legend-item"><div class="legend-swatch" style="background:#50c878"></div>Filled slice</div>
     <div class="legend-item"><div class="legend-swatch" style="background:#e06000"></div>Active cell</div>
   </div>
+  <div style="font-size:0.62rem;color:#999;margin-top:2px;text-align:center">
+    <a href="#" onclick="setMode('dotprod');return false" style="color:#999">See this same cube from the dot-product perspective →</a>
+  </div>
 </div>
 
 <!-- TAB 3 — Embedding Forward: blh,hc→blc -->
@@ -1101,10 +1106,10 @@ input[type=range] { width: 88px; accent-color: #333; }
   <div class="tab-inner">
     <div class="controls-row">
       <div class="playback">
-        <button class="play-btn" onclick="efBack()" title="Step back">◀</button>
-        <button class="play-btn big" onclick="efFwd()" title="Step forward">▶|</button>
-        <button class="play-btn" id="pbEF" onclick="efToggle()">▶</button>
-        <button class="play-btn" onclick="efReset()" title="Reset">↺</button>
+        <button class="play-btn" onclick="efBack()" title="Step back">|◀</button>
+        <button class="play-btn" onclick="efFwd()" title="Step forward">▶|</button>
+        <button class="play-btn secondary" id="pbEF" onclick="efToggle()" title="Play / pause">▶</button>
+        <button class="play-btn subtle" onclick="efReset()" title="Reset">↺</button>
         <button class="ctrl-btn primary" onclick="rebuild(true)" style="margin-left:6px">Randomize</button>
         <div class="slider-wrap">
           <span>slow</span>
@@ -1127,10 +1132,10 @@ input[type=range] { width: 88px; accent-color: #333; }
   <div class="tab-inner">
     <div class="controls-row">
       <div class="playback">
-        <button class="play-btn" onclick="ebBack()" title="Step back">◀</button>
-        <button class="play-btn big" onclick="ebFwd()" title="Step forward">▶|</button>
-        <button class="play-btn" id="pbEB" onclick="ebToggle()">▶</button>
-        <button class="play-btn" onclick="ebReset()" title="Reset">↺</button>
+        <button class="play-btn" onclick="ebBack()" title="Step back">|◀</button>
+        <button class="play-btn" onclick="ebFwd()" title="Step forward">▶|</button>
+        <button class="play-btn secondary" id="pbEB" onclick="ebToggle()" title="Play / pause">▶</button>
+        <button class="play-btn subtle" onclick="ebReset()" title="Reset">↺</button>
         <button class="ctrl-btn primary" onclick="rebuild(true)" style="margin-left:6px">Randomize</button>
         <div class="slider-wrap">
           <span>slow</span>
