@@ -15,6 +15,10 @@ export let labelA = 'A', labelB = 'B';
 export let currentMode = 'intro';
 export function setCurrentMode(m) { currentMode = m; }
 
+// Build complete flag — shared between matmul and dotprod tabs
+export let buildComplete = false;
+export function setBuildComplete(v) { buildComplete = v; }
+
 // ── Info shelf toggle ──
 export let infoOpen = false;
 
@@ -41,7 +45,7 @@ export function applyInfoState() {
 const tabCallbacks = {};
 export function registerCallbacks(cbs) { Object.assign(tabCallbacks, cbs); }
 
-// Bulk setter for shared state (used by carryIntroToMatmul)
+// Bulk setter for shared state
 export function setData(d) {
   if ('I' in d) I = d.I;
   if ('J' in d) J = d.J;

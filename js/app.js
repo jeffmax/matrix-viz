@@ -3,14 +3,14 @@
 // ══════════════════════════════════════════════════
 import { I, J, K, A, B, currentMode, setCurrentMode, computeData, changeDim,
          registerCallbacks, toggleInfo, recomputeFromMatrices, resetLabels,
-         setData, infoOpen, setOnShelfOpen } from './shared.js';
+         setData, infoOpen, setOnShelfOpen, setBuildComplete } from './shared.js';
 import { sc, initScene, moveCanvasTo, snapToDefault } from './scene.js';
 import { boxes, rebuildBoxes, addPlusPlanes, removePlusPlanes, ensureAllGreen, clearBoxes } from './cube-manager.js';
-import { introA, introB, initIntroVecs, renderIntro, pauseIntro, resetIntroStep,
+import { initIntroVecs, renderIntro, pauseIntro, resetIntroStep,
          resizeIntroVecs, stepFwdIntro, stepBackIntro, togglePlayIntro, resetIntro,
          introEditCell, introHover, introClearHover } from './tab-intro.js';
 import { mmPauseAll, mmReset, mmToggle, mmFwd, mmBack, mmScrubCollapse,
-         resetMmBuildState, applyS1, renderA, renderB, carryIntroToMatmul,
+         resetMmBuildState, applyS1, renderA, renderB,
          mmUpdateCanvasTitle, collapseT, mmPhase, applyCollapse, mmRestoreView,
          mmRenderResult, mmSelectResultCell } from './tab-matmul.js';
 import { dpPause, dpRenderAll, dpReset, dpApplyCollapse, dpScrubCollapse,
@@ -171,13 +171,8 @@ function setMode(m) {
     document.getElementById('presetDesc').classList.add('hidden');
   }
 
-  const introCarry = prev === 'intro' && (m === 'matmul' || m === 'dotprod') && introA.length > 0;
-  if (introCarry) {
-    carryIntroToMatmul(introA, introB);
-  }
-
   // ── Sync collapse state between matmul perspectives ──
-  if (prev === 'matmul' && m === 'dotprod' && !introCarry) {
+  if (prev === 'matmul' && m === 'dotprod') {
     if (mmPhase === 'collapse' || mmPhase === 'done') {
       setDpCollapseT(collapseT);
     }
@@ -194,19 +189,8 @@ function setMode(m) {
   }
   if (m === 'matmul') {
     moveCanvasTo('mmCanvasHost');
-    if (introCarry) {
-      mmPauseAll();
-      resetMmBuildState();
-      document.getElementById('spCollapse').disabled = true;
-      document.getElementById('spCollapse').value = 0;
-      rebuildBoxes(); removePlusPlanes();
-      applyS1(-1);
-      renderA(-1, -1, -1); renderB(-1, -1, -1);
-      mmUpdateCanvasTitle();
-    } else {
-      rebuildBoxes();
-      mmRestoreView();
-    }
+    rebuildBoxes();
+    mmRestoreView();
     renderEinsumBadge('einsumMatmul', 'matmul');
   }
   if (m === 'intro') {
@@ -309,6 +293,7 @@ function rebuild(rnd) {
   pauseIntro(); resetIntroStep();
   dpPause(); resetDpState();
   efPause(); ebPause();
+  setBuildComplete(false);
 
   // Clear preset on randomize/reset
   deselectPreset();

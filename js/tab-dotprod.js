@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════════
 // TAB 2 — DOT PRODUCT: ROW · COLUMN
 // ══════════════════════════════════════════════════
-import { I, J, K, A, B, Cube, Res, currentMode, labelA, labelB, editCellInline, recomputeFromMatrices, dimBtnsH, dimBtnsV } from './shared.js';
+import { I, J, K, A, B, Cube, Res, currentMode, labelA, labelB, editCellInline, recomputeFromMatrices, dimBtnsH, dimBtnsV, buildComplete, setBuildComplete } from './shared.js';
 import { boxes, paintBox, packedY, plusPlanes, addPlusPlanes, removePlusPlanes } from './cube-manager.js';
 
 let dpStep = -1, dpPlaying = false, dpTm = null;
@@ -11,6 +11,7 @@ let dpHoverJ = -1;
 
 export function resetDpState() {
   dpStep = -1; dpSelectedI = -1; dpSelectedK = -1; dpCollapseT = 1; dpHoverJ = -1;
+  setBuildComplete(false);
 }
 
 /* @testable */
@@ -253,9 +254,12 @@ function dpRenderResult() {
       cls += ' done';
       val = Res[i][k];
     } else if (dpStep < 0) {
-      val = Res[i][k];
-      if (collapsed && dpSelectedI < 0) cls += ' done';
-      else cls += ' done';
+      if (buildComplete) {
+        val = Res[i][k];
+        cls += ' done';
+      } else {
+        cls += ' empty';
+      }
     } else {
       cls += ' empty';
     }
@@ -433,7 +437,7 @@ function dpHighlightCubeColumn() {
     } else if (dpStep >= 0 && cellIdx <= completedUpTo) {
       paintBox(i, j, k, 0x50c878, 0.55, 0, Cube[i][j][k]);
     } else if (dpStep < 0 && dpSelectedI < 0) {
-      paintBox(i, j, k, 0x50c878, 0.78, 0, Cube[i][j][k]);
+      paintBox(i, j, k, 0x50c878, buildComplete ? 0.78 : 0.40, 0, Cube[i][j][k]);
     } else if (dpStep < 0 && dpSelectedI >= 0) {
       paintBox(i, j, k, 0x50c878, 0.25, 0, Cube[i][j][k]);
     } else {
@@ -494,7 +498,8 @@ function dpTick() {
   if (dpStep < dpTotalSteps() - 1) {
     dpStep++;
     dpRenderAll();
-    dpTm = setTimeout(dpTick, dpDelay());
+    if (dpStep >= dpTotalSteps() - 1) { setBuildComplete(true); dpPause(); }
+    else dpTm = setTimeout(dpTick, dpDelay());
   } else {
     dpPause();
   }
@@ -502,7 +507,11 @@ function dpTick() {
 
 export function dpFwd() {
   dpPause();
-  if (dpStep < dpTotalSteps() - 1) { dpStep++; dpRenderAll(); }
+  if (dpStep < dpTotalSteps() - 1) {
+    dpStep++;
+    if (dpStep >= dpTotalSteps() - 1) setBuildComplete(true);
+    dpRenderAll();
+  }
 }
 
 export function dpBack() {

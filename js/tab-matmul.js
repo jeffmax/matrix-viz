@@ -2,7 +2,7 @@
 // TAB 1 — OUTER PRODUCTS, SLICE BY SLICE
 // Build cube slice by slice, then collapse via scrubable animation
 // ══════════════════════════════════════════════════
-import { I, J, K, A, B, Cube, Res, rand, labelA, labelB, editCellInline, recomputeFromMatrices, dimBtnsH, dimBtnsV, setData } from './shared.js';
+import { I, J, K, A, B, Cube, Res, labelA, labelB, editCellInline, recomputeFromMatrices, dimBtnsH, dimBtnsV, setBuildComplete } from './shared.js';
 import { makeTex } from './scene.js';
 import { boxes, plusPlanes, paintBox, paintSlice, ensureAllGreen, packedY, addPlusPlanes, removePlusPlanes } from './cube-manager.js';
 
@@ -58,7 +58,7 @@ export function applyS1(s) {
     for (let ii = 0; ii < I; ii++) for (let kk = 0; kk < K; kk++) {
       const flat = ii * K + kk;
       if (flat < cur) paintBox(ii, j, kk, 0x50c878, 0.78, 0, Cube[ii][j][kk]);
-      else if (flat === cur) paintBox(ii, j, kk, 0xe06000, 0.95, 0x2a0e00, Cube[ii][j][kk]);
+      else if (flat === cur) paintBox(ii, j, kk, 0x2ab0a0, 0.95, 0x0a3030, Cube[ii][j][kk]);
       else paintBox(ii, j, kk, 0xeeeeee, 0.10, 0, null);
     }
     renderA(j, cellI, -1);
@@ -293,6 +293,7 @@ function mmTickBuild() {
 /* @testable */
 export function mmBuildDone() {
   mmStopBuildTimer();
+  setBuildComplete(true);
   mmPhase = 'collapse';
   collapseT = 0;
   addPlusPlanes();
@@ -363,6 +364,7 @@ export function mmScrubCollapse(t) {
 export function resetMmBuildState() {
   t1 = -1; collapseT = 0; lastOpJ = -1;
   mmPhase = 'build';
+  setBuildComplete(false);
   mmClearSelection();
   opStopHi();
 }
@@ -470,16 +472,6 @@ function runColAnim(dir) {
   colAnimId = requestAnimationFrame(frame);
 }
 
-export function carryIntroToMatmul(introAVec, introBVec) {
-  const newJ = introBVec.length;
-  const newK = Math.max(1, newJ - 1); // non-square B for pedagogical clarity
-  const newA = Array.from({length: I}, (_, i) => Array.from({length: newJ}, (_, j) => introAVec[i] * introBVec[j]));
-  const newB = Array.from({length: newJ}, () => Array.from({length: newK}, () => rand()));
-  const newCube = Array.from({length: I}, (_, i) => Array.from({length: newJ}, (_, j) => Array.from({length: newK}, (_, k) => newA[i][j] * newB[j][k])));
-  const newRes = Array.from({length: I}, (_, i) => Array.from({length: newK}, (_, k) => newA[i].reduce((s, _, j) => s + newA[i][j] * newB[j][k], 0)));
-  setData({J: newJ, K: newK, A: newA, B: newB, Cube: newCube, Res: newRes});
-}
-
 export function mmUpdateCanvasTitle() {
   const el = document.getElementById('canvasTitle');
   if (!el) return;
@@ -572,7 +564,7 @@ export function mmRenderResult() {
   if (!container) return;
   container.style.gridTemplateColumns = `repeat(${K},44px)`;
   let html = '';
-  const showValues = mmPhase === 'done' || collapseT >= 1;
+  const showValues = mmPhase === 'done' || mmPhase === 'collapse' || collapseT >= 1;
   const hasSelection = mmSelectedI >= 0 && mmSelectedK >= 0;
   // Compute completed j-slices for partial sums during build
   const buildPartial = mmPhase === 'build' && t1 >= 0;

@@ -52,7 +52,7 @@ export function paintBox(i, j, k, col, opacity, emissive, val) {
 export function paintSlice(j, state) {
   for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
     if (state === 'empty') paintBox(i, j, k, 0xeeeeee, 0.10, 0, null);
-    else if (state === 'active') paintBox(i, j, k, 0xe06000, 0.95, 0x2a0e00, Cube[i][j][k]);
+    else if (state === 'active') paintBox(i, j, k, 0x2ab0a0, 0.95, 0x0a3030, Cube[i][j][k]);
     else paintBox(i, j, k, 0x50c878, 0.78, 0, Cube[i][j][k]);
   }
 }
