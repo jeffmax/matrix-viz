@@ -190,6 +190,14 @@ function selectPreset(id) {
   setData({ I: data.I, J: data.J, K: data.K, A: data.A, B: data.B, labelA: data.labelA, labelB: data.labelB });
   recomputeFromMatrices();
 
+  if (data.buildMode) {
+    setBuildMode(data.buildMode);
+    // Update radio buttons UI
+    document.querySelectorAll('input[name="buildMode"]').forEach(r => {
+      r.checked = r.value === data.buildMode;
+    });
+  }
+
   mmPauseAll(); resetMmBuildState();
 
   if (currentMode === 'matmul') {

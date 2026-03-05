@@ -5,6 +5,7 @@ import { rebuildBoxes, ensureAllGreen, addPlusPlanes, boxes } from '../js/cube-m
 import { mmBuildDone, getOpHiTm, setOpHiTm, mmReset, setBuildMode, getBuildMode,
          mmJumpToCell, getMmState, mmHoverCell, mmClearHover, mmFwd,
          mmScrubCollapse, mmUpdateCanvasTitle } from '../js/tab-matmul.js';
+import { PRESETS } from '../js/presets.js';
 
 describe('Bug 2: mmBuildDone should not cancel highlight timer', () => {
   beforeEach(() => {
@@ -243,6 +244,15 @@ describe('Bug #3: Result grid states are empty/partial/done only', () => {
     expect(selected).not.toBeNull();
     const doneCells = grid.querySelectorAll('.mat-cell.done');
     expect(doneCells.length).toBe(cells.length - 1);
+  });
+});
+
+describe('Presets have buildMode', () => {
+  it('every preset has a buildMode field', () => {
+    for (const p of PRESETS) {
+      expect(p.buildMode).toBeDefined();
+      expect(['outer', 'dot']).toContain(p.buildMode);
+    }
   });
 });
 
