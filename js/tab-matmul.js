@@ -1041,10 +1041,7 @@ export function mmRenderResult() {
     // Post-build or exploration mode
     for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
       let cls = 'mat-cell r';
-      if (exploring && i === mmSelectedI && k === mmSelectedK) cls += ' cur';
-      else if (exploring) cls += ' muted';
-      else if (hasSelection && i === mmSelectedI && k === mmSelectedK) cls += ' cur';
-      else if (hasSelection) cls += ' muted';
+      if (hasSelection && i === mmSelectedI && k === mmSelectedK) cls += ' cur';
       else cls += ' done';
       html += `<div class="${cls}" onclick="mmSelectResultCell(${i},${k})" style="cursor:pointer">${Res[i][k]}</div>`;
     }

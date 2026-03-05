@@ -184,3 +184,26 @@ describe('Bug #4: Dot product initial cube is empty', () => {
         }
   });
 });
+
+describe('Bug #3: Result grid states are empty/partial/done only', () => {
+  beforeEach(() => {
+    computeData(true);
+    initScene();
+    rebuildBoxes();
+    mmReset();
+  });
+
+  it('exploration mode: non-selected cells have class done, not muted', () => {
+    mmBuildDone();
+    mmJumpToCell(0, 0);
+    const grid = document.getElementById('mmResultGrid');
+    const cells = grid.querySelectorAll('.mat-cell');
+    cells.forEach(cell => {
+      expect(cell.classList.contains('muted')).toBe(false);
+    });
+    const selected = grid.querySelector('.mat-cell.cur');
+    expect(selected).not.toBeNull();
+    const doneCells = grid.querySelectorAll('.mat-cell.done');
+    expect(doneCells.length).toBe(cells.length - 1);
+  });
+});
