@@ -106,7 +106,6 @@ function buildDOM() {
     <div id="tier2-blocks"><button id="tab-inner" class="tier2-tab active"></button><button id="tab-intro" class="tier2-tab"></button></div>
     <div id="tier2-matmul" class="hidden"><button id="tab-matmul" class="tier2-tab active"></button></div>
     <div id="tier2-embed" class="hidden"><button id="tab-embed-fwd-nav" class="tier2-tab active"></button><button id="tab-embed-bwd-nav" class="tier2-tab"></button></div>
-    <div id="presetBar"></div>
     <div id="presetDesc" class="hidden"></div>
 
     <!-- Info shelf -->
@@ -141,6 +140,11 @@ function buildDOM() {
 
     <!-- Tab — Matmul (unified) -->
     <div id="ctrl-matmul" class="hidden">
+      <select id="presetSelect"><option value="">Presets...</option></select>
+      <div id="buildModeToggle">
+        <label class="seg-active"><input type="radio" name="buildMode" value="outer" checked><span>Outer Product</span></label>
+        <label><input type="radio" name="buildMode" value="dot"><span>Dot Product</span></label>
+      </div>
       <button id="pbMM">▶</button>
       <input type="range" id="spMM" value="700">
       <input type="checkbox" id="chkDetail">

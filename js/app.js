@@ -74,7 +74,6 @@ function setTier(tier) {
   document.getElementById('tier2-blocks').classList.toggle('hidden', tier !== 'blocks');
   document.getElementById('tier2-matmul').classList.toggle('hidden', tier !== 'matmul');
   document.getElementById('tier2-embed').classList.toggle('hidden', tier !== 'embed');
-  document.getElementById('presetBar').classList.toggle('hidden', tier !== 'matmul');
   const descEl = document.getElementById('presetDesc');
   if (tier !== 'matmul') descEl.classList.add('hidden');
   else if (activePreset) descEl.classList.remove('hidden');
@@ -123,7 +122,6 @@ function setMode(m) {
     document.getElementById('tier2-blocks').classList.remove('hidden');
     document.getElementById('tier2-matmul').classList.add('hidden');
     document.getElementById('tier2-embed').classList.add('hidden');
-    document.getElementById('presetBar').classList.add('hidden');
     document.getElementById('presetDesc').classList.add('hidden');
   } else if (m === 'matmul' && currentTier !== 'matmul') {
     currentTier = 'matmul';
@@ -133,7 +131,6 @@ function setMode(m) {
     document.getElementById('tier2-matmul').classList.remove('hidden');
     document.getElementById('tier2-blocks').classList.add('hidden');
     document.getElementById('tier2-embed').classList.add('hidden');
-    document.getElementById('presetBar').classList.remove('hidden');
     if (activePreset) document.getElementById('presetDesc').classList.remove('hidden');
   } else if ((m === 'embed-fwd' || m === 'embed-bwd') && currentTier !== 'embed') {
     currentTier = 'embed';
@@ -143,7 +140,6 @@ function setMode(m) {
     document.getElementById('tier2-embed').classList.remove('hidden');
     document.getElementById('tier2-blocks').classList.add('hidden');
     document.getElementById('tier2-matmul').classList.add('hidden');
-    document.getElementById('presetBar').classList.add('hidden');
     document.getElementById('presetDesc').classList.add('hidden');
   }
 
@@ -176,14 +172,14 @@ function setMode(m) {
 // PRESET SYSTEM
 // ══════════════════════════════════════════════════
 function buildPresetBar() {
-  const bar = document.getElementById('presetBar');
-  if (!bar) return;
-  bar.innerHTML = PRESETS.map(p =>
-    `<button class="preset-pill" id="preset-${p.id}" onclick="selectPreset('${p.id}')">${p.label}</button>`
-  ).join('');
+  const sel = document.getElementById('presetSelect');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Presets...</option>'
+    + PRESETS.map(p => `<option value="${p.id}">${p.label}</option>`).join('');
 }
 
 function selectPreset(id) {
+  if (!id) { deselectPreset(); return; }
   const data = loadPreset(id);
   if (!data) return;
 
@@ -192,10 +188,7 @@ function selectPreset(id) {
 
   if (data.buildMode) {
     setBuildMode(data.buildMode);
-    // Update radio buttons UI
-    document.querySelectorAll('input[name="buildMode"]').forEach(r => {
-      r.checked = r.value === data.buildMode;
-    });
+    updateSegControl(data.buildMode);
   }
 
   mmPauseAll(); resetMmBuildState();
@@ -209,9 +202,8 @@ function selectPreset(id) {
     renderEinsumBadge('einsumMatmul', 'matmul');
   }
 
-  document.querySelectorAll('.preset-pill').forEach(el => el.classList.remove('active'));
-  const pill = document.getElementById('preset-' + id);
-  if (pill) pill.classList.add('active');
+  const sel = document.getElementById('presetSelect');
+  if (sel) sel.value = id;
 
   const descEl = document.getElementById('presetDesc');
   if (descEl && data.desc) {
@@ -223,7 +215,8 @@ function selectPreset(id) {
 function deselectPreset() {
   clearPreset();
   resetLabels();
-  document.querySelectorAll('.preset-pill').forEach(el => el.classList.remove('active'));
+  const sel = document.getElementById('presetSelect');
+  if (sel) sel.value = '';
   const descEl = document.getElementById('presetDesc');
   if (descEl) descEl.classList.add('hidden');
 }
@@ -425,6 +418,15 @@ function toggleRules() {
   if (backdrop) backdrop.classList.toggle('open', rulesOpen);
 }
 
+function updateSegControl(mode) {
+  document.querySelectorAll('#buildModeToggle label').forEach(lbl => {
+    const radio = lbl.querySelector('input[type="radio"]');
+    lbl.classList.toggle('seg-active', radio.value === mode);
+    radio.checked = radio.value === mode;
+  });
+}
+window.updateSegControl = updateSegControl;
+
 // ── Wire up window globals for HTML onclick handlers ──
 window.rebuild = rebuild;
 window.setMode = setMode;
@@ -458,7 +460,10 @@ window.mmSelectResultCell = mmSelectResultCell;
 window.mmJumpToCell = mmJumpToCell;
 window.mmHoverCell = mmHoverCell;
 window.mmClearHover = mmClearHover;
-window.setBuildMode = setBuildMode;
+window.setBuildMode = (mode) => {
+  setBuildMode(mode);
+  updateSegControl(mode);
+};
 // Embedding Forward (hidden, kept for future use)
 window.efFwd = efFwd;
 window.efBack = efBack;

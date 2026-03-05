@@ -37,14 +37,17 @@ test('all presets load without non-WebGL errors', async ({ page }) => {
 
   // Switch to Matrix Multiply tier
   await page.locator('#tier1-matmul').click();
-  await expect(page.locator('#presetBar')).toBeVisible();
+  await expect(page.locator('#presetSelect')).toBeVisible();
 
-  const pills = page.locator('.preset-pill');
-  const count = await pills.count();
-  expect(count).toBeGreaterThanOrEqual(10);
+  const options = page.locator('#presetSelect option');
+  const count = await options.count();
+  // First option is "Presets..." placeholder, rest are real presets
+  expect(count).toBeGreaterThanOrEqual(11);
 
-  for (let i = 0; i < count; i++) {
-    await pills.nth(i).click();
+  // Select each preset via the dropdown
+  for (let i = 1; i < count; i++) {
+    const val = await options.nth(i).getAttribute('value');
+    await page.locator('#presetSelect').selectOption(val);
     // Verify A grid renders cells (always present after preset load)
     await expect(page.locator('#gridA .mat-cell').first()).toBeVisible();
   }
@@ -105,8 +108,11 @@ test('preset selection updates A/B grids', async ({ page }) => {
   await page.locator('#tier1-matmul').click();
 
   await page.evaluate(() => {
-    const pills = document.querySelectorAll('.preset-pill');
-    if (pills.length > 1) pills[1].click();
+    const sel = document.getElementById('presetSelect');
+    if (sel && sel.options.length > 1) {
+      sel.value = sel.options[1].value;
+      sel.dispatchEvent(new Event('change'));
+    }
   });
 
   await expect(page.locator('#gridA .mat-cell').first()).toBeVisible();
