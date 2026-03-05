@@ -3,7 +3,8 @@ import { computeData, I, K, Res, setBuildComplete } from '../js/shared.js';
 import { initScene } from '../js/scene.js';
 import { rebuildBoxes, ensureAllGreen, addPlusPlanes, boxes } from '../js/cube-manager.js';
 import { mmBuildDone, getOpHiTm, setOpHiTm, mmReset, setBuildMode, getBuildMode,
-         mmJumpToCell, getMmState, mmHoverCell, mmClearHover, mmFwd } from '../js/tab-matmul.js';
+         mmJumpToCell, getMmState, mmHoverCell, mmClearHover, mmFwd,
+         mmScrubCollapse } from '../js/tab-matmul.js';
 
 describe('Bug 2: mmBuildDone should not cancel highlight timer', () => {
   beforeEach(() => {
@@ -182,6 +183,43 @@ describe('Bug #4: Dot product initial cube is empty', () => {
         for (let k = 0; k < boxes[i][j].length; k++) {
           expect(boxes[i][j][k].mat.opacity).toBeLessThan(0.2);
         }
+  });
+});
+
+describe('Bug #2: Sub-viz lifecycle', () => {
+  beforeEach(() => {
+    computeData(true);
+    initScene();
+    rebuildBoxes();
+    mmReset();
+    setBuildMode('outer');
+  });
+
+  it('opDisplay hides when collapse slider is scrubbed', () => {
+    mmBuildDone();
+    // Simulate opDisplay being visible (as it would be after outer product build)
+    const opPanel = document.getElementById('opDisplay');
+    opPanel.classList.remove('hidden');
+    opPanel.innerHTML = '<div>test</div>';
+    mmScrubCollapse(0.5);
+    expect(opPanel.classList.contains('hidden')).toBe(true);
+  });
+
+  it('opDisplay hides when a result cell is selected', () => {
+    mmBuildDone();
+    // Simulate opDisplay being visible (as it would be after outer product build)
+    const opPanel = document.getElementById('opDisplay');
+    opPanel.classList.remove('hidden');
+    opPanel.innerHTML = '<div>test</div>';
+    mmJumpToCell(0, 0);
+    expect(opPanel.classList.contains('hidden')).toBe(true);
+  });
+
+  it('sub-viz shows when result cell selected in outer product mode', () => {
+    mmBuildDone();
+    mmJumpToCell(0, 0);
+    const subViz = document.getElementById('dpSubViz');
+    expect(subViz.style.display).not.toBe('none');
   });
 });
 

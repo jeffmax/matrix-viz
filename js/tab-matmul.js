@@ -681,6 +681,11 @@ export function mmReset() {
 export function mmScrubCollapse(t) {
   stopColAnim();
   mmClearSelection();
+  // Hide both sub-viz panels during collapse
+  const opPanel = document.getElementById('opDisplay');
+  if (opPanel) { opPanel.classList.add('hidden'); opPanel.innerHTML = ''; }
+  const subViz = document.getElementById('dpSubViz');
+  if (subViz) subViz.style.display = 'none';
   if (mmPhase === 'build') {
     ensureAllGreen();
     t1 = totalSteps() - 1;
@@ -843,6 +848,9 @@ export function mmJumpToCell(i, k) {
   t1 = -1;
   mmHoverJVal = -1;
   mmSelectedI = i; mmSelectedK = k;
+  // Hide outer product display when entering exploration
+  const opPanel = document.getElementById('opDisplay');
+  if (opPanel) { opPanel.classList.add('hidden'); opPanel.innerHTML = ''; }
   // Render exploration state
   mmRenderExploreGridA();
   mmRenderExploreGridB();
