@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { computeData, I, K, Res } from '../js/shared.js';
+import { computeData, I, K, Res, setBuildComplete } from '../js/shared.js';
 import { initScene } from '../js/scene.js';
-import { rebuildBoxes, ensureAllGreen, addPlusPlanes } from '../js/cube-manager.js';
+import { rebuildBoxes, ensureAllGreen, addPlusPlanes, boxes } from '../js/cube-manager.js';
 import { mmBuildDone, getOpHiTm, setOpHiTm, mmReset, setBuildMode, getBuildMode,
          mmJumpToCell, getMmState, mmHoverCell, mmClearHover, mmFwd } from '../js/tab-matmul.js';
 
@@ -159,5 +159,28 @@ describe('Hover in exploration mode', () => {
     mmClearHover();
     const state = getMmState();
     expect(state.mmSelectedI).toBe(-1);
+  });
+});
+
+describe('Bug #4: Dot product initial cube is empty', () => {
+  beforeEach(() => {
+    computeData(true);
+    initScene();
+    rebuildBoxes();
+    setBuildComplete(false);
+    mmReset();
+  });
+
+  it('switching to dot product with buildComplete=false shows empty cube', () => {
+    setBuildMode('dot');
+    const state = getMmState();
+    expect(state.t1).toBe(-1);
+    expect(state.buildMode).toBe('dot');
+    // Boxes should be nearly invisible (empty state)
+    for (let i = 0; i < boxes.length; i++)
+      for (let j = 0; j < boxes[i].length; j++)
+        for (let k = 0; k < boxes[i][j].length; k++) {
+          expect(boxes[i][j][k].mat.opacity).toBeLessThan(0.2);
+        }
   });
 });

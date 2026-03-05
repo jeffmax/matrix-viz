@@ -155,7 +155,7 @@ function applyDpStep(s) {
     } else if (s >= 0 && cellIdx <= completedUpTo) {
       paintBox(i, j, k, 0x50c878, 0.55, 0, Cube[i][j][k]);
     } else if (s < 0) {
-      paintBox(i, j, k, 0x50c878, buildComplete ? 0.78 : 0.40, 0, Cube[i][j][k]);
+      paintBox(i, j, k, 0x50c878, buildComplete ? 0.78 : 0.10, 0, buildComplete ? Cube[i][j][k] : null);
     } else {
       paintBox(i, j, k, 0x50c878, 0.12, 0, null);
     }
