@@ -4,7 +4,7 @@ import { initScene } from '../js/scene.js';
 import { rebuildBoxes, ensureAllGreen, addPlusPlanes, boxes } from '../js/cube-manager.js';
 import { mmBuildDone, getOpHiTm, setOpHiTm, mmReset, setBuildMode, getBuildMode,
          mmJumpToCell, getMmState, mmHoverCell, mmClearHover, mmFwd,
-         mmScrubCollapse } from '../js/tab-matmul.js';
+         mmScrubCollapse, mmUpdateCanvasTitle } from '../js/tab-matmul.js';
 
 describe('Bug 2: mmBuildDone should not cancel highlight timer', () => {
   beforeEach(() => {
@@ -243,5 +243,26 @@ describe('Bug #3: Result grid states are empty/partial/done only', () => {
     expect(selected).not.toBeNull();
     const doneCells = grid.querySelectorAll('.mat-cell.done');
     expect(doneCells.length).toBe(cells.length - 1);
+  });
+});
+
+describe('Bug #5: Canvas title uses Cube notation', () => {
+  beforeEach(() => {
+    computeData(true);
+    initScene();
+    rebuildBoxes();
+    mmReset();
+  });
+
+  it('initial title shows Cube[i,j,k]', () => {
+    const title = document.getElementById('canvasTitle');
+    expect(title.textContent).toContain('Cube');
+  });
+
+  it('collapsed title shows summation', () => {
+    mmBuildDone();
+    mmScrubCollapse(0.5);
+    const title = document.getElementById('canvasTitle');
+    expect(title.textContent).toContain('Result');
   });
 });

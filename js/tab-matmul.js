@@ -827,15 +827,12 @@ export function mmUpdateCanvasTitle() {
   const el = document.getElementById('canvasTitle');
   if (!el) return;
   if (mmPhase === 'build') {
-    if (t1 < 0) el.textContent = 'Result — press ▶ to build';
-    else if (buildMode === 'outer') el.textContent = 'Result — building cube slices';
-    else el.textContent = 'Result — building cell by cell';
-  } else if (collapseT >= 1) {
-    el.textContent = 'Result — summed';
-  } else if (collapseT <= 0) {
-    el.textContent = 'Result — stacked';
+    el.textContent = 'Cube[i,j,k] = A[i,j]×B[j,k]';
+  } else if (mmPhase === 'collapse') {
+    const pct = Math.round(collapseT * 100);
+    el.textContent = `Σⱼ Cube[i,j,k] → Result[i,k] (${pct}%)`;
   } else {
-    el.textContent = `Result — collapsing (${Math.round(collapseT * 100)}%)`;
+    el.textContent = 'Result[i,k]';
   }
 }
 
