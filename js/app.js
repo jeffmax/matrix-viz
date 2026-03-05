@@ -184,13 +184,14 @@ function selectPreset(id) {
   if (!data) return;
 
   setData({ I: data.I, J: data.J, K: data.K, A: data.A, B: data.B, labelA: data.labelA, labelB: data.labelB });
-  recomputeFromMatrices();
 
+  // Update build mode UI + state BEFORE recompute (which may throw on WebGL)
   if (data.buildMode) {
-    setBuildMode(data.buildMode);
     updateSegControl(data.buildMode);
+    setBuildMode(data.buildMode);
   }
 
+  recomputeFromMatrices();
   mmPauseAll(); resetMmBuildState();
 
   if (currentMode === 'matmul') {
@@ -456,6 +457,7 @@ window.mmFwd = mmFwd;
 window.mmToggle = mmToggle;
 window.mmReset = mmReset;
 window.mmScrubCollapse = mmScrubCollapse;
+window.mmRenderResult = mmRenderResult;
 window.mmSelectResultCell = mmSelectResultCell;
 window.mmJumpToCell = mmJumpToCell;
 window.mmHoverCell = mmHoverCell;

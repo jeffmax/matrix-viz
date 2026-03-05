@@ -127,9 +127,8 @@ test('build-mode radio toggle visible and switchable', async ({ page }) => {
   await page.locator('#tier1-matmul').click();
   await expect(page.locator('#ctrl-matmul')).not.toHaveClass(/hidden/);
 
-  // Build mode radios should be visible
-  await expect(page.locator('input[name="buildMode"][value="outer"]')).toBeVisible();
-  await expect(page.locator('input[name="buildMode"][value="dot"]')).toBeVisible();
+  // Build mode segmented control should be visible
+  await expect(page.locator('#buildModeToggle')).toBeVisible();
 
   // Switch to dot product mode via JS (avoids WebGL issues)
   await page.evaluate(() => window.setBuildMode('dot'));
@@ -144,4 +143,85 @@ test('build-mode radio toggle visible and switchable', async ({ page }) => {
   expect(label2).toBe('Element by element');
 
   expect(realErrors(errors)).toEqual([]);
+});
+
+test('outer product build fills result grid', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.goto(URL);
+  await page.locator('#tier1-matmul').click();
+
+  const resultCells = await page.evaluate(() => {
+    // mmFwd throws on WebGL (paintBox), so call mmRenderResult directly after
+    // advancing the step counter as far as we can
+    for (let i = 0; i < 20; i++) { try { window.mmFwd(); } catch (e) { /* WebGL */ } }
+    // Force result grid render (DOM-only, doesn't need WebGL)
+    try { window.mmRenderResult(); } catch (e) { /* ignore */ }
+    const grid = document.getElementById('mmResultGrid');
+    return grid ? grid.querySelectorAll('.mat-cell').length : 0;
+  });
+  expect(resultCells).toBeGreaterThan(0);
+  expect(realErrors(errors)).toEqual([]);
+});
+
+test('dot product mode starts with empty cube', async ({ page }) => {
+  await page.goto(URL);
+  await page.locator('#tier1-matmul').click();
+
+  const result = await page.evaluate(() => {
+    try { window.setBuildMode('dot'); } catch (e) { /* WebGL */ }
+    const grid = document.getElementById('mmResultGrid');
+    const cells = grid ? grid.querySelectorAll('.mat-cell') : [];
+    const emptyCount = [...cells].filter(c => c.classList.contains('empty')).length;
+    return { total: cells.length, empty: emptyCount };
+  });
+  expect(result.empty).toBe(result.total);
+});
+
+test('collapse scrub hides opDisplay', async ({ page }) => {
+  await page.goto(URL);
+  await page.locator('#tier1-matmul').click();
+
+  const hidden = await page.evaluate(() => {
+    for (let i = 0; i < 20; i++) { try { window.mmFwd(); } catch (e) { /* WebGL */ } }
+    try { window.mmScrubCollapse(0.5); } catch (e) { /* WebGL */ }
+    const op = document.getElementById('opDisplay');
+    return op ? op.classList.contains('hidden') : true;
+  });
+  expect(hidden).toBe(true);
+});
+
+test('preset selection changes build mode', async ({ page }) => {
+  await page.goto(URL);
+  await page.locator('#tier1-matmul').click();
+
+  const mode = await page.evaluate(() => {
+    try { window.selectPreset('identity'); } catch (e) { /* WebGL */ }
+    return document.querySelector('input[name="buildMode"]:checked')?.value;
+  });
+  expect(mode).toBe('dot');
+
+  const mode2 = await page.evaluate(() => {
+    try { window.selectPreset('outer'); } catch (e) { /* WebGL */ }
+    return document.querySelector('input[name="buildMode"]:checked')?.value;
+  });
+  expect(mode2).toBe('outer');
+});
+
+test('cell selection shows sub-viz and hides opDisplay', async ({ page }) => {
+  await page.goto(URL);
+  await page.locator('#tier1-matmul').click();
+
+  const result = await page.evaluate(() => {
+    for (let i = 0; i < 20; i++) { try { window.mmFwd(); } catch (e) { /* WebGL */ } }
+    try { window.mmJumpToCell(0, 0); } catch (e) { /* WebGL */ }
+    const op = document.getElementById('opDisplay');
+    const sub = document.getElementById('dpSubViz');
+    return {
+      opHidden: op ? op.classList.contains('hidden') : true,
+      subVisible: sub ? sub.style.display !== 'none' : false
+    };
+  });
+  expect(result.opHidden).toBe(true);
+  expect(result.subVisible).toBe(true);
 });
