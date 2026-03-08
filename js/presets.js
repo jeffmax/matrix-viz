@@ -116,7 +116,7 @@ export const PRESETS = [
     id: 'projection',
     label: 'Projection',
     buildMode: 'dot',
-    desc: `<strong>Projection: P @ v drops a dimension.</strong> A projection matrix zeros out one or more coordinates. Here P keeps x and z but zeros y, projecting 3D points onto the xz-plane. <code>P @ v</code> is a lossy, idempotent operation (P @ P = P).`,
+    desc: `<strong>Projection: P @ v drops a dimension.</strong> A projection matrix zeros out one or more components. Here P keeps rows 0 and 2 of v but zeros row 1, projecting a 3D vector onto a 2D subspace. <code>P @ v</code> is a lossy, idempotent operation (P @ P = P).`,
     A: [[1, 0, 0],
         [0, 0, 0],
         [0, 0, 1]],

@@ -598,7 +598,7 @@ export function mmPauseAll() {
   if (btn) btn.textContent = '▶';
 }
 
-function applyStep(s) {
+export function applyStep(s) {
   if (buildMode === 'outer') {
     applyS1(s);
   } else {

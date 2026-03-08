@@ -258,6 +258,14 @@ describe('Presets have buildMode', () => {
       expect(['outer', 'dot']).toContain(p.buildMode);
     }
   });
+
+  it('projection preset desc does not reference x/y/z coordinates', () => {
+    const proj = PRESETS.find(p => p.id === 'projection');
+    expect(proj).toBeDefined();
+    // Desc should not use "x", "y", "z" as coordinate names — confusing with matrix labels
+    expect(proj.desc).not.toMatch(/\bkeeps? x\b/i);
+    expect(proj.desc).not.toMatch(/\bzeros? y\b/i);
+  });
 });
 
 describe('Bug: mmReset should clear buildComplete', () => {

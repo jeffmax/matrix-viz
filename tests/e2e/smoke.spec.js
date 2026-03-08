@@ -208,6 +208,83 @@ test('preset selection changes build mode', async ({ page }) => {
   expect(mode2).toBe('outer');
 });
 
+test('switching preset after build resets result grid', async ({ page }) => {
+  await page.goto(URL);
+  await page.locator('#tier1-matmul').click();
+
+  const result = await page.evaluate(() => {
+    // Load a preset and complete the build
+    try { window.selectPreset('identity'); } catch (e) {}
+    for (let i = 0; i < 50; i++) { try { window.mmFwd(); } catch (e) {} }
+    // Now switch to a different preset
+    try { window.selectPreset('basic'); } catch (e) {}
+    // Result grid should be reset (empty or cleared, not showing old results)
+    const grid = document.getElementById('mmResultGrid');
+    const doneCells = grid ? grid.querySelectorAll('.mat-cell.done').length : 0;
+    const curCells = grid ? grid.querySelectorAll('.mat-cell.cur').length : 0;
+    return { doneCells, curCells };
+  });
+  // After switching preset, no cells should show as 'done' or 'cur' (build not started)
+  expect(result.doneCells).toBe(0);
+  expect(result.curCells).toBe(0);
+});
+
+test('preset desc updates when switching between presets', async ({ page }) => {
+  await page.goto(URL);
+  await page.locator('#tier1-matmul').click();
+
+  const result = await page.evaluate(() => {
+    try { window.selectPreset('projection'); } catch (e) {}
+    const desc1 = document.getElementById('presetDesc')?.innerHTML || '';
+    try { window.selectPreset('basic'); } catch (e) {}
+    const desc2 = document.getElementById('presetDesc')?.innerHTML || '';
+    const hidden = document.getElementById('presetDesc')?.classList.contains('hidden');
+    return { desc1, desc2, hidden, different: desc1 !== desc2 };
+  });
+  // Desc should change between presets
+  expect(result.different).toBe(true);
+  expect(result.hidden).toBe(false);
+  expect(result.desc2).toContain('Standard multiplication');
+});
+
+test('no redundant Matrix Multiply sub-tab', async ({ page }) => {
+  await page.goto(URL);
+  await page.locator('#tier1-matmul').click();
+  // The tier2-matmul row should not be visible (removed or hidden)
+  const visible = await page.evaluate(() => {
+    const tier2 = document.getElementById('tier2-matmul');
+    if (!tier2) return false;
+    return !tier2.classList.contains('hidden') && tier2.offsetHeight > 0;
+  });
+  expect(visible).toBe(false);
+});
+
+test('preset dropdown has a descriptive label', async ({ page }) => {
+  await page.goto(URL);
+  await page.locator('#tier1-matmul').click();
+  const firstOption = await page.evaluate(() => {
+    const sel = document.getElementById('presetSelect');
+    return sel?.options[0]?.text;
+  });
+  // Should NOT be "Presets..." — should be more descriptive
+  expect(firstOption).not.toBe('Presets...');
+  expect(firstOption).toContain('Example');
+});
+
+test('preset desc spans full toolbar width', async ({ page }) => {
+  await page.goto(URL);
+  await page.locator('#tier1-matmul').click();
+  await page.evaluate(() => { try { window.selectPreset('basic'); } catch (e) {} });
+
+  const widths = await page.evaluate(() => {
+    const toolbar = document.querySelector('.mm-toolbar');
+    const desc = document.getElementById('presetDesc');
+    return { toolbar: toolbar?.offsetWidth, desc: desc?.offsetWidth };
+  });
+  // Desc should be at least as wide as toolbar (within a small tolerance)
+  expect(widths.desc).toBeGreaterThanOrEqual(widths.toolbar - 20);
+});
+
 test('toolbar einsum badge stays on same row as controls', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 600 });
   await page.goto(URL);

@@ -10,7 +10,7 @@ import { initIntroVecs, renderIntro, pauseIntro, resetIntroStep,
          resizeIntroVecs, stepFwdIntro, stepBackIntro, togglePlayIntro, resetIntro,
          introEditCell, introHover, introClearHover } from './tab-intro.js';
 import { mmPauseAll, mmReset, mmToggle, mmFwd, mmBack, mmScrubCollapse,
-         resetMmBuildState, applyS1, renderA, renderB,
+         resetMmBuildState, applyS1, applyStep, renderA, renderB,
          mmUpdateCanvasTitle, collapseT, mmPhase, applyCollapse, mmRestoreView,
          mmRenderResult, mmSelectResultCell, mmJumpToCell, mmHoverCell, mmClearHover,
          setBuildMode, dpRenderVectorIntro, buildMode } from './tab-matmul.js';
@@ -72,7 +72,7 @@ function setTier(tier) {
   document.getElementById('tier1-matmul').classList.toggle('active', tier === 'matmul');
   document.getElementById('tier1-embed').classList.toggle('active', tier === 'embed');
   document.getElementById('tier2-blocks').classList.toggle('hidden', tier !== 'blocks');
-  document.getElementById('tier2-matmul').classList.toggle('hidden', tier !== 'matmul');
+  document.getElementById('tier2-matmul').classList.add('hidden'); // single tab, always hidden
   document.getElementById('tier2-embed').classList.toggle('hidden', tier !== 'embed');
   const descEl = document.getElementById('presetDesc');
   if (tier !== 'matmul') descEl.classList.add('hidden');
@@ -128,7 +128,7 @@ function setMode(m) {
     document.getElementById('tier1-matmul').classList.add('active');
     document.getElementById('tier1-blocks').classList.remove('active');
     document.getElementById('tier1-embed').classList.remove('active');
-    document.getElementById('tier2-matmul').classList.remove('hidden');
+    document.getElementById('tier2-matmul').classList.add('hidden'); // single tab, always hidden
     document.getElementById('tier2-blocks').classList.add('hidden');
     document.getElementById('tier2-embed').classList.add('hidden');
     if (activePreset) document.getElementById('presetDesc').classList.remove('hidden');
@@ -174,7 +174,7 @@ function setMode(m) {
 function buildPresetBar() {
   const sel = document.getElementById('presetSelect');
   if (!sel) return;
-  sel.innerHTML = '<option value="">Presets...</option>'
+  sel.innerHTML = '<option value="">Example matrices…</option>'
     + PRESETS.map(p => `<option value="${p.id}">${p.label}</option>`).join('');
 }
 
@@ -183,26 +183,7 @@ function selectPreset(id) {
   const data = loadPreset(id);
   if (!data) return;
 
-  setData({ I: data.I, J: data.J, K: data.K, A: data.A, B: data.B, labelA: data.labelA, labelB: data.labelB });
-
-  // Update build mode UI + state BEFORE recompute (which may throw on WebGL)
-  if (data.buildMode) {
-    updateSegControl(data.buildMode);
-    setBuildMode(data.buildMode);
-  }
-
-  recomputeFromMatrices();
-  mmPauseAll(); resetMmBuildState();
-
-  if (currentMode === 'matmul') {
-    rebuildBoxes(); removePlusPlanes();
-    document.getElementById('spCollapse').value = 0;
-    document.getElementById('spCollapse').disabled = true;
-    applyS1(-1); renderA(-1, -1, -1); renderB(-1, -1, -1);
-    mmUpdateCanvasTitle();
-    renderEinsumBadge('einsumMatmul', 'matmul');
-  }
-
+  // 1. Update DOM state BEFORE WebGL operations (safe even if WebGL fails)
   const sel = document.getElementById('presetSelect');
   if (sel) sel.value = id;
 
@@ -210,6 +191,27 @@ function selectPreset(id) {
   if (descEl && data.desc) {
     descEl.innerHTML = data.desc;
     descEl.classList.remove('hidden');
+  }
+
+  // 2. Set data and recompute
+  setData({ I: data.I, J: data.J, K: data.K, A: data.A, B: data.B, labelA: data.labelA, labelB: data.labelB });
+
+  if (data.buildMode) {
+    updateSegControl(data.buildMode);
+    setBuildMode(data.buildMode); // triggers mmReset → resets build state
+  }
+
+  recomputeFromMatrices();
+  mmPauseAll(); resetMmBuildState();
+
+  // 3. Rebuild 3D scene and apply correct initial state per build mode
+  if (currentMode === 'matmul') {
+    rebuildBoxes(); removePlusPlanes();
+    document.getElementById('spCollapse').value = 0;
+    document.getElementById('spCollapse').disabled = true;
+    applyStep(-1); renderA(-1, -1, -1); renderB(-1, -1, -1);
+    mmUpdateCanvasTitle();
+    renderEinsumBadge('einsumMatmul', 'matmul');
   }
 }
 
