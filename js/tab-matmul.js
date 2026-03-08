@@ -305,12 +305,18 @@ function dpRenderResult(s) {
     } else {
       cls += ' empty';
     }
-    html += `<div class="${cls}" onclick="mmJumpToCell(${i},${k})" style="cursor:pointer">${val}</div>`;
+    const clickable = val !== '';
+    if (clickable) {
+      html += `<div class="${cls}" onclick="mmJumpToCell(${i},${k})" style="cursor:pointer">${val}</div>`;
+    } else {
+      html += `<div class="${cls}">${val}</div>`;
+    }
   }
   container.innerHTML = html;
 
   const hint = document.getElementById('mmResultHint');
-  if (hint) hint.textContent = 'click cell to trace inputs';
+  const hasClickable = s >= 0 || buildComplete;
+  if (hint) hint.textContent = hasClickable ? 'click cell to trace inputs' : '';
 }
 
 function dpRenderSubViz(s) {
@@ -855,6 +861,8 @@ export function mmUpdateCanvasTitle() {
 // ══════════════════════════════════════════════════
 
 export function mmJumpToCell(i, k) {
+  // Don't enter exploration if no build has happened
+  if (!buildComplete && mmPhase === 'build' && t1 < 0) return;
   mmPauseAll();
   t1 = -1;
   mmHoverJVal = -1;

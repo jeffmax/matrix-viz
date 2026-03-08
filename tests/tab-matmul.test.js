@@ -113,6 +113,7 @@ describe('mmJumpToCell enters exploration mode', () => {
     ensureAllGreen();
     addPlusPlanes();
     mmReset();
+    mmBuildDone(); // Build must complete before exploration is allowed
   });
 
   it('clicking a cell sets selection and step=-1', () => {
@@ -123,7 +124,9 @@ describe('mmJumpToCell enters exploration mode', () => {
     expect(state.t1).toBe(-1);
   });
 
-  it('clicking a cell AFTER stepping enters exploration', () => {
+  it('clicking a cell mid-build enters exploration', () => {
+    // Reset back to build phase, step forward (t1 >= 0 allows exploration)
+    mmReset();
     mmFwd();
     mmFwd();
     const stateBefore = getMmState();
@@ -145,6 +148,7 @@ describe('Hover in exploration mode', () => {
     ensureAllGreen();
     addPlusPlanes();
     mmReset();
+    mmBuildDone(); // Build must complete before exploration is allowed
   });
 
   it('mmHoverCell sets hover state when a result cell is selected', () => {
@@ -374,6 +378,54 @@ describe('Bug: OP animation sync — cube slice delayed until animation complete
     // Either the current slice is active (high opacity with values)
     // or the previous slice is done (green with values)
     expect(b.mat.opacity).toBeGreaterThan(0.5);
+  });
+});
+
+describe('Bug: DP result grid should not be clickable before build starts', () => {
+  beforeEach(() => {
+    computeData(true);
+    initScene();
+    rebuildBoxes();
+    setBuildComplete(false);
+    mmReset();
+    setBuildMode('dot');
+  });
+
+  it('DP result grid cells have no onclick before build starts', () => {
+    // After switching to DP mode with no build, result cells should not be clickable
+    const grid = document.getElementById('mmResultGrid');
+    const cells = grid.querySelectorAll('.mat-cell');
+    expect(cells.length).toBeGreaterThan(0);
+    cells.forEach(cell => {
+      // Empty cells should not have cursor:pointer or onclick
+      expect(cell.style.cursor).not.toBe('pointer');
+      expect(cell.getAttribute('onclick')).toBeNull();
+    });
+  });
+
+  it('DP result hint should be empty before build starts', () => {
+    const hint = document.getElementById('mmResultHint');
+    expect(hint.textContent).not.toBe('click cell to trace inputs');
+  });
+
+  it('mmJumpToCell should not enter exploration when build not started', () => {
+    mmJumpToCell(0, 0);
+    const state = getMmState();
+    // Should NOT enter exploration (no selection) since build hasn't started
+    expect(state.mmSelectedI).toBe(-1);
+    expect(state.mmSelectedK).toBe(-1);
+  });
+
+  it('DP result grid IS clickable after build completes', () => {
+    mmBuildDone();
+    const grid = document.getElementById('mmResultGrid');
+    const cells = grid.querySelectorAll('.mat-cell');
+    expect(cells.length).toBeGreaterThan(0);
+    // After build, cells should be clickable
+    const clickableCells = grid.querySelectorAll('[onclick]');
+    expect(clickableCells.length).toBe(cells.length);
+    const hint = document.getElementById('mmResultHint');
+    expect(hint.textContent).toBe('click cell to trace inputs');
   });
 });
 
