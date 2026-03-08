@@ -18,6 +18,7 @@ export let buildMode = 'outer'; // 'outer' | 'dot'
 
 // ── Build state ──
 let t1 = -1, pl1 = false, tm1 = null, lastOpJ = -1;
+let sliceRevealTm = null;
 
 // ── Result cell selection state (exploration) ──
 let mmSelectedI = -1, mmSelectedK = -1;
@@ -112,8 +113,19 @@ export function applyS1(s) {
   if (j >= J) { ensureAllGreen(); renderA(-1, -1, -1); renderB(-1, -1, -1); setOpFormula(s); setOpDots(s); updateOpDisplay(s); mmRenderResult(); return; }
 
   if (cellI < 0) {
-    paintSlice(j, 'active');
+    const isNewSlice = j !== lastOpJ;
+    // Render 2D grids and animation display first (DOM-only, no WebGL)
     renderA(j, -1, -1); renderB(j, -1, -1);
+    setOpFormula(s); setOpDots(s); updateOpDisplay(s); mmRenderResult();
+    if (isNewSlice && lastAnimDuration > 0) {
+      // Show placeholder cube slice while broadcast animation plays
+      clearTimeout(sliceRevealTm);
+      paintSlice(j, 'building');
+      sliceRevealTm = setTimeout(() => { if (boxes.length) paintSlice(j, 'active'); }, lastAnimDuration);
+    } else {
+      paintSlice(j, 'active');
+    }
+    return;
   } else {
     const cur = cellI * K + cellK;
     for (let ii = 0; ii < I; ii++) for (let kk = 0; kk < K; kk++) {
@@ -155,7 +167,7 @@ function applyDpStep(s) {
     } else if (s >= 0 && cellIdx <= completedUpTo) {
       paintBox(i, j, k, 0x50c878, 0.55, 0, Cube[i][j][k]);
     } else if (s < 0) {
-      paintBox(i, j, k, 0x50c878, buildComplete ? 0.78 : 0.10, 0, buildComplete ? Cube[i][j][k] : null);
+      paintBox(i, j, k, buildComplete ? 0x50c878 : 0xeeeeee, buildComplete ? 0.78 : 0.10, 0, buildComplete ? Cube[i][j][k] : null);
     } else {
       paintBox(i, j, k, 0x50c878, 0.12, 0, null);
     }
@@ -571,7 +583,7 @@ function spdMM() { return 1900 - parseInt(document.getElementById('spMM').value 
 // PLAYBACK — dispatches to outer/dot based on buildMode
 // ══════════════════════════════════════════════════
 
-function mmStopBuildTimer() { pl1 = false; clearTimeout(tm1); }
+function mmStopBuildTimer() { pl1 = false; clearTimeout(tm1); clearTimeout(sliceRevealTm); }
 export function mmPauseBuild() { mmStopBuildTimer(); opStopHi(); }
 export function mmPauseAll() {
   mmPauseBuild();
@@ -656,6 +668,7 @@ export function mmBack() {
 export function mmReset() {
   mmPauseAll();
   mmPhase = 'build';
+  setBuildComplete(false);
   t1 = -1; collapseT = 0; lastOpJ = -1; mmClearSelection();
   removePlusPlanes();
   const colSlider = document.getElementById('spCollapse');
@@ -708,6 +721,7 @@ export function resetMmBuildState() {
   setBuildComplete(false);
   mmClearSelection();
   opStopHi();
+  clearTimeout(sliceRevealTm);
 }
 
 // Restore the current matmul view without resetting state (for tab switching)
@@ -904,7 +918,7 @@ function mmHighlightCubeForExploration() {
 
     if (collapsed) {
       if (selI >= 0 && i === selI && k === selK) {
-        paintBox(i, j, k, 0xf0a040, 0.95, 0x2a0e00, Res[i][k]);
+        paintBox(i, j, k, 0x20c0e0, 0.95, 0x0a3040, Res[i][k]);
       } else {
         paintBox(i, j, k, 0x50c878, 0.78, 0, Res[i][k]);
       }
@@ -913,9 +927,9 @@ function mmHighlightCubeForExploration() {
         const factorStr = A[i][j] + '×' + B[j][k];
         paintBox(i, j, k, 0xe06000, 0.95, 0x2a0e00, factorStr);
       } else if (mmHoverJVal >= 0) {
-        paintBox(i, j, k, 0xf0a040, 0.50, 0, Cube[i][j][k]);
+        paintBox(i, j, k, 0x20c0e0, 0.50, 0, Cube[i][j][k]);
       } else {
-        paintBox(i, j, k, 0xf0a040, 0.95, 0x2a0e00, Cube[i][j][k]);
+        paintBox(i, j, k, 0x20c0e0, 0.95, 0x0a3040, Cube[i][j][k]);
       }
     } else if (selI >= 0) {
       paintBox(i, j, k, 0x50c878, 0.25, 0, Cube[i][j][k]);

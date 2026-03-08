@@ -29,10 +29,11 @@ HTMLCanvasElement.prototype.getContext = function (type) {
 
 // ── THREE.js mock ──
 class MockColor {
-  constructor() { this.r = 0; this.g = 0; this.b = 0; }
-  setHex() { return this; }
-  copy() { return this; }
-  clone() { return new MockColor(); }
+  constructor(hex) { this.r = 0; this.g = 0; this.b = 0; this._hex = hex || 0; }
+  setHex(h) { this._hex = h; return this; }
+  getHex() { return this._hex; }
+  copy(c) { this._hex = c._hex; this.r = c.r; this.g = c.g; this.b = c.b; return this; }
+  clone() { const c = new MockColor(this._hex); c.r = this.r; c.g = this.g; c.b = this.b; return c; }
   lerp() { return this; }
 }
 
