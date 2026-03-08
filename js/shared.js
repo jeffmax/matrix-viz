@@ -89,10 +89,10 @@ export function changeDim(dim, delta) {
 }
 
 // Recompute Cube and Res from current A/B, then notify current tab
-export function recomputeFromMatrices() {
+export function recomputeFromMatrices({ notify = true } = {}) {
   Cube = Array.from({length: I}, (_, i) => Array.from({length: J}, (_, j) => Array.from({length: K}, (_, k) => A[i][j] * B[j][k])));
   Res = Array.from({length: I}, (_, i) => Array.from({length: K}, (_, k) => A[i].reduce((s, _, j) => s + A[i][j] * B[j][k], 0)));
-  if (tabCallbacks.onRecompute) tabCallbacks.onRecompute();
+  if (notify && tabCallbacks.onRecompute) tabCallbacks.onRecompute();
 }
 
 // Shared inline cell editor: click a cell → replace with input → commit on blur/Enter, cancel on Escape

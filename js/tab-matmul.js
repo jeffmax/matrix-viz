@@ -37,14 +37,14 @@ export let mmPhase = 'build'; // 'build' | 'collapse' | 'done'
 // BUILD MODE TOGGLE
 // ══════════════════════════════════════════════════
 
-export function setBuildMode(mode) {
+export function setBuildMode(mode, { quiet = false } = {}) {
   if (mode === buildMode) return;
   buildMode = mode;
   // Update checkbox label
   const lbl = document.getElementById('chkDetailLabel');
   if (lbl) lbl.textContent = mode === 'outer' ? 'Element by element' : 'Term by term';
-  // Full reset
-  mmReset();
+  // Full reset (skip when caller handles reset, e.g. selectPreset)
+  if (!quiet) mmReset();
 }
 
 /* @testable */

@@ -208,6 +208,40 @@ test('preset selection changes build mode', async ({ page }) => {
   expect(mode2).toBe('outer');
 });
 
+test('switching presets with different dims and modes loads correct matrices', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.goto(URL);
+  await page.locator('#tier1-matmul').click();
+
+  const result = await page.evaluate(() => {
+    // Start with basic (2x3, outer mode)
+    try { window.selectPreset('basic'); } catch (e) {}
+    const aCellsBasic = document.querySelectorAll('#gridA .mat-cell').length;
+
+    // Switch to identity (3x3, dot mode) — different dims AND mode
+    try { window.selectPreset('identity'); } catch (e) {}
+    const aCellsIdentity = document.querySelectorAll('#gridA .mat-cell').length;
+    // Read the actual A grid values
+    const vals = [...document.querySelectorAll('#gridA .mat-cell')].map(c => c.textContent.trim());
+    const mode = document.querySelector('input[name="buildMode"]:checked')?.value;
+
+    // Switch to sum-rows (1x3, outer mode) — very different dims
+    try { window.selectPreset('sum-rows'); } catch (e) {}
+    const aCellsSumRows = document.querySelectorAll('#gridA .mat-cell').length;
+
+    return { aCellsBasic, aCellsIdentity, vals, mode, aCellsSumRows };
+  });
+
+  expect(result.aCellsBasic).toBe(6);     // 2x3
+  expect(result.aCellsIdentity).toBe(9);  // 3x3
+  // Identity matrix values: 1,0,0, 0,1,0, 0,0,1
+  expect(result.vals).toEqual(['1','0','0','0','1','0','0','0','1']);
+  expect(result.mode).toBe('dot');
+  expect(result.aCellsSumRows).toBe(3);   // 1x3
+  expect(realErrors(errors)).toEqual([]);
+});
+
 test('switching preset after build resets result grid', async ({ page }) => {
   await page.goto(URL);
   await page.locator('#tier1-matmul').click();

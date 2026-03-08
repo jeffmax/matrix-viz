@@ -193,25 +193,26 @@ function selectPreset(id) {
     descEl.classList.remove('hidden');
   }
 
-  // 2. Set data and recompute
+  // 2. Set data, build mode (quiet — no mmReset on stale boxes), and recompute
   setData({ I: data.I, J: data.J, K: data.K, A: data.A, B: data.B, labelA: data.labelA, labelB: data.labelB });
 
   if (data.buildMode) {
     updateSegControl(data.buildMode);
-    setBuildMode(data.buildMode); // triggers mmReset → resets build state
+    setBuildMode(data.buildMode, { quiet: true });
   }
 
-  recomputeFromMatrices();
+  recomputeFromMatrices({ notify: false });
   mmPauseAll(); resetMmBuildState();
 
-  // 3. Rebuild 3D scene and apply correct initial state per build mode
+  // 3. Render 2D grids first (pure DOM, never throws), then 3D scene
   if (currentMode === 'matmul') {
+    renderA(-1, -1, -1); renderB(-1, -1, -1);
+    mmUpdateCanvasTitle();
+    renderEinsumBadge('einsumMatmul', 'matmul');
+    applyStep(-1);
     rebuildBoxes(); removePlusPlanes();
     document.getElementById('spCollapse').value = 0;
     document.getElementById('spCollapse').disabled = true;
-    applyStep(-1); renderA(-1, -1, -1); renderB(-1, -1, -1);
-    mmUpdateCanvasTitle();
-    renderEinsumBadge('einsumMatmul', 'matmul');
   }
 }
 
