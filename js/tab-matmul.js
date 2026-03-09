@@ -103,36 +103,44 @@ function totalSteps() { return buildMode === 'outer' ? opTotalSteps() : dpTotalS
 // ══════════════════════════════════════════════════
 
 export function applyS1(s) {
-  if (!boxes.length) return;
+  const hasBoxes = boxes.length > 0;
   const {j, cellI, cellK} = opDecodeStep(s);
-  for (let jj = 0; jj < J; jj++) {
-    if (jj < j) paintSlice(jj, 'done');
-    else paintSlice(jj, 'empty');
+
+  // Paint cube (WebGL — needs boxes)
+  if (hasBoxes) {
+    for (let jj = 0; jj < J; jj++) {
+      if (jj < j) paintSlice(jj, 'done');
+      else paintSlice(jj, 'empty');
+    }
   }
+
   if (j < 0) { renderA(-1, -1, -1); renderB(-1, -1, -1); setOpFormula(s); setOpDots(s); updateOpDisplay(s); mmRenderResult(); return; }
-  if (j >= J) { ensureAllGreen(); renderA(-1, -1, -1); renderB(-1, -1, -1); setOpFormula(s); setOpDots(s); updateOpDisplay(s); mmRenderResult(); return; }
+  if (j >= J) { if (hasBoxes) ensureAllGreen(); renderA(-1, -1, -1); renderB(-1, -1, -1); setOpFormula(s); setOpDots(s); updateOpDisplay(s); mmRenderResult(); return; }
 
   if (cellI < 0) {
     const isNewSlice = j !== lastOpJ;
     // Render 2D grids and animation display first (DOM-only, no WebGL)
     renderA(j, -1, -1); renderB(j, -1, -1);
     setOpFormula(s); setOpDots(s); updateOpDisplay(s); mmRenderResult();
-    if (isNewSlice && lastAnimDuration > 0) {
-      // Show placeholder cube slice while broadcast animation plays
-      clearTimeout(sliceRevealTm);
-      paintSlice(j, 'building');
-      sliceRevealTm = setTimeout(() => { if (boxes.length) paintSlice(j, 'active'); }, lastAnimDuration);
-    } else {
-      paintSlice(j, 'active');
+    if (hasBoxes) {
+      if (isNewSlice && lastAnimDuration > 0) {
+        clearTimeout(sliceRevealTm);
+        paintSlice(j, 'building');
+        sliceRevealTm = setTimeout(() => { if (boxes.length) paintSlice(j, 'active'); }, lastAnimDuration);
+      } else {
+        paintSlice(j, 'active');
+      }
     }
     return;
   } else {
-    const cur = cellI * K + cellK;
-    for (let ii = 0; ii < I; ii++) for (let kk = 0; kk < K; kk++) {
-      const flat = ii * K + kk;
-      if (flat < cur) paintBox(ii, j, kk, 0x50c878, 0.78, 0, Cube[ii][j][kk]);
-      else if (flat === cur) paintBox(ii, j, kk, 0x2ab0a0, 0.95, 0x0a3030, Cube[ii][j][kk]);
-      else paintBox(ii, j, kk, 0xeeeeee, 0.10, 0, null);
+    if (hasBoxes) {
+      const cur = cellI * K + cellK;
+      for (let ii = 0; ii < I; ii++) for (let kk = 0; kk < K; kk++) {
+        const flat = ii * K + kk;
+        if (flat < cur) paintBox(ii, j, kk, 0x50c878, 0.78, 0, Cube[ii][j][kk]);
+        else if (flat === cur) paintBox(ii, j, kk, 0x2ab0a0, 0.95, 0x0a3030, Cube[ii][j][kk]);
+        else paintBox(ii, j, kk, 0xeeeeee, 0.10, 0, null);
+      }
     }
     renderA(j, cellI, -1);
     renderB(j, -1, cellK);
@@ -145,35 +153,36 @@ export function applyS1(s) {
 // ══════════════════════════════════════════════════
 
 function applyDpStep(s) {
-  if (!boxes.length) return;
+  const hasBoxes = boxes.length > 0;
   const dec = dpDecodeStep(s);
   const curI = dec.i, curK = dec.k, curJ = dec.j;
   const completedUpTo = s < 0 ? -1 : (detailMode() ? Math.floor(s / J) - ((s % J === J - 1) ? 0 : 1) : s - 1);
 
-  // Paint cube
-  for (let i = 0; i < I; i++) for (let j = 0; j < J; j++) for (let k = 0; k < K; k++) {
-    const b = boxes[i][j][k];
-    const cellIdx = i * K + k;
-    if (curI >= 0 && i === curI && k === curK) {
-      if (detailMode() && curJ >= 0 && j === curJ) {
-        paintBox(i, j, k, 0xe06000, 0.95, 0x2a0e00, Cube[i][j][k]);
-      } else if (detailMode() && curJ >= 0 && j < curJ) {
-        paintBox(i, j, k, 0x50c878, 0.78, 0, Cube[i][j][k]);
-      } else if (!detailMode() || curJ < 0) {
-        paintBox(i, j, k, 0xf0a040, 0.95, 0x2a0e00, Cube[i][j][k]);
+  // Paint cube (WebGL — needs boxes)
+  if (hasBoxes) {
+    for (let i = 0; i < I; i++) for (let j = 0; j < J; j++) for (let k = 0; k < K; k++) {
+      const cellIdx = i * K + k;
+      if (curI >= 0 && i === curI && k === curK) {
+        if (detailMode() && curJ >= 0 && j === curJ) {
+          paintBox(i, j, k, 0xe06000, 0.95, 0x2a0e00, Cube[i][j][k]);
+        } else if (detailMode() && curJ >= 0 && j < curJ) {
+          paintBox(i, j, k, 0x50c878, 0.78, 0, Cube[i][j][k]);
+        } else if (!detailMode() || curJ < 0) {
+          paintBox(i, j, k, 0xf0a040, 0.95, 0x2a0e00, Cube[i][j][k]);
+        } else {
+          paintBox(i, j, k, 0xeeeeee, 0.30, 0, Cube[i][j][k]);
+        }
+      } else if (s >= 0 && cellIdx <= completedUpTo) {
+        paintBox(i, j, k, 0x50c878, 0.55, 0, Cube[i][j][k]);
+      } else if (s < 0) {
+        paintBox(i, j, k, buildComplete ? 0x50c878 : 0xeeeeee, buildComplete ? 0.78 : 0.10, 0, buildComplete ? Cube[i][j][k] : null);
       } else {
-        paintBox(i, j, k, 0xeeeeee, 0.30, 0, Cube[i][j][k]);
+        paintBox(i, j, k, 0x50c878, 0.12, 0, null);
       }
-    } else if (s >= 0 && cellIdx <= completedUpTo) {
-      paintBox(i, j, k, 0x50c878, 0.55, 0, Cube[i][j][k]);
-    } else if (s < 0) {
-      paintBox(i, j, k, buildComplete ? 0x50c878 : 0xeeeeee, buildComplete ? 0.78 : 0.10, 0, buildComplete ? Cube[i][j][k] : null);
-    } else {
-      paintBox(i, j, k, 0x50c878, 0.12, 0, null);
     }
   }
 
-  // Render grids
+  // Render grids (DOM-only)
   if (curI >= 0) {
     renderA_dp(curI, curJ); renderB_dp(curK, curJ);
   } else {
@@ -636,10 +645,10 @@ export function mmBuildDone() {
   setBuildComplete(true);
   mmPhase = 'collapse';
   collapseT = 0;
-  if (buildMode === 'outer') {
+  if (buildMode === 'outer' && boxes.length) {
     ensureAllGreen();
   }
-  addPlusPlanes();
+  if (boxes.length) addPlusPlanes();
   document.getElementById('spCollapse').disabled = false;
   document.getElementById('pbMM').textContent = '▶';
   mmUpdateCanvasTitle();
@@ -728,6 +737,11 @@ export function resetMmBuildState() {
   mmClearSelection();
   opStopHi();
   clearTimeout(sliceRevealTm);
+  // Hide sub-viz panels
+  const opPanel = document.getElementById('opDisplay');
+  if (opPanel) { opPanel.classList.add('hidden'); opPanel.innerHTML = ''; }
+  const subViz = document.getElementById('dpSubViz');
+  if (subViz) subViz.style.display = 'none';
 }
 
 // Restore the current matmul view without resetting state (for tab switching)

@@ -378,3 +378,146 @@ test('cell selection shows sub-viz and hides opDisplay', async ({ page }) => {
   expect(result.opHidden).toBe(true);
   expect(result.subVisible).toBe(true);
 });
+
+// ══════════════════════════════════════════════════════════════
+// BUG REPRO: Identity preset dot-product build fills all cells
+// ══════════════════════════════════════════════════════════════
+test('identity preset: DP build completes all 9 result cells', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.goto(URL);
+  await page.locator('#tier1-matmul').click();
+
+  const result = await page.evaluate(() => {
+    // Load identity (3×3 dot product)
+    try { window.selectPreset('identity'); } catch (e) {}
+
+    // Verify initial state: result grid should have 9 empty cells, no done/cur
+    const initialGrid = document.getElementById('mmResultGrid');
+    const initialCells = initialGrid ? initialGrid.querySelectorAll('.mat-cell').length : 0;
+    const initialDone = initialGrid ? initialGrid.querySelectorAll('.mat-cell.done').length : 0;
+    const initialEmpty = initialGrid ? initialGrid.querySelectorAll('.mat-cell.empty').length : 0;
+
+    // Step through all cells: I*K = 9 steps in non-detail mode
+    for (let i = 0; i < 20; i++) { try { window.mmFwd(); } catch (e) {} }
+
+    // After all steps, result grid should show all 9 values as done
+    const grid = document.getElementById('mmResultGrid');
+    const totalCells = grid ? grid.querySelectorAll('.mat-cell').length : 0;
+    const doneCells = grid ? grid.querySelectorAll('.mat-cell.done').length : 0;
+    const vals = grid ? [...grid.querySelectorAll('.mat-cell')].map(c => c.textContent.trim()) : [];
+
+    // Check formula text
+    const fEl = document.getElementById('fMM');
+    const formula = fEl ? fEl.textContent : '';
+
+    // Check build mode
+    const mode = document.querySelector('input[name="buildMode"]:checked')?.value;
+
+    // Check collapse slider should be enabled after build
+    const slider = document.getElementById('spCollapse');
+    const sliderEnabled = slider ? !slider.disabled : false;
+
+    return {
+      initialCells, initialDone, initialEmpty,
+      totalCells, doneCells, vals,
+      formula, mode, sliderEnabled
+    };
+  });
+
+  // Identity 3×3: I=B, result = B = [[5,3,1],[8,6,2],[4,7,9]]
+  expect(result.mode).toBe('dot');
+  expect(result.initialCells).toBe(9);
+  expect(result.initialEmpty).toBe(9);
+  expect(result.initialDone).toBe(0);
+  expect(result.totalCells).toBe(9);
+  expect(result.doneCells).toBe(9);
+  expect(result.vals).toEqual(['5','3','1','8','6','2','4','7','9']);
+  expect(result.formula).toContain('cells computed');
+  expect(result.sliderEnabled).toBe(true);
+  expect(realErrors(errors)).toEqual([]);
+});
+
+// ══════════════════════════════════════════════════════════════
+// BUG REPRO: Switching preset fully resets result grid and state
+// ══════════════════════════════════════════════════════════════
+test('switching from completed identity to basic fully resets state', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.goto(URL);
+  await page.locator('#tier1-matmul').click();
+
+  const result = await page.evaluate(() => {
+    // Load identity and complete build
+    try { window.selectPreset('identity'); } catch (e) {}
+    for (let i = 0; i < 20; i++) { try { window.mmFwd(); } catch (e) {} }
+
+    // Verify build completed
+    const doneBefore = document.getElementById('mmResultGrid')?.querySelectorAll('.mat-cell.done').length || 0;
+
+    // Switch to basic (2×3, outer mode)
+    try { window.selectPreset('basic'); } catch (e) {}
+
+    // After switch: everything should be fresh/reset
+    const grid = document.getElementById('mmResultGrid');
+    const totalCells = grid ? grid.querySelectorAll('.mat-cell').length : 0;
+    const doneCells = grid ? grid.querySelectorAll('.mat-cell.done').length : 0;
+    const curCells = grid ? grid.querySelectorAll('.mat-cell.cur').length : 0;
+    // OP mode: mmRenderResult handles result, check for partial class
+    const partialCells = grid ? grid.querySelectorAll('.mat-cell.partial').length : 0;
+    const emptyCells = grid ? grid.querySelectorAll('.mat-cell.empty').length : 0;
+
+    // A grid should show basic's 2×3 matrix
+    const aGrid = document.getElementById('gridA');
+    const aCells = aGrid ? aGrid.querySelectorAll('.mat-cell').length : 0;
+    const aVals = aGrid ? [...aGrid.querySelectorAll('.mat-cell')].map(c => c.textContent.trim()) : [];
+
+    // B grid should show basic's 3×2 matrix
+    const bGrid = document.getElementById('gridB');
+    const bCells = bGrid ? bGrid.querySelectorAll('.mat-cell').length : 0;
+
+    // Build mode should be outer
+    const mode = document.querySelector('input[name="buildMode"]:checked')?.value;
+
+    // Collapse slider should be disabled
+    const slider = document.getElementById('spCollapse');
+    const sliderDisabled = slider ? slider.disabled : true;
+
+    // Sub-viz should be hidden
+    const subViz = document.getElementById('dpSubViz');
+    const subVizHidden = subViz ? subViz.style.display === 'none' : true;
+
+    // opDisplay should be hidden
+    const opDisplay = document.getElementById('opDisplay');
+    const opHidden = opDisplay ? opDisplay.classList.contains('hidden') : true;
+
+    // Formula should show initial state
+    const fEl = document.getElementById('fMM');
+    const formula = fEl ? fEl.innerHTML : '';
+
+    // Description should be basic's
+    const descEl = document.getElementById('presetDesc');
+    const desc = descEl ? descEl.textContent : '';
+
+    return {
+      doneBefore, totalCells, doneCells, curCells, partialCells, emptyCells,
+      aCells, aVals, bCells, mode, sliderDisabled, subVizHidden, opHidden,
+      formula, desc
+    };
+  });
+
+  expect(result.doneBefore).toBeGreaterThan(0); // identity build did complete
+  expect(result.mode).toBe('outer');
+  expect(result.aCells).toBe(6);     // 2×3
+  expect(result.aVals).toEqual(['1','2','3','4','5','6']);
+  expect(result.bCells).toBe(6);     // 3×2
+  expect(result.doneCells).toBe(0);  // no done cells
+  expect(result.curCells).toBe(0);   // no cur cells
+  expect(result.partialCells).toBe(0); // no partial cells
+  expect(result.emptyCells).toBeGreaterThan(0); // should show empty cells
+  expect(result.sliderDisabled).toBe(true);
+  expect(result.subVizHidden).toBe(true);
+  expect(result.opHidden).toBe(true);
+  expect(result.desc).toContain('Standard multiplication');
+  expect(realErrors(errors)).toEqual([]);
+});

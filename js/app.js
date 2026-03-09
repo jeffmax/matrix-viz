@@ -204,15 +204,15 @@ function selectPreset(id) {
   recomputeFromMatrices({ notify: false });
   mmPauseAll(); resetMmBuildState();
 
-  // 3. Render 2D grids first (pure DOM, never throws), then 3D scene
+  // 3. Rebuild scene and render initial state
   if (currentMode === 'matmul') {
+    try { rebuildBoxes(); removePlusPlanes(); } catch (e) { /* WebGL unavailable */ }
+    document.getElementById('spCollapse').value = 0;
+    document.getElementById('spCollapse').disabled = true;
+    applyStep(-1);
     renderA(-1, -1, -1); renderB(-1, -1, -1);
     mmUpdateCanvasTitle();
     renderEinsumBadge('einsumMatmul', 'matmul');
-    applyStep(-1);
-    rebuildBoxes(); removePlusPlanes();
-    document.getElementById('spCollapse').value = 0;
-    document.getElementById('spCollapse').disabled = true;
   }
 }
 
