@@ -445,3 +445,81 @@ test('DP non-detail mode: each step completes a full cell', async ({ page }) => 
   expect(result.doneCells).toBe(1);
   expect(result.curVal2).toBe('7');
 });
+
+test('Bug: adding dimension to preset fills new cells with 0', async ({ page }) => {
+  await gotoMatmul(page);
+
+  const result = await page.evaluate(() => {
+    try { window.selectPreset('row-select'); } catch (e) {}
+
+    // Add a column to B (increase K)
+    window.changeDim('K', 1);
+
+    // Read B matrix from panel
+    const panelB = document.getElementById('mmPanelB');
+    const cells = panelB?.querySelectorAll('.mat-cell') || [];
+    const values = Array.from(cells).map(c => parseInt(c.textContent.trim()) || 0);
+
+    // Check that preset was deselected
+    const sel = document.getElementById('presetSelect');
+    const presetVal = sel?.value || '';
+
+    return { values, presetVal, cellCount: cells.length };
+  });
+
+  // row-select is 3×3 A, 3×3 B → after +K becomes 3×4 B
+  // Last column (index 3, 7, 11 in a 3×4 grid) should be 0
+  const cols = 4;
+  for (let row = 0; row < 3; row++) {
+    expect(result.values[row * cols + (cols - 1)]).toBe(0);
+  }
+
+  // Preset should be deselected
+  expect(result.presetVal).toBe('');
+});
+
+test('Bug: toggling detail mid-DP-build remaps step correctly', async ({ page }) => {
+  await gotoMatmul(page);
+
+  const result = await page.evaluate(() => {
+    try { window.selectPreset('row-select'); } catch (e) {}
+
+    const chk = document.getElementById('chkDetail');
+    chk.checked = false;
+
+    // Step forward twice in non-detail mode: at cell 1
+    try { window.mmFwd(); } catch (e) {}
+    try { window.mmFwd(); } catch (e) {}
+
+    const grid = document.getElementById('mmResultGrid');
+    const allCells = Array.from(grid?.querySelectorAll('.mat-cell') || []);
+    const curBefore = grid?.querySelector('.mat-cell.cur');
+    const cellIdxBefore = allCells.indexOf(curBefore);
+
+    // Toggle detail ON
+    chk.checked = true;
+    try { window.mmToggleDetail(); } catch (e) {}
+
+    // Should still be on same cell position in result grid
+    const allCellsAfter = Array.from(grid?.querySelectorAll('.mat-cell') || []);
+    const curAfter = grid?.querySelector('.mat-cell.cur');
+    const cellIdxAfter = allCellsAfter.indexOf(curAfter);
+
+    // Sub-viz should be visible
+    const subViz = document.getElementById('dpSubViz');
+    const subVizVisible = subViz && subViz.style.display !== 'none';
+
+    // Step forward once more in detail mode — should still be on same cell position
+    try { window.mmFwd(); } catch (e) {}
+    const allCellsStep = Array.from(grid?.querySelectorAll('.mat-cell') || []);
+    const curAfterStep = grid?.querySelector('.mat-cell.cur');
+    const cellIdxAfterStep = allCellsStep.indexOf(curAfterStep);
+
+    return { cellIdxBefore, cellIdxAfter, cellIdxAfterStep, subVizVisible };
+  });
+
+  // Same cell position should be highlighted before and after toggle
+  expect(result.cellIdxBefore).toBe(result.cellIdxAfter);
+  // After one more detail step, should still be on same cell position
+  expect(result.cellIdxAfterStep).toBe(result.cellIdxAfter);
+});

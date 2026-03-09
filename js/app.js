@@ -13,7 +13,7 @@ import { mmPauseAll, mmReset, mmToggle, mmFwd, mmBack, mmScrubCollapse,
          resetMmBuildState, applyS1, applyStep, renderA, renderB,
          mmUpdateCanvasTitle, collapseT, mmPhase, applyCollapse, mmRestoreView,
          mmRenderResult, mmSelectResultCell, mmJumpToCell, mmHoverCell, mmClearHover,
-         setBuildMode, dpRenderVectorIntro, buildMode } from './tab-matmul.js';
+         setBuildMode, dpRenderVectorIntro, buildMode, mmToggleDetail } from './tab-matmul.js';
 import { efInit, efRender, efFwd, efBack, efToggle, efReset, efPause,
          efJumpToPos, efTraceBack, efChangeDim } from './tab-embed-fwd.js';
 import { ebInit, ebRender, ebFwd, ebBack, ebToggle, ebReset, ebPause,
@@ -41,7 +41,7 @@ registerCallbacks({
     resetIntroStep();
 
     if (currentMode === 'matmul') {
-      rebuildBoxes(); removePlusPlanes();
+      try { rebuildBoxes(); removePlusPlanes(); } catch (e) { /* WebGL unavailable */ }
       applyS1(-1); renderA(-1, -1, -1); renderB(-1, -1, -1);
       document.getElementById('spCollapse').value = 0;
       document.getElementById('spCollapse').disabled = true;
@@ -465,6 +465,7 @@ window.mmSelectResultCell = mmSelectResultCell;
 window.mmJumpToCell = mmJumpToCell;
 window.mmHoverCell = mmHoverCell;
 window.mmClearHover = mmClearHover;
+window.mmToggleDetail = mmToggleDetail;
 window.setBuildMode = (mode) => {
   setBuildMode(mode);
   updateSegControl(mode);

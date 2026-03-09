@@ -607,6 +607,41 @@ export function mmPauseAll() {
   if (btn) btn.textContent = '▶';
 }
 
+// ── Detail mode toggle: remap t1 between detail/non-detail step spaces ──
+export function mmToggleDetail() {
+  if (mmPhase !== 'build') return;
+  const wasPlaying = pl1;
+  if (wasPlaying) mmPauseAll();
+
+  if (t1 < 0) {
+    // Not started — just re-render
+    applyStep(-1);
+  } else if (detailMode()) {
+    // Toggled ON: was in non-detail, now in detail
+    // Non-detail step t1 = one unit (slice or cell). Map to start of that unit's detail.
+    if (buildMode === 'outer') {
+      t1 = t1 * I * K; // start of this slice's detail breakdown
+    } else {
+      t1 = t1 * J; // start of this cell's term breakdown
+    }
+    // Clamp to valid range
+    t1 = Math.min(t1, totalSteps() - 1);
+    applyStep(t1);
+  } else {
+    // Toggled OFF: was in detail, now in non-detail
+    // Map back to the containing unit
+    if (buildMode === 'outer') {
+      t1 = Math.floor(t1 / (I * K));
+    } else {
+      t1 = Math.floor(t1 / J);
+    }
+    t1 = Math.min(t1, totalSteps() - 1);
+    applyStep(t1);
+  }
+
+  if (wasPlaying) mmToggle();
+}
+
 export function applyStep(s) {
   if (buildMode === 'outer') {
     applyS1(s);

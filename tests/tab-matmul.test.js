@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { computeData, I, K, Res, setBuildComplete } from '../js/shared.js';
+import { computeData, I, J, K, A, B, Res, setBuildComplete, changeDim, setData, presetActive } from '../js/shared.js';
 import { initScene } from '../js/scene.js';
 import { rebuildBoxes, ensureAllGreen, addPlusPlanes, boxes } from '../js/cube-manager.js';
 import { mmBuildDone, getOpHiTm, setOpHiTm, mmReset, setBuildMode, getBuildMode,
          mmJumpToCell, getMmState, mmHoverCell, mmClearHover, mmFwd,
-         mmScrubCollapse, mmUpdateCanvasTitle } from '../js/tab-matmul.js';
-import { PRESETS } from '../js/presets.js';
+         mmScrubCollapse, mmUpdateCanvasTitle, mmToggleDetail } from '../js/tab-matmul.js';
+import { PRESETS, loadPreset, clearPreset } from '../js/presets.js';
 
 describe('Bug 2: mmBuildDone should not cancel highlight timer', () => {
   beforeEach(() => {
@@ -496,5 +496,145 @@ describe('Bug #5: Canvas title uses Cube notation', () => {
     mmScrubCollapse(0.5);
     const title = document.getElementById('canvasTitle');
     expect(title.textContent).toContain('Result');
+  });
+});
+
+describe('Bug: changeDim fills 0 when preset active', () => {
+  beforeEach(() => {
+    computeData(true);
+    initScene();
+    rebuildBoxes();
+    mmReset();
+  });
+
+  it('new cells are 0 when preset is active', () => {
+    // Load a preset (sets presetActive = true)
+    const data = loadPreset('row-select');
+    setData({ I: data.I, J: data.J, K: data.K, A: data.A, B: data.B });
+
+    expect(presetActive).toBe(true);
+
+    const oldK = K;
+    changeDim('K', 1); // add a column
+
+    // New column in B should be all zeros
+    for (let j = 0; j < J; j++) {
+      expect(B[j][oldK]).toBe(0);
+    }
+
+    clearPreset();
+  });
+
+  it('new cells are random (non-zero) when no preset active', () => {
+    clearPreset();
+    expect(presetActive).toBe(false);
+
+    // Run multiple times to be statistically confident
+    let anyNonZero = false;
+    for (let trial = 0; trial < 5; trial++) {
+      computeData(true);
+      const oldK = K;
+      changeDim('K', 1);
+      for (let j = 0; j < J; j++) {
+        if (B[j][oldK] !== 0) anyNonZero = true;
+      }
+      // Reset K back
+      changeDim('K', -1);
+    }
+    expect(anyNonZero).toBe(true);
+  });
+});
+
+describe('Bug: detail toggle mid-build remaps step', () => {
+  beforeEach(() => {
+    computeData(true);
+    initScene();
+    rebuildBoxes();
+    mmReset();
+  });
+
+  it('DP: toggling detail ON maps to start of current cell terms', () => {
+    setBuildMode('dot');
+    const chk = document.getElementById('chkDetail');
+    chk.checked = false;
+
+    // Step forward 2 times: t1=0 (cell 0), t1=1 (cell 1)
+    mmFwd(); mmFwd();
+    const state1 = getMmState();
+    expect(state1.t1).toBe(1); // cell index 1
+
+    // Toggle detail ON — should map to t1 = 1 * J (start of cell 1's terms)
+    chk.checked = true;
+    mmToggleDetail();
+
+    const state2 = getMmState();
+    expect(state2.t1).toBe(1 * J); // should be at start of cell 1's term breakdown
+  });
+
+  it('DP: toggling detail OFF maps back to containing cell', () => {
+    setBuildMode('dot');
+    const chk = document.getElementById('chkDetail');
+    chk.checked = true;
+
+    // Step forward J+1 times: into cell 1's second term
+    for (let i = 0; i <= J; i++) mmFwd();
+    const state1 = getMmState();
+    expect(state1.t1).toBe(J); // first step of cell 1 (detail)
+
+    // Toggle detail OFF — should map to cell 1
+    chk.checked = false;
+    mmToggleDetail();
+
+    const state2 = getMmState();
+    expect(state2.t1).toBe(1); // cell index 1
+  });
+
+  it('OP: toggling detail ON maps to start of current slice elements', () => {
+    setBuildMode('outer');
+    const chk = document.getElementById('chkDetail');
+    chk.checked = false;
+
+    // Step forward: t1=0 (slice j=0)
+    mmFwd();
+    const state1 = getMmState();
+    expect(state1.t1).toBe(0);
+
+    // Toggle detail ON — should map to t1 = 0 * I * K
+    chk.checked = true;
+    mmToggleDetail();
+
+    const state2 = getMmState();
+    expect(state2.t1).toBe(0);
+  });
+
+  it('OP: toggling detail OFF from mid-slice maps to that slice', () => {
+    setBuildMode('outer');
+    const chk = document.getElementById('chkDetail');
+    chk.checked = true;
+
+    // Step to second element of first slice
+    mmFwd(); mmFwd();
+    const state1 = getMmState();
+    expect(state1.t1).toBe(1); // second element in slice 0
+
+    // Toggle detail OFF — should map to slice 0
+    chk.checked = false;
+    mmToggleDetail();
+
+    const state2 = getMmState();
+    expect(state2.t1).toBe(0); // slice 0
+  });
+
+  it('detail toggle before build started does not crash', () => {
+    setBuildMode('dot');
+    const chk = document.getElementById('chkDetail');
+    chk.checked = false;
+
+    // Toggle without any steps — should not crash
+    chk.checked = true;
+    expect(() => mmToggleDetail()).not.toThrow();
+
+    const state = getMmState();
+    expect(state.t1).toBe(-1); // still at -1
   });
 });

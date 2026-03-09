@@ -19,6 +19,10 @@ export function setCurrentMode(m) { currentMode = m; }
 export let buildComplete = false;
 export function setBuildComplete(v) { buildComplete = v; }
 
+// Preset active flag — when true, changeDim fills new cells with 0 instead of random
+export let presetActive = false;
+export function setPresetActive(v) { presetActive = v; }
+
 // ── Info shelf toggle ──
 export let infoOpen = false;
 
@@ -78,8 +82,9 @@ export function changeDim(dim, delta) {
   else if (dim === 'K') K = Math.max(1, Math.min(5, K + delta));
   if (I === oldI && J === oldJ && K === oldK) return;
 
-  const newA = Array.from({length: I}, (_, i) => Array.from({length: J}, (_, j) => (i < oldI && j < oldJ) ? A[i][j] : rand()));
-  const newB = Array.from({length: J}, (_, j) => Array.from({length: K}, (_, k) => (j < oldJ && k < oldK) ? B[j][k] : rand()));
+  const fill = presetActive ? () => 0 : rand;
+  const newA = Array.from({length: I}, (_, i) => Array.from({length: J}, (_, j) => (i < oldI && j < oldJ) ? A[i][j] : fill()));
+  const newB = Array.from({length: J}, (_, j) => Array.from({length: K}, (_, k) => (j < oldJ && k < oldK) ? B[j][k] : fill()));
   A = newA; B = newB;
 
   Cube = Array.from({length: I}, (_, i) => Array.from({length: J}, (_, j) => Array.from({length: K}, (_, k) => A[i][j] * B[j][k])));

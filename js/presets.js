@@ -1,6 +1,7 @@
 // ══════════════════════════════════════════════════
 // PRESETS — Named matrix multiply examples
 // ══════════════════════════════════════════════════
+import { setPresetActive } from './shared.js';
 
 export const PRESETS = [
   {
@@ -162,6 +163,7 @@ export function loadPreset(id) {
   const preset = PRESETS.find(p => p.id === id);
   if (!preset) return null;
   activePreset = preset;
+  setPresetActive(true);
   const A = preset.A.map(row => [...row]);
   const B = preset.B.map(row => [...row]);
   const I = A.length;
@@ -172,4 +174,5 @@ export function loadPreset(id) {
 
 export function clearPreset() {
   activePreset = null;
+  setPresetActive(false);
 }
