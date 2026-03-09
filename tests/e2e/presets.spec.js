@@ -334,3 +334,114 @@ test('average preset produces approximately correct results', async ({ page }) =
   expect(result[0]).toBeCloseTo(5.94, 1);
   expect(result[1]).toBeCloseTo(6.93, 1);
 });
+
+// ══════════════════════════════════════════════════════════════
+// TEST: DP detail mode (term-by-term) shows partial progress correctly
+// ══════════════════════════════════════════════════════════════
+test('DP detail mode: stepping shows partial sums and correct sub-viz', async ({ page }) => {
+  await gotoMatmul(page);
+
+  const result = await page.evaluate(() => {
+    try { window.selectPreset('row-select'); } catch (e) {}
+    // Enable detail mode (term by term)
+    const chk = document.getElementById('chkDetail');
+    chk.checked = true;
+
+    // Step once: cell (0,0), term j=0
+    try { window.mmFwd(); } catch (e) {}
+
+    // Result grid: cell (0,0) should show partial value (just first term)
+    const grid = document.getElementById('mmResultGrid');
+    const curCell = grid?.querySelector('.mat-cell.cur');
+    const curVal = curCell ? curCell.textContent.trim() : '';
+
+    // Sub-viz should show the first term highlighted
+    const subViz = document.getElementById('dpSubViz');
+    const subVisible = subViz ? subViz.style.display !== 'none' : false;
+    const subText = subViz ? subViz.textContent : '';
+
+    // Formula should reference term j=0
+    const formula = document.getElementById('fMM')?.textContent || '';
+
+    // Step dots: I*K = 9 dots, first should be cur
+    const curDots = document.querySelectorAll('#dMM .step-dot.cur').length;
+    const totalDots = document.querySelectorAll('#dMM .step-dot').length;
+
+    // Step to j=1 (second term of same cell)
+    try { window.mmFwd(); } catch (e) {}
+    const curVal2 = grid?.querySelector('.mat-cell.cur')?.textContent.trim() || '';
+    const formula2 = document.getElementById('fMM')?.textContent || '';
+
+    // Step to j=2 (third/last term of cell 0,0)
+    try { window.mmFwd(); } catch (e) {}
+    const curVal3 = grid?.querySelector('.mat-cell.cur')?.textContent.trim() || '';
+    const formula3 = document.getElementById('fMM')?.textContent || '';
+
+    // After completing cell (0,0), step to next cell (0,1)
+    try { window.mmFwd(); } catch (e) {}
+    const doneCells = grid?.querySelectorAll('.mat-cell.done').length || 0;
+    const newCurVal = grid?.querySelector('.mat-cell.cur')?.textContent.trim() || '';
+
+    return {
+      curVal, subVisible, subText, formula, curDots, totalDots,
+      curVal2, formula2, curVal3, formula3,
+      doneCells, newCurVal
+    };
+  });
+
+  // Row-select: S = [[0,0,1],[1,0,0],[0,0,1]], B = [[5,3,1],[8,6,2],[4,7,9]]
+  // Cell (0,0): S[0,:] · B[:,0] = 0*5 + 0*8 + 1*4 = 4
+  // After j=0: partial = 0*5 = 0
+  expect(result.curVal).toBe('0');
+  expect(result.subVisible).toBe(true);
+  expect(result.subText).toContain('Row 0');
+  expect(result.formula).toContain('j=0');
+  expect(result.curDots).toBe(1);
+  expect(result.totalDots).toBe(9);
+
+  // After j=1: partial = 0*5 + 0*8 = 0
+  expect(result.curVal2).toBe('0');
+  expect(result.formula2).toContain('j=1');
+
+  // After j=2: partial = 0*5 + 0*8 + 1*4 = 4 (complete)
+  expect(result.curVal3).toBe('4');
+  expect(result.formula3).toContain('j=2');
+
+  // Next cell (0,1): first cell (0,0) now done
+  expect(result.doneCells).toBe(1);
+});
+
+test('DP non-detail mode: each step completes a full cell', async ({ page }) => {
+  await gotoMatmul(page);
+
+  const result = await page.evaluate(() => {
+    try { window.selectPreset('row-select'); } catch (e) {}
+    // Disable detail mode
+    const chk = document.getElementById('chkDetail');
+    chk.checked = false;
+
+    // Step once: should complete cell (0,0) entirely
+    try { window.mmFwd(); } catch (e) {}
+    const grid = document.getElementById('mmResultGrid');
+    const curCell = grid?.querySelector('.mat-cell.cur');
+    const curVal = curCell ? curCell.textContent.trim() : '';
+    const formula = document.getElementById('fMM')?.textContent || '';
+    const totalDots = document.querySelectorAll('#dMM .step-dot').length;
+
+    // Step again: cell (0,1) complete, (0,0) becomes done
+    try { window.mmFwd(); } catch (e) {}
+    const doneCells = grid?.querySelectorAll('.mat-cell.done').length || 0;
+    const curVal2 = grid?.querySelector('.mat-cell.cur')?.textContent.trim() || '';
+
+    return { curVal, formula, totalDots, doneCells, curVal2 };
+  });
+
+  // Cell (0,0) = 4 (full dot product)
+  expect(result.curVal).toBe('4');
+  expect(result.formula).toContain('Result[0');
+  expect(result.totalDots).toBe(9); // 3×3
+
+  // Cell (0,1) = 7, cell (0,0) now done
+  expect(result.doneCells).toBe(1);
+  expect(result.curVal2).toBe('7');
+});

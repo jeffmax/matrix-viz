@@ -170,7 +170,7 @@ function applyDpStep(s) {
         } else if (!detailMode() || curJ < 0) {
           paintBox(i, j, k, 0xf0a040, 0.95, 0x2a0e00, Cube[i][j][k]);
         } else {
-          paintBox(i, j, k, 0xeeeeee, 0.30, 0, Cube[i][j][k]);
+          paintBox(i, j, k, 0xeeeeee, 0.30, 0, null);
         }
       } else if (s >= 0 && cellIdx <= completedUpTo) {
         paintBox(i, j, k, 0x50c878, 0.55, 0, Cube[i][j][k]);

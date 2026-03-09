@@ -103,6 +103,47 @@ describe('Dot product detail checkbox', () => {
     const state = getMmState();
     expect(state.t1).toBe(0);
   });
+
+  it('detail mode: future terms (j > curJ) hide cube values', () => {
+    const chk = document.getElementById('chkDetail');
+    chk.checked = true;
+    // Step to first term: cell (0,0), j=0
+    mmFwd(); // t1=0 → i=0, k=0, j=0
+
+    // In the cube column for cell (0,0):
+    // j=0 should show value (current term — highlighted)
+    expect(boxes[0][0][0].spr.visible).toBe(true);
+    // j=1, j=2 should NOT show values (future terms, not yet visited)
+    expect(boxes[0][1][0].spr.visible).toBe(false);
+    expect(boxes[0][2][0].spr.visible).toBe(false);
+  });
+
+  it('detail mode: past terms (j < curJ) show cube values', () => {
+    const chk = document.getElementById('chkDetail');
+    chk.checked = true;
+    // Step to third term: cell (0,0), j=2
+    mmFwd(); // t1=0 → j=0
+    mmFwd(); // t1=1 → j=1
+    mmFwd(); // t1=2 → j=2
+
+    // j=0 and j=1 should show values (past terms — done)
+    expect(boxes[0][0][0].spr.visible).toBe(true);
+    expect(boxes[0][1][0].spr.visible).toBe(true);
+    // j=2 is current — should also show value
+    expect(boxes[0][2][0].spr.visible).toBe(true);
+  });
+
+  it('non-detail mode: all terms in current column show values', () => {
+    const chk = document.getElementById('chkDetail');
+    chk.checked = false;
+    // Step to first cell: (0,0), j=-1 (all at once)
+    mmFwd(); // t1=0 → i=0, k=0, j=-1
+
+    // All j values in the current column should show values
+    for (let j = 0; j < 3; j++) {
+      expect(boxes[0][j][0].spr.visible).toBe(true);
+    }
+  });
 });
 
 describe('mmJumpToCell enters exploration mode', () => {
