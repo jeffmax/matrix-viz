@@ -920,3 +920,38 @@ describe('Bug: detail toggle mid-build remaps step', () => {
     expect(state.t1).toBe(-1); // still at -1
   });
 });
+
+describe('mmJumpToCell deselect hides sub-viz panels', () => {
+  beforeEach(() => {
+    computeData(true);
+    initScene();
+    rebuildBoxes();
+    mmReset();
+  });
+
+  it('deselecting a cell hides dpSubViz', () => {
+    setBuildMode('dot');
+    setBuildComplete(true);
+    const subViz = document.getElementById('dpSubViz');
+    subViz.style.display = 'block';
+    // Select cell (0,0)
+    mmJumpToCell(0, 0);
+    expect(subViz.style.display).not.toBe('none');
+    // Deselect same cell
+    mmJumpToCell(0, 0);
+    expect(subViz.style.display).toBe('none');
+  });
+
+  it('deselecting a cell hides opDisplay', () => {
+    setBuildMode('outer');
+    setBuildComplete(true);
+    const opPanel = document.getElementById('opDisplay');
+    opPanel.classList.remove('hidden');
+    opPanel.innerHTML = 'something';
+    // Select cell (0,0)
+    mmJumpToCell(0, 0);
+    // Deselect same cell
+    mmJumpToCell(0, 0);
+    expect(opPanel.classList.contains('hidden')).toBe(true);
+  });
+});

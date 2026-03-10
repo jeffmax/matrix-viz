@@ -949,6 +949,11 @@ export function mmJumpToCell(i, k) {
     if (fEl) fEl.innerHTML = buildMode === 'outer'
       ? `All <span class="fc">${J}</span> slices built. Drag the slider to collapse them into the result.`
       : `All <span class="fc">${I * K}</span> cells computed. Drag the slider to collapse the cube.`;
+    // Hide sub-viz panels
+    const opPanel = document.getElementById('opDisplay');
+    if (opPanel) { opPanel.classList.add('hidden'); opPanel.innerHTML = ''; }
+    const subViz = document.getElementById('dpSubViz');
+    if (subViz) subViz.style.display = 'none';
     // Re-render standard A/B grids
     renderA(-1, -1, -1); renderB(-1, -1, -1);
     return;
