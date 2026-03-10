@@ -712,6 +712,16 @@ export function mmBack() {
   if (mmPhase === 'build') {
     mmPauseAll();
     if (t1 > -1) { t1--; applyStep(t1); }
+  } else if (mmPhase === 'collapse' && collapseT === 0) {
+    // Re-enter build phase from just-completed state (collapse hasn't started)
+    mmPauseAll();
+    mmPhase = 'build';
+    setBuildComplete(false);
+    removePlusPlanes();
+    const colSlider = document.getElementById('spCollapse');
+    if (colSlider) { colSlider.disabled = true; colSlider.value = 0; }
+    t1 = totalSteps() - 2;
+    applyStep(t1);
   }
 }
 

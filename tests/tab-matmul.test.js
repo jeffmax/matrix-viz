@@ -3,7 +3,7 @@ import { computeData, I, J, K, A, B, Res, setBuildComplete, changeDim, setData, 
 import { initScene } from '../js/scene.js';
 import { rebuildBoxes, ensureAllGreen, addPlusPlanes, boxes } from '../js/cube-manager.js';
 import { mmBuildDone, getOpHiTm, setOpHiTm, mmReset, setBuildMode, getBuildMode,
-         mmJumpToCell, getMmState, mmHoverCell, mmClearHover, mmFwd,
+         mmJumpToCell, getMmState, mmHoverCell, mmClearHover, mmFwd, mmBack,
          mmScrubCollapse, mmUpdateCanvasTitle, mmToggleDetail } from '../js/tab-matmul.js';
 import { PRESETS, loadPreset, clearPreset, fullClearPreset } from '../js/presets.js';
 
@@ -714,6 +714,70 @@ describe('Bug: mmBuildDone should turn all boxes green for both modes', () => {
     for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) {
       expect(boxes[i][j][k].mat.color.getHex()).toBe(0x50c878);
     }
+  });
+});
+
+describe('Bug: mmBack should work after build completes', () => {
+  beforeEach(() => {
+    setData({ I: 3, J: 3, K: 3 });
+    computeData(true);
+    initScene();
+    rebuildBoxes();
+    mmReset();
+  });
+
+  it('OP: mmBack after stepping to end re-enters build phase', () => {
+    setBuildMode('outer');
+    // Step all the way to the end
+    for (let s = 0; s < J; s++) mmFwd();
+    const stateAfterBuild = getMmState();
+    expect(stateAfterBuild.mmPhase).toBe('collapse');
+    expect(stateAfterBuild.t1).toBe(J - 1);
+
+    // Back should work — re-enter build, step back
+    mmBack();
+    const stateAfterBack = getMmState();
+    expect(stateAfterBack.mmPhase).toBe('build');
+    expect(stateAfterBack.t1).toBe(J - 2);
+  });
+
+  it('DP: mmBack after stepping to end re-enters build phase', () => {
+    setBuildMode('dot');
+    const total = I * K;
+    for (let s = 0; s < total; s++) mmFwd();
+    const stateAfterBuild = getMmState();
+    expect(stateAfterBuild.mmPhase).toBe('collapse');
+
+    mmBack();
+    const stateAfterBack = getMmState();
+    expect(stateAfterBack.mmPhase).toBe('build');
+    expect(stateAfterBack.t1).toBe(total - 2);
+  });
+
+  it('DP detail: mmBack after stepping to end re-enters build phase', () => {
+    setBuildMode('dot');
+    const chk = document.getElementById('chkDetail');
+    chk.checked = true;
+    const total = I * K * J;
+    for (let s = 0; s < total; s++) mmFwd();
+    expect(getMmState().mmPhase).toBe('collapse');
+
+    mmBack();
+    const state = getMmState();
+    expect(state.mmPhase).toBe('build');
+    expect(state.t1).toBe(total - 2);
+  });
+
+  it('mmBack does NOT re-enter build if collapse has started', () => {
+    setBuildMode('outer');
+    for (let s = 0; s < J; s++) mmFwd();
+    // Scrub collapse partway
+    mmScrubCollapse(0.5);
+    expect(getMmState().mmPhase).toBe('collapse');
+
+    // Back should NOT work — collapse is in progress
+    mmBack();
+    expect(getMmState().mmPhase).toBe('collapse');
   });
 });
 
