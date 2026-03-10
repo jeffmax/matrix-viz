@@ -432,6 +432,52 @@ describe('Bug: OP animation sync — cube slice delayed until animation complete
   });
 });
 
+describe('Bug: OP last slice should delay like earlier slices', () => {
+  beforeEach(() => {
+    setData({ I: 2, J: 3, K: 2 });
+    computeData(true);
+    initScene();
+    rebuildBoxes();
+    setBuildComplete(false);
+    mmReset();
+    setBuildMode('outer');
+  });
+
+  it('last slice starts in building state (not immediately green)', () => {
+    // Step to last slice (j=2, the third slice)
+    mmFwd(); // t1=0 → j=0
+    mmFwd(); // t1=1 → j=1
+    mmFwd(); // t1=2 → j=2 (last slice) — should trigger mmBuildDone
+
+    // The last slice should be in 'building' state initially,
+    // NOT immediately painted green by ensureAllGreen()
+    const b = boxes[0][2][0]; // i=0, j=2 (last), k=0
+    // Building state: opacity 0.40, no sprite visible
+    expect(b.mat.opacity).toBeLessThan(0.5);
+    expect(b.spr.visible).toBe(false);
+  });
+
+  it('earlier slices are done (green) when last slice is building', () => {
+    mmFwd(); mmFwd(); mmFwd(); // step to last slice
+
+    // Earlier slices should be green/done
+    const b0 = boxes[0][0][0]; // j=0
+    expect(b0.mat.color.getHex()).toBe(0x50c878);
+    expect(b0.mat.opacity).toBeGreaterThan(0.7);
+  });
+
+  it('mmFwd at last step does not cancel pending build-done timer', () => {
+    mmFwd(); mmFwd(); mmFwd(); // reach last slice
+
+    // Pressing forward again should be a no-op (not cancel timers)
+    mmFwd();
+    const state = getMmState();
+    // Should still be in build phase (mmBuildDone hasn't fired yet)
+    // or in collapse phase if mmBuildDone already fired
+    expect(state.t1).toBe(2); // still at last step
+  });
+});
+
 describe('Bug: DP result grid should not be clickable before build starts', () => {
   beforeEach(() => {
     computeData(true);
@@ -681,9 +727,8 @@ describe('Bug: mmBuildDone should turn all boxes green for both modes', () => {
 
   it('OP mode: all boxes green after mmBuildDone', () => {
     setBuildMode('outer');
-    // Step to end
-    const total = J;
-    for (let s = 0; s < total; s++) mmFwd();
+    // Call mmBuildDone directly (mmFwd delays it for OP animation)
+    mmBuildDone();
 
     // All boxes should be green (0x50c878)
     for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) {
@@ -728,17 +773,17 @@ describe('Bug: mmBack should work after build completes', () => {
 
   it('OP: mmBack after stepping to end re-enters build phase', () => {
     setBuildMode('outer');
-    // Step all the way to the end
-    for (let s = 0; s < J; s++) mmFwd();
+    // Call mmBuildDone directly (mmFwd delays it for OP animation)
+    for (let s = 0; s < J - 1; s++) mmFwd();
+    mmBuildDone(); // simulate build completion
     const stateAfterBuild = getMmState();
     expect(stateAfterBuild.mmPhase).toBe('collapse');
-    expect(stateAfterBuild.t1).toBe(J - 1);
 
     // Back should work — re-enter build, step back
     mmBack();
     const stateAfterBack = getMmState();
     expect(stateAfterBack.mmPhase).toBe('build');
-    expect(stateAfterBack.t1).toBe(J - 2);
+    expect(stateAfterBack.t1).toBe(J - 2); // totalSteps()-2 = J-2 = 1
   });
 
   it('DP: mmBack after stepping to end re-enters build phase', () => {

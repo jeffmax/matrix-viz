@@ -668,7 +668,14 @@ function mmTickBuild() {
   if (!pl1) return;
   if (t1 < totalSteps() - 1) {
     t1++; applyStep(t1);
-    if (t1 >= totalSteps() - 1) { mmBuildDone(); return; }
+    if (t1 >= totalSteps() - 1) {
+      if (buildMode === 'outer' && lastAnimDuration > 0) {
+        tm1 = setTimeout(() => mmBuildDone(), lastAnimDuration);
+      } else {
+        mmBuildDone();
+      }
+      return;
+    }
     const delay = buildMode === 'outer' ? Math.max(spdMM(), lastAnimDuration) : spdMM();
     tm1 = setTimeout(mmTickBuild, delay);
   }
@@ -700,10 +707,15 @@ export function mmBuildDone() {
 
 export function mmFwd() {
   if (mmPhase === 'build') {
+    if (t1 >= totalSteps() - 1) return; // already at last step, waiting for delayed mmBuildDone
     mmPauseAll();
-    if (t1 < totalSteps() - 1) {
-      t1++; applyStep(t1);
-      if (t1 >= totalSteps() - 1) mmBuildDone();
+    t1++; applyStep(t1);
+    if (t1 >= totalSteps() - 1) {
+      if (buildMode === 'outer' && lastAnimDuration > 0) {
+        tm1 = setTimeout(() => mmBuildDone(), lastAnimDuration);
+      } else {
+        mmBuildDone();
+      }
     }
   }
 }

@@ -365,8 +365,13 @@ test('cell selection shows sub-viz and hides opDisplay', async ({ page }) => {
   await page.goto(URL);
   await page.locator('#tier1-matmul').click();
 
-  const result = await page.evaluate(() => {
+  await page.evaluate(() => {
     for (let i = 0; i < 20; i++) { try { window.mmFwd(); } catch (e) { /* WebGL */ } }
+  });
+  // Wait for OP build to complete (delayed mmBuildDone for last slice animation)
+  await page.waitForFunction(() => !document.getElementById('spCollapse')?.disabled, { timeout: 5000 });
+
+  const result = await page.evaluate(() => {
     try { window.mmJumpToCell(0, 0); } catch (e) { /* WebGL */ }
     const op = document.getElementById('opDisplay');
     const sub = document.getElementById('dpSubViz');

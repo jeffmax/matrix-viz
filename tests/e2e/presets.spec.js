@@ -90,12 +90,17 @@ for (const preset of PRESETS) {
     page.on('pageerror', e => errors.push(e.message));
     await gotoMatmul(page);
 
-    const result = await page.evaluate((id) => {
+    await page.evaluate((id) => {
       try { window.selectPreset(id); } catch (e) {}
       // Step through all steps
       const maxSteps = 100; // more than enough for any preset
       for (let i = 0; i < maxSteps; i++) { try { window.mmFwd(); } catch (e) {} }
+    }, preset.id);
 
+    // Wait for build to complete (OP mode delays mmBuildDone for last slice animation)
+    await page.waitForFunction(() => !document.getElementById('spCollapse')?.disabled, { timeout: 5000 });
+
+    const result = await page.evaluate(() => {
       const grid = document.getElementById('mmResultGrid');
       const cells = grid ? grid.querySelectorAll('.mat-cell') : [];
       const vals = [...cells].map(c => c.textContent.trim());
@@ -105,7 +110,7 @@ for (const preset of PRESETS) {
       const formula = document.getElementById('fMM')?.textContent || '';
       const title = document.getElementById('canvasTitle')?.textContent || '';
       return { vals, doneCells, totalCells: cells.length, sliderEnabled, formula, title };
-    }, preset.id);
+    });
 
     // All cells should be done
     expect(result.totalCells).toBe(preset.resCells);
@@ -166,23 +171,28 @@ for (const preset of OP_PRESETS) {
   test(`preset "${preset.id}" (outer) shows partial sums during build`, async ({ page }) => {
     await gotoMatmul(page);
 
-    const result = await page.evaluate((id) => {
+    await page.evaluate((id) => {
       try { window.selectPreset(id); } catch (e) {}
       // Step once — first j-slice
       try { window.mmFwd(); } catch (e) {}
+    }, preset.id);
 
+    // For J=1 presets, the single step triggers delayed mmBuildDone — wait for it
+    if (preset.J === 1) {
+      await page.waitForFunction(() => !document.getElementById('spCollapse')?.disabled, { timeout: 5000 });
+    }
+
+    const result = await page.evaluate(() => {
       const grid = document.getElementById('mmResultGrid');
       const partialCells = grid ? grid.querySelectorAll('.mat-cell.partial').length : 0;
-      // Formula should mention slice
       const formula = document.getElementById('fMM')?.textContent || '';
-      // Step dots should exist
       const dots = document.querySelectorAll('#dMM .step-dot');
       return { partialCells, formula, totalDots: dots.length };
-    }, preset.id);
+    });
 
     // After one step, result grid should have partial or done cells (done if J=1)
     if (preset.J === 1) {
-      // Single slice — build completes on first step
+      // Single slice — build completes after animation delay
       expect(result.partialCells).toBe(0);
     } else {
       expect(result.partialCells).toBe(preset.resCells);
@@ -258,32 +268,47 @@ test('complete build, switch preset, complete second build', async ({ page }) =>
   page.on('pageerror', e => errors.push(e.message));
   await gotoMatmul(page);
 
-  const result = await page.evaluate(() => {
-    // Build identity (dot, 3×3)
+  // Build identity (dot, 3×3) — completes synchronously
+  await page.evaluate(() => {
     try { window.selectPreset('identity'); } catch (e) {}
     for (let i = 0; i < 20; i++) { try { window.mmFwd(); } catch (e) {} }
-    const firstResult = [...document.getElementById('mmResultGrid').querySelectorAll('.mat-cell')].map(c => c.textContent.trim());
+  });
+  const firstResult = await page.evaluate(() =>
+    [...document.getElementById('mmResultGrid').querySelectorAll('.mat-cell')].map(c => c.textContent.trim())
+  );
 
-    // Switch to basic (outer, 2×3·3×2)
+  // Switch to basic (outer, 2×3·3×2) — OP build has delayed mmBuildDone
+  await page.evaluate(() => {
     try { window.selectPreset('basic'); } catch (e) {}
     for (let i = 0; i < 20; i++) { try { window.mmFwd(); } catch (e) {} }
-    const secondResult = [...document.getElementById('mmResultGrid').querySelectorAll('.mat-cell')].map(c => c.textContent.trim());
-    const secondDone = document.getElementById('mmResultGrid').querySelectorAll('.mat-cell.done').length;
-
-    // Switch to roll (dot, 4×4·4×1)
-    try { window.selectPreset('roll'); } catch (e) {}
-    for (let i = 0; i < 20; i++) { try { window.mmFwd(); } catch (e) {} }
-    const thirdResult = [...document.getElementById('mmResultGrid').querySelectorAll('.mat-cell')].map(c => c.textContent.trim());
-    const thirdDone = document.getElementById('mmResultGrid').querySelectorAll('.mat-cell.done').length;
-
-    return { firstResult, secondResult, secondDone, thirdResult, thirdDone };
+  });
+  await page.waitForFunction(() => !document.getElementById('spCollapse')?.disabled, { timeout: 5000 });
+  const secondResult = await page.evaluate(() => {
+    const grid = document.getElementById('mmResultGrid');
+    return {
+      vals: [...grid.querySelectorAll('.mat-cell')].map(c => c.textContent.trim()),
+      done: grid.querySelectorAll('.mat-cell.done').length
+    };
   });
 
-  expect(result.firstResult).toEqual(['5','3','1','8','6','2','4','7','9']);
-  expect(result.secondResult).toEqual(['58','64','139','154']);
-  expect(result.secondDone).toBe(4);
-  expect(result.thirdResult).toEqual(['40','10','20','30']);
-  expect(result.thirdDone).toBe(4);
+  // Switch to roll (dot, 4×4·4×1) — completes synchronously
+  await page.evaluate(() => {
+    try { window.selectPreset('roll'); } catch (e) {}
+    for (let i = 0; i < 20; i++) { try { window.mmFwd(); } catch (e) {} }
+  });
+  const thirdResult = await page.evaluate(() => {
+    const grid = document.getElementById('mmResultGrid');
+    return {
+      vals: [...grid.querySelectorAll('.mat-cell')].map(c => c.textContent.trim()),
+      done: grid.querySelectorAll('.mat-cell.done').length
+    };
+  });
+
+  expect(firstResult).toEqual(['5','3','1','8','6','2','4','7','9']);
+  expect(secondResult.vals).toEqual(['58','64','139','154']);
+  expect(secondResult.done).toBe(4);
+  expect(thirdResult.vals).toEqual(['40','10','20','30']);
+  expect(thirdResult.done).toBe(4);
   expect(realErrors(errors)).toEqual([]);
 });
 
