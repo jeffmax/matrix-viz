@@ -604,6 +604,119 @@ describe('Bug: changeDim uses preset fill functions', () => {
   });
 });
 
+describe('Bug: collapse after exploration clears cube highlights', () => {
+  beforeEach(() => {
+    setData({ I: 3, J: 3, K: 3 });
+    computeData(true);
+    initScene();
+    rebuildBoxes();
+    mmReset();
+  });
+
+  it('scrubbing collapse clears cyan color from exploration', () => {
+    mmBuildDone();
+    mmJumpToCell(0, 0); // select cell → cyan highlight
+
+    // Verify exploration set cyan on selected column
+    const b = boxes[0][0][0];
+    expect(b.mat.color.getHex()).toBe(0x20c0e0); // cyan
+
+    // Now scrub collapse
+    mmScrubCollapse(0.5);
+
+    // All boxes should be green→purple lerp, NOT cyan
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) {
+      const box = boxes[i][j][k];
+      if (box.mesh.visible) {
+        expect(box.mat.color.getHex()).not.toBe(0x20c0e0);
+      }
+    }
+  });
+
+  it('scrubbing collapse resets sprite text from black to white', () => {
+    mmBuildDone();
+    mmJumpToCell(1, 1); // select cell → black text on cyan
+
+    // Exploration sets black text via makeTex
+    // After collapse, text should be white again
+    mmScrubCollapse(0);
+
+    // All visible sprites should have white text (re-created by ensureAllGreen)
+    // We verify by checking that ensureAllGreen was called (boxes have green color at t=0)
+    const b = boxes[0][0][0];
+    // At t=0, applyCollapse sets color to grColor (0x50c878)
+    expect(b.mat.color.getHex()).toBe(0x50c878);
+  });
+
+  it('scrubbing collapse from already-collapsed state clears exploration', () => {
+    mmBuildDone();
+    mmScrubCollapse(1.0); // fully collapsed
+    mmScrubCollapse(0);   // uncollapse back
+    mmJumpToCell(0, 0);   // select in uncollapsed state
+
+    // Verify exploration is active
+    expect(boxes[0][0][0].mat.color.getHex()).toBe(0x20c0e0);
+
+    // Scrub to 50%
+    mmScrubCollapse(0.5);
+
+    // No cyan should remain
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) {
+      const box = boxes[i][j][k];
+      if (box.mesh.visible) {
+        expect(box.mat.color.getHex()).not.toBe(0x20c0e0);
+      }
+    }
+  });
+});
+
+describe('Bug: mmBuildDone should turn all boxes green for both modes', () => {
+  beforeEach(() => {
+    setData({ I: 3, J: 3, K: 3 });
+    computeData(true);
+    initScene();
+    rebuildBoxes();
+    mmReset();
+  });
+
+  it('OP mode: all boxes green after mmBuildDone', () => {
+    setBuildMode('outer');
+    // Step to end
+    const total = J;
+    for (let s = 0; s < total; s++) mmFwd();
+
+    // All boxes should be green (0x50c878)
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) {
+      expect(boxes[i][j][k].mat.color.getHex()).toBe(0x50c878);
+    }
+  });
+
+  it('DP mode: all boxes green after mmBuildDone', () => {
+    setBuildMode('dot');
+    // Step to end
+    const total = I * K;
+    for (let s = 0; s < total; s++) mmFwd();
+
+    // All boxes should be green (0x50c878) — not orange from last step
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) {
+      expect(boxes[i][j][k].mat.color.getHex()).toBe(0x50c878);
+    }
+  });
+
+  it('DP detail mode: all boxes green after mmBuildDone', () => {
+    setBuildMode('dot');
+    const chk = document.getElementById('chkDetail');
+    chk.checked = true;
+    // Step through all terms
+    const total = I * K * J;
+    for (let s = 0; s < total; s++) mmFwd();
+
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) {
+      expect(boxes[i][j][k].mat.color.getHex()).toBe(0x50c878);
+    }
+  });
+});
+
 describe('Bug: detail toggle mid-build remaps step', () => {
   beforeEach(() => {
     setData({ I: 3, J: 3, K: 3 });

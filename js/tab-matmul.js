@@ -680,7 +680,7 @@ export function mmBuildDone() {
   setBuildComplete(true);
   mmPhase = 'collapse';
   collapseT = 0;
-  if (buildMode === 'outer' && boxes.length) {
+  if (boxes.length) {
     ensureAllGreen();
   }
   if (boxes.length) addPlusPlanes();
@@ -751,8 +751,10 @@ export function mmScrubCollapse(t) {
   if (opPanel) { opPanel.classList.add('hidden'); opPanel.innerHTML = ''; }
   const subViz = document.getElementById('dpSubViz');
   if (subViz) subViz.style.display = 'none';
+  // Always repaint all boxes green first to clear any exploration state
+  // (cyan colors, black text sprites) before applying collapse lerp
+  if (boxes.length) ensureAllGreen();
   if (mmPhase === 'build') {
-    if (boxes.length) ensureAllGreen();
     t1 = totalSteps() - 1;
   }
   mmPhase = 'collapse';

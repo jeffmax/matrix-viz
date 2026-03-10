@@ -719,6 +719,100 @@ test('clicking already-selected result cell deselects it', async ({ page }) => {
   expect(result.hint2).toContain('click cell');
 });
 
+test('collapsing while cell selected clears cube exploration highlights', async ({ page }) => {
+  await gotoMatmul(page);
+
+  const result = await page.evaluate(() => {
+    try { window.selectPreset('identity'); } catch (e) {}
+    for (let i = 0; i < 9; i++) { try { window.mmFwd(); } catch (e) {} }
+
+    // Select cell (1,1) — enters exploration (cyan column in cube)
+    try { window.mmJumpToCell(1, 1); } catch (e) {}
+
+    // Check cube state before collapse (WebGL may not be available)
+    return import('/js/cube-manager.js').then(mod => {
+      if (!mod.boxes.length) return { skip: true };
+      const boxesBefore = [];
+      for (let j = 0; j < 3; j++) {
+        const b = mod.boxes[1][j][1]; // selected column
+        boxesBefore.push(b.mat.color.getHex());
+      }
+
+      // Scrub collapse to 50%
+      try { window.mmScrubCollapse(0.5); } catch (e) {}
+
+      // Check cube state after collapse — no cyan should remain
+      const boxesAfter = [];
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) {
+        const b = mod.boxes[i][j][k];
+        if (b.mesh.visible) {
+          boxesAfter.push(b.mat.color.getHex());
+        }
+      }
+      const hasCyan = boxesAfter.some(h => h === 0x20c0e0);
+
+      // Scrub back to 0 — should still be clean
+      try { window.mmScrubCollapse(0); } catch (e) {}
+      const boxesBack = [];
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) {
+        const b = mod.boxes[i][j][k];
+        if (b.mesh.visible) boxesBack.push(b.mat.color.getHex());
+      }
+      const hasCyanBack = boxesBack.some(h => h === 0x20c0e0);
+
+      return { skip: false, boxesBefore, hasCyan, hasCyanBack };
+    });
+  });
+
+  if (result.skip) return; // WebGL unavailable in headless
+  expect(result.boxesBefore.every(h => h === 0x20c0e0)).toBe(true);
+  expect(result.hasCyan).toBe(false);
+  expect(result.hasCyanBack).toBe(false);
+});
+
+test('DP build completes with all boxes green (no stale orange)', async ({ page }) => {
+  await gotoMatmul(page);
+
+  const result = await page.evaluate(() => {
+    try { window.selectPreset('identity'); } catch (e) {}
+    for (let i = 0; i < 9; i++) { try { window.mmFwd(); } catch (e) {} }
+
+    return import('/js/cube-manager.js').then(mod => {
+      if (!mod.boxes.length) return { skip: true };
+      const colors = [];
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) {
+        colors.push(mod.boxes[i][j][k].mat.color.getHex());
+      }
+      const allGreen = colors.every(c => c === 0x50c878);
+      const hasOrange = colors.some(c => c === 0xf0a040);
+      return { skip: false, allGreen, hasOrange };
+    });
+  });
+
+  if (result.skip) return; // WebGL unavailable in headless
+  expect(result.allGreen).toBe(true);
+  expect(result.hasOrange).toBe(false);
+});
+
+test('DP build done shows result hint to click cells', async ({ page }) => {
+  await gotoMatmul(page);
+
+  const result = await page.evaluate(() => {
+    try { window.selectPreset('identity'); } catch (e) {}
+    for (let i = 0; i < 9; i++) { try { window.mmFwd(); } catch (e) {} }
+
+    const hint = document.getElementById('mmResultHint')?.textContent || '';
+    const grid = document.getElementById('mmResultGrid');
+    const allDone = grid?.querySelectorAll('.mat-cell.done').length || 0;
+    const formula = document.getElementById('fMM')?.textContent || '';
+    return { hint, allDone, formula };
+  });
+
+  expect(result.allDone).toBe(9);
+  expect(result.hint).toContain('click cell');
+  expect(result.formula).toContain('cells computed');
+});
+
 test('collapsing while cell selected clears A/B exploration highlights', async ({ page }) => {
   await gotoMatmul(page);
 
