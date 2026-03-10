@@ -165,8 +165,8 @@ describe('mmJumpToCell enters exploration mode', () => {
     expect(state.t1).toBe(-1);
   });
 
-  it('clicking a cell mid-build enters exploration', () => {
-    // Reset back to build phase, step forward (t1 >= 0 allows exploration)
+  it('clicking a cell mid-build does NOT enter exploration', () => {
+    // Reset back to build phase, step forward but build not complete
     mmReset();
     mmFwd();
     mmFwd();
@@ -175,9 +175,11 @@ describe('mmJumpToCell enters exploration mode', () => {
 
     mmJumpToCell(1, 1);
     const stateAfter = getMmState();
-    expect(stateAfter.mmSelectedI).toBe(1);
-    expect(stateAfter.mmSelectedK).toBe(1);
-    expect(stateAfter.t1).toBe(-1);
+    // Should NOT have entered exploration — build not complete
+    expect(stateAfter.mmSelectedI).toBe(-1);
+    expect(stateAfter.mmSelectedK).toBe(-1);
+    // t1 should be unchanged (build still in progress)
+    expect(stateAfter.t1).toBe(stateBefore.t1);
   });
 });
 

@@ -15,7 +15,7 @@ export function rebuildBoxes() {
   boxes.forEach(l => l.forEach(r => r.forEach(b => { sc.scene.remove(b.mesh); sc.scene.remove(b.edges); sc.scene.remove(b.spr); })));
   plusPlanes.forEach(pl => pl.forEach(s => sc.scene.remove(s)));
   boxes = []; plusPlanes = [];
-  const ox = -(K - 1) * STEP / 2, oy = -(J - 1) * STEP / 2, oz = -(I - 1) * STEP / 2;
+  const ox = -(K - 1) * STEP / 2, oz = -(I - 1) * STEP / 2;
   for (let i = 0; i < I; i++) {
     const layer = [];
     for (let j = 0; j < J; j++) {
@@ -24,7 +24,7 @@ export function rebuildBoxes() {
         const geo = new THREE.BoxGeometry(CELL, CELL, CELL);
         const mat = new THREE.MeshPhongMaterial({color: 0xeeeeee, transparent: true, opacity: 0.10, shininess: 30});
         const mesh = new THREE.Mesh(geo, mat);
-        const px = ox + k * STEP, py = oy + j * STEP, pz = oz + i * STEP;
+        const px = ox + k * STEP, py = packedY(j), pz = oz + i * STEP;
         mesh.position.set(px, py, pz); sc.scene.add(mesh);
         const eg = new THREE.EdgesGeometry(geo);
         const em = new THREE.LineBasicMaterial({color: 0xcccccc, transparent: true, opacity: 0.22});
@@ -60,7 +60,7 @@ export function paintSlice(j, state) {
 
 export function ensureAllGreen() { for (let j = 0; j < J; j++) paintSlice(j, 'done'); }
 
-export function packedY(j) { return -(J - 1) * STEP / 2 + j * STEP; }
+export function packedY(j) { return (J - 1) * STEP / 2 - j * STEP; }
 
 export function addPlusPlanes() {
   removePlusPlanes();

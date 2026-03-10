@@ -910,8 +910,8 @@ export function mmUpdateCanvasTitle() {
 // ══════════════════════════════════════════════════
 
 export function mmJumpToCell(i, k) {
-  // Don't enter exploration if no build has happened
-  if (!buildComplete && mmPhase === 'build' && t1 < 0) return;
+  // Only allow exploration after build completes (collapse or done phase)
+  if (!buildComplete) return;
   mmPauseAll();
   t1 = -1;
   mmHoverJVal = -1;

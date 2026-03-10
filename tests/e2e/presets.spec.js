@@ -523,3 +523,132 @@ test('Bug: toggling detail mid-DP-build remaps step correctly', async ({ page })
   // After one more detail step, should still be on same cell position
   expect(result.cellIdxAfterStep).toBe(result.cellIdxAfter);
 });
+
+test('Bug: clicking result cell during build should not enter exploration', async ({ page }) => {
+  await gotoMatmul(page);
+
+  const result = await page.evaluate(() => {
+    try { window.selectPreset('identity'); } catch (e) {}
+
+    const chk = document.getElementById('chkDetail');
+    chk.checked = false;
+
+    // Step forward a few times — build is in progress
+    try { window.mmFwd(); } catch (e) {}
+    try { window.mmFwd(); } catch (e) {}
+
+    const grid = document.getElementById('mmResultGrid');
+    const doneBefore = grid?.querySelectorAll('.mat-cell.done').length || 0;
+
+    // Try clicking a result cell during build
+    try { window.mmJumpToCell(0, 0); } catch (e) {}
+
+    // Check state — should NOT have entered exploration
+    const curAfter = grid?.querySelector('.mat-cell.cur');
+    const formula = document.getElementById('fMM')?.textContent || '';
+    const doneAfter = grid?.querySelectorAll('.mat-cell.done').length || 0;
+
+    // If exploration was entered, the formula would show "Result[0,0] = ..."
+    // and the build progress would be lost
+    const enteredExploration = formula.includes('Result[0,0]') && formula.includes('=');
+
+    return { doneBefore, doneAfter, enteredExploration };
+  });
+
+  // Should NOT enter exploration mode during build
+  expect(result.enteredExploration).toBe(false);
+});
+
+test('Bug: no-op cell edit should not reset exploration state', async ({ page }) => {
+  await gotoMatmul(page);
+
+  const result = await page.evaluate(() => {
+    try { window.selectPreset('identity'); } catch (e) {}
+
+    // Complete the build
+    const totalSteps = 9; // 3×3 = 9 cells in DP mode
+    for (let i = 0; i < totalSteps; i++) {
+      try { window.mmFwd(); } catch (e) {}
+    }
+
+    // Enter exploration: click result cell (1,1)
+    try { window.mmJumpToCell(1, 1); } catch (e) {}
+
+    const grid = document.getElementById('mmResultGrid');
+    const curBefore = grid?.querySelector('.mat-cell.cur');
+    const cellsBefore = Array.from(grid?.querySelectorAll('.mat-cell') || []);
+    const selectedIdxBefore = cellsBefore.indexOf(curBefore);
+
+    // Simulate a no-op cell edit: click A cell, blur without changing value
+    const panelA = document.getElementById('mmPanelA');
+    const aCell = panelA?.querySelector('.mat-cell');
+    if (aCell && aCell.onclick) {
+      aCell.onclick(); // opens editor
+      const input = aCell.querySelector('input');
+      if (input) {
+        // Blur without changing value — triggers commit with same value
+        input.blur();
+      }
+    }
+
+    // Check if exploration state survived
+    const curAfter = grid?.querySelector('.mat-cell.cur');
+    const cellsAfter = Array.from(grid?.querySelectorAll('.mat-cell') || []);
+    const selectedIdxAfter = cellsAfter.indexOf(curAfter);
+    const formulaAfter = document.getElementById('fMM')?.textContent || '';
+
+    return { selectedIdxBefore, selectedIdxAfter, formulaAfter, hasCur: !!curAfter };
+  });
+
+  // Exploration state should survive no-op edit
+  expect(result.selectedIdxBefore).toBeGreaterThanOrEqual(0);
+  expect(result.selectedIdxAfter).toBe(result.selectedIdxBefore);
+});
+
+test('Bug: cube j=0 slice should be at top (highest Y position)', async ({ page }) => {
+  await gotoMatmul(page);
+
+  const result = await page.evaluate(() => {
+    try { window.selectPreset('row-select'); } catch (e) {}
+
+    // Complete the build
+    for (let i = 0; i < 9; i++) {
+      try { window.mmFwd(); } catch (e) {}
+    }
+
+    // Check Y positions of j-slices by reading packedY
+    // boxes[i][j][k] — check j=0 vs j=J-1 Y positions
+    const boxes = window.__cubeBoxes; // not available directly
+    // Instead, call packedY via evaluate
+    return null;
+  });
+
+  // Need to check packedY values — let's use page.evaluate to access the module
+  const positions = await page.evaluate(() => {
+    // The boxes are in the scene — read their positions
+    // We can't easily access ES module exports, so check via the actual box positions
+    // by stepping through and checking the cube state
+    try { window.selectPreset('row-select'); } catch (e) {}
+
+    // Step once to make j=0 slice visible with values
+    try { window.mmFwd(); } catch (e) {}
+
+    // The formula text tells us which cell we're on
+    const formula = document.getElementById('fMM')?.textContent || '';
+
+    // We need to verify j=0 is at the top. Since we can't easily read Three.js
+    // positions from Playwright, we verify via the build order and visual logic.
+    // The key invariant: packedY(0) > packedY(J-1), i.e. j=0 is higher.
+    // We can test this by checking the module's packedY function.
+
+    // Access via dynamic import
+    return import('/js/cube-manager.js').then(mod => {
+      const y0 = mod.packedY(0);
+      const y2 = mod.packedY(2);
+      return { y0, y2, j0Higher: y0 > y2 };
+    });
+  });
+
+  // j=0 should be at a HIGHER Y position than j=2 (j=0 at top)
+  expect(positions.j0Higher).toBe(true);
+});

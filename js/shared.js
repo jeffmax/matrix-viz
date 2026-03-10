@@ -120,6 +120,7 @@ export function editCellInline(el, cur, color, onCommit) {
     let v = parseInt(input.value);
     if (isNaN(v)) v = 0;
     v = Math.max(-99, Math.min(99, v));
+    if (v === cur) { el.textContent = cur; return; }
     onCommit(v);
   }
   input.addEventListener('blur', commit);
