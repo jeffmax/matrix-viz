@@ -446,36 +446,66 @@ test('DP non-detail mode: each step completes a full cell', async ({ page }) => 
   expect(result.curVal2).toBe('7');
 });
 
-test('Bug: adding dimension to preset fills new cells with 0', async ({ page }) => {
+test('Bug: preset fill functions produce correct values for new cells', async ({ page }) => {
   await gotoMatmul(page);
 
-  const result = await page.evaluate(() => {
+  // Test 1: row-select — adding J column to A fills 0s (one-hot stays clean)
+  const rowSelectResult = await page.evaluate(() => {
     try { window.selectPreset('row-select'); } catch (e) {}
 
-    // Add a column to B (increase K)
-    window.changeDim('K', 1);
+    // Add a column to A (increase J — shared dim)
+    window.changeDim('J', 1);
 
-    // Read B matrix from panel
-    const panelB = document.getElementById('mmPanelB');
-    const cells = panelB?.querySelectorAll('.mat-cell') || [];
-    const values = Array.from(cells).map(c => parseInt(c.textContent.trim()) || 0);
+    // Read A matrix
+    const panelA = document.getElementById('mmPanelA');
+    const aCells = panelA?.querySelectorAll('.mat-cell') || [];
+    const aValues = Array.from(aCells).map(c => parseFloat(c.textContent.trim()) || 0);
 
-    // Check that preset was deselected
-    const sel = document.getElementById('presetSelect');
-    const presetVal = sel?.value || '';
-
-    return { values, presetVal, cellCount: cells.length };
+    // A is now 3×4 — last column (indices 3, 7, 11) should be 0
+    return { aValues, aCols: 4 };
   });
 
-  // row-select is 3×3 A, 3×3 B → after +K becomes 3×4 B
-  // Last column (index 3, 7, 11 in a 3×4 grid) should be 0
-  const cols = 4;
   for (let row = 0; row < 3; row++) {
-    expect(result.values[row * cols + (cols - 1)]).toBe(0);
+    expect(rowSelectResult.aValues[row * 4 + 3]).toBe(0);
   }
 
-  // Preset should be deselected
-  expect(result.presetVal).toBe('');
+  // Test 2: identity — adding I and J extends diagonal
+  const identityResult = await page.evaluate(() => {
+    try { window.selectPreset('identity'); } catch (e) {}
+
+    window.changeDim('I', 1); // 3→4 rows
+    window.changeDim('J', 1); // 3→4 cols
+
+    const panelA = document.getElementById('mmPanelA');
+    const aCells = panelA?.querySelectorAll('.mat-cell') || [];
+    const aValues = Array.from(aCells).map(c => parseFloat(c.textContent.trim()) || 0);
+
+    // A is now 4×4 — check diagonal and off-diagonal
+    return { aValues, size: 4 };
+  });
+
+  // A[3][3] should be 1, A[3][0..2] and A[0..2][3] should be 0
+  expect(identityResult.aValues[3 * 4 + 3]).toBe(1); // diagonal
+  expect(identityResult.aValues[3 * 4 + 0]).toBe(0); // off-diagonal
+  expect(identityResult.aValues[0 * 4 + 3]).toBe(0); // off-diagonal
+
+  // Test 3: sum-rows — adding J fills A with 1s
+  const sumResult = await page.evaluate(() => {
+    try { window.selectPreset('sum-rows'); } catch (e) {}
+
+    window.changeDim('J', 1); // 3→4 columns
+
+    const panelA = document.getElementById('mmPanelA');
+    const aCells = panelA?.querySelectorAll('.mat-cell') || [];
+    const aValues = Array.from(aCells).map(c => parseFloat(c.textContent.trim()) || 0);
+
+    return { aValues };
+  });
+
+  // All A cells should be 1 (sum-rows has fillA: () => 1)
+  for (const v of sumResult.aValues) {
+    expect(v).toBe(1);
+  }
 });
 
 test('Bug: toggling detail mid-DP-build remaps step correctly', async ({ page }) => {
@@ -651,4 +681,40 @@ test('Bug: cube j=0 slice should be at top (highest Y position)', async ({ page 
 
   // j=0 should be at a HIGHER Y position than j=2 (j=0 at top)
   expect(positions.j0Higher).toBe(true);
+});
+
+test('clicking already-selected result cell deselects it', async ({ page }) => {
+  await gotoMatmul(page);
+
+  const result = await page.evaluate(() => {
+    try { window.selectPreset('identity'); } catch (e) {}
+
+    // Complete the build
+    for (let i = 0; i < 9; i++) {
+      try { window.mmFwd(); } catch (e) {}
+    }
+
+    // Select cell (1,1)
+    try { window.mmJumpToCell(1, 1); } catch (e) {}
+
+    const grid = document.getElementById('mmResultGrid');
+    const hasCurAfterSelect = !!grid?.querySelector('.mat-cell.cur');
+    const hint1 = document.getElementById('mmResultHint')?.textContent || '';
+
+    // Click same cell again — should deselect
+    try { window.mmJumpToCell(1, 1); } catch (e) {}
+
+    const hasCurAfterDeselect = !!grid?.querySelector('.mat-cell.cur');
+    const hint2 = document.getElementById('mmResultHint')?.textContent || '';
+
+    return { hasCurAfterSelect, hasCurAfterDeselect, hint1, hint2 };
+  });
+
+  // After first click, should have a selected cell
+  expect(result.hasCurAfterSelect).toBe(true);
+  expect(result.hint1).toContain('1');
+
+  // After second click on same cell, no cell selected
+  expect(result.hasCurAfterDeselect).toBe(false);
+  expect(result.hint2).toContain('click cell');
 });

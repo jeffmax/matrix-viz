@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { computeData, I, J, K, A, B, Res, setBuildComplete, changeDim, setData, presetActive } from '../js/shared.js';
+import { computeData, I, J, K, A, B, Res, setBuildComplete, changeDim, setData, isPresetActive } from '../js/shared.js';
 import { initScene } from '../js/scene.js';
 import { rebuildBoxes, ensureAllGreen, addPlusPlanes, boxes } from '../js/cube-manager.js';
 import { mmBuildDone, getOpHiTm, setOpHiTm, mmReset, setBuildMode, getBuildMode,
          mmJumpToCell, getMmState, mmHoverCell, mmClearHover, mmFwd,
          mmScrubCollapse, mmUpdateCanvasTitle, mmToggleDetail } from '../js/tab-matmul.js';
-import { PRESETS, loadPreset, clearPreset } from '../js/presets.js';
+import { PRESETS, loadPreset, clearPreset, fullClearPreset } from '../js/presets.js';
 
 describe('Bug 2: mmBuildDone should not cancel highlight timer', () => {
   beforeEach(() => {
@@ -501,35 +501,92 @@ describe('Bug #5: Canvas title uses Cube notation', () => {
   });
 });
 
-describe('Bug: changeDim fills 0 when preset active', () => {
+describe('Bug: changeDim uses preset fill functions', () => {
   beforeEach(() => {
+    setData({ I: 3, J: 3, K: 3 });
     computeData(true);
     initScene();
     rebuildBoxes();
     mmReset();
   });
 
-  it('new cells are 0 when preset is active', () => {
-    // Load a preset (sets presetActive = true)
+  it('row-select: new A cells are 0, new B cells are random', () => {
     const data = loadPreset('row-select');
     setData({ I: data.I, J: data.J, K: data.K, A: data.A, B: data.B });
 
-    expect(presetActive).toBe(true);
+    expect(isPresetActive()).toBe(true);
 
     const oldK = K;
-    changeDim('K', 1); // add a column
+    changeDim('K', 1); // add a column to B
 
-    // New column in B should be all zeros
+    // New B column should be random (from fillB: rand)
+    // New A cells would only appear if J grew, not K
+    // But let's verify B's new column isn't all zeros — it uses rand
+    let anyNonZero = false;
     for (let j = 0; j < J; j++) {
-      expect(B[j][oldK]).toBe(0);
+      if (B[j][oldK] !== 0) anyNonZero = true;
+    }
+    // Random fill should produce at least one non-zero across multiple runs
+    // (This is a probabilistic test but 3 cells with rand() in [1,9] will be non-zero)
+    expect(anyNonZero).toBe(true);
+
+    fullClearPreset();
+  });
+
+  it('identity: new A cells follow diagonal pattern', () => {
+    const data = loadPreset('identity');
+    setData({ I: data.I, J: data.J, K: data.K, A: data.A, B: data.B });
+
+    // Add a row and column (increase I and J)
+    changeDim('I', 1); // I: 3→4
+    changeDim('J', 1); // J: 3→4
+
+    // A[3][3] should be 1 (diagonal), A[3][0..2] should be 0
+    expect(A[3][3]).toBe(1);
+    expect(A[3][0]).toBe(0);
+    expect(A[3][1]).toBe(0);
+    expect(A[3][2]).toBe(0);
+    // A[0][3] should be 0 (off-diagonal)
+    expect(A[0][3]).toBe(0);
+
+    fullClearPreset();
+  });
+
+  it('mask-upper: new A cells follow lower-triangular pattern', () => {
+    const data = loadPreset('mask-upper');
+    setData({ I: data.I, J: data.J, K: data.K, A: data.A, B: data.B });
+
+    // Add a row and column (I: 4→5, J: 4→5)
+    changeDim('I', 1);
+    changeDim('J', 1);
+
+    // A[4][0..4] should be [1,1,1,1,1] (lower-triangular: i>=j)
+    for (let j = 0; j <= 4; j++) {
+      expect(A[4][j]).toBe(1);
+    }
+    // A[0][4] should be 0 (upper triangle)
+    expect(A[0][4]).toBe(0);
+
+    fullClearPreset();
+  });
+
+  it('sum-rows: new A cells are all 1', () => {
+    const data = loadPreset('sum-rows');
+    setData({ I: data.I, J: data.J, K: data.K, A: data.A, B: data.B });
+
+    changeDim('J', 1); // add a column — A should get a new 1
+
+    // All A cells should be 1 (sum-rows is all-ones)
+    for (let j = 0; j < J; j++) {
+      expect(A[0][j]).toBe(1);
     }
 
-    clearPreset();
+    fullClearPreset();
   });
 
   it('new cells are random (non-zero) when no preset active', () => {
-    clearPreset();
-    expect(presetActive).toBe(false);
+    fullClearPreset();
+    expect(isPresetActive()).toBe(false);
 
     // Run multiple times to be statistically confident
     let anyNonZero = false;
@@ -549,6 +606,7 @@ describe('Bug: changeDim fills 0 when preset active', () => {
 
 describe('Bug: detail toggle mid-build remaps step', () => {
   beforeEach(() => {
+    setData({ I: 3, J: 3, K: 3 });
     computeData(true);
     initScene();
     rebuildBoxes();

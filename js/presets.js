@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════════
 // PRESETS — Named matrix multiply examples
 // ══════════════════════════════════════════════════
-import { setPresetActive } from './shared.js';
+import { setPresetFills, clearPresetFills, rand } from './shared.js';
 
 export const PRESETS = [
   {
@@ -16,6 +16,7 @@ export const PRESETS = [
         [11, 12]],
     labelA: 'A',
     labelB: 'B',
+    fillA: rand, fillB: rand,
   },
   {
     id: 'identity',
@@ -30,6 +31,7 @@ export const PRESETS = [
         [4, 7, 9]],
     labelA: 'I',
     labelB: 'B',
+    fillA: (i, j) => i === j ? 1 : 0, fillB: rand,
   },
   {
     id: 'row-select',
@@ -44,6 +46,7 @@ export const PRESETS = [
         [4, 7, 9]],
     labelA: 'S',
     labelB: 'B',
+    fillA: () => 0, fillB: rand,
   },
   {
     id: 'permute',
@@ -58,6 +61,7 @@ export const PRESETS = [
         [7, 8, 9]],
     labelA: 'P',
     labelB: 'B',
+    fillA: () => 0, fillB: rand,
   },
   {
     id: 'sum-rows',
@@ -70,6 +74,7 @@ export const PRESETS = [
         [5, 6]],
     labelA: '𝟏ᵀ',
     labelB: 'B',
+    fillA: () => 1, fillB: rand,
   },
   {
     id: 'sum-cols',
@@ -84,6 +89,7 @@ export const PRESETS = [
         [1]],
     labelA: 'B',
     labelB: '𝟏',
+    fillA: rand, fillB: () => 1,
   },
   {
     id: 'average',
@@ -96,6 +102,7 @@ export const PRESETS = [
         [6, 3]],
     labelA: 'avg',
     labelB: 'B',
+    fillA: () => 0, fillB: rand,
   },
   {
     id: 'mask-upper',
@@ -112,6 +119,7 @@ export const PRESETS = [
         [7, 8]],
     labelA: 'L',
     labelB: 'B',
+    fillA: (i, j) => i >= j ? 1 : 0, fillB: rand,
   },
   {
     id: 'projection',
@@ -126,6 +134,7 @@ export const PRESETS = [
         [5]],
     labelA: 'P',
     labelB: 'v',
+    fillA: () => 0, fillB: rand,
   },
   {
     id: 'outer',
@@ -138,6 +147,7 @@ export const PRESETS = [
     B: [[4, 5, 6]],
     labelA: 'a',
     labelB: 'bᵀ',
+    fillA: rand, fillB: rand,
   },
   {
     id: 'roll',
@@ -154,6 +164,7 @@ export const PRESETS = [
         [40]],
     labelA: 'R',
     labelB: 'v',
+    fillA: (i, j) => ((i - 1 + 5) % 5 === j) ? 1 : 0, fillB: rand,
   },
 ];
 
@@ -163,7 +174,7 @@ export function loadPreset(id) {
   const preset = PRESETS.find(p => p.id === id);
   if (!preset) return null;
   activePreset = preset;
-  setPresetActive(true);
+  setPresetFills(preset.fillA || (() => 0), preset.fillB || (() => 0));
   const A = preset.A.map(row => [...row]);
   const B = preset.B.map(row => [...row]);
   const I = A.length;
@@ -174,5 +185,12 @@ export function loadPreset(id) {
 
 export function clearPreset() {
   activePreset = null;
-  setPresetActive(false);
+  // Note: fills are NOT cleared here — they persist across dim changes
+  // so new cells still get structurally appropriate values.
+  // Fills are cleared by clearPresetFills() called from rebuild()/selectPreset().
+}
+
+export function fullClearPreset() {
+  activePreset = null;
+  clearPresetFills();
 }

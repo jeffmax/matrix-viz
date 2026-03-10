@@ -19,9 +19,13 @@ export function setCurrentMode(m) { currentMode = m; }
 export let buildComplete = false;
 export function setBuildComplete(v) { buildComplete = v; }
 
-// Preset active flag — when true, changeDim fills new cells with 0 instead of random
-export let presetActive = false;
-export function setPresetActive(v) { presetActive = v; }
+// Preset fill functions — when set, changeDim uses these for new cells instead of rand
+export let presetFillA = null; // (i, j) => value
+export let presetFillB = null; // (j, k) => value
+export function setPresetFills(fillA, fillB) { presetFillA = fillA; presetFillB = fillB; }
+export function clearPresetFills() { presetFillA = null; presetFillB = null; }
+// Legacy compat: presetActive derived from fills being set
+export function isPresetActive() { return presetFillA !== null || presetFillB !== null; }
 
 // ── Info shelf toggle ──
 export let infoOpen = false;
@@ -82,9 +86,10 @@ export function changeDim(dim, delta) {
   else if (dim === 'K') K = Math.max(1, Math.min(5, K + delta));
   if (I === oldI && J === oldJ && K === oldK) return;
 
-  const fill = presetActive ? () => 0 : rand;
-  const newA = Array.from({length: I}, (_, i) => Array.from({length: J}, (_, j) => (i < oldI && j < oldJ) ? A[i][j] : fill()));
-  const newB = Array.from({length: J}, (_, j) => Array.from({length: K}, (_, k) => (j < oldJ && k < oldK) ? B[j][k] : fill()));
+  const fA = presetFillA || rand;
+  const fB = presetFillB || rand;
+  const newA = Array.from({length: I}, (_, i) => Array.from({length: J}, (_, j) => (i < oldI && j < oldJ) ? A[i][j] : fA(i, j)));
+  const newB = Array.from({length: J}, (_, j) => Array.from({length: K}, (_, k) => (j < oldJ && k < oldK) ? B[j][k] : fB(j, k)));
   A = newA; B = newB;
 
   Cube = Array.from({length: I}, (_, i) => Array.from({length: J}, (_, j) => Array.from({length: K}, (_, k) => A[i][j] * B[j][k])));

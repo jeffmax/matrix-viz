@@ -912,6 +912,19 @@ export function mmUpdateCanvasTitle() {
 export function mmJumpToCell(i, k) {
   // Only allow exploration after build completes (collapse or done phase)
   if (!buildComplete) return;
+  // Toggle: clicking the already-selected cell deselects it
+  if (mmSelectedI === i && mmSelectedK === k) {
+    mmClearSelection();
+    mmRenderResult();
+    mmHighlightCubeForExploration();
+    const fEl = document.getElementById('fMM');
+    if (fEl) fEl.innerHTML = buildMode === 'outer'
+      ? `All <span class="fc">${J}</span> slices built. Drag the slider to collapse them into the result.`
+      : `All <span class="fc">${I * K}</span> cells computed. Drag the slider to collapse the cube.`;
+    // Re-render standard A/B grids
+    renderA(-1, -1, -1); renderB(-1, -1, -1);
+    return;
+  }
   mmPauseAll();
   t1 = -1;
   mmHoverJVal = -1;

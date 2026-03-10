@@ -18,7 +18,7 @@ import { efInit, efRender, efFwd, efBack, efToggle, efReset, efPause,
          efJumpToPos, efTraceBack, efChangeDim } from './tab-embed-fwd.js';
 import { ebInit, ebRender, ebFwd, ebBack, ebToggle, ebReset, ebPause,
          ebJumpToPos, ebTraceBack, ebChangeDim } from './tab-embed-bwd.js';
-import { PRESETS, loadPreset, clearPreset, activePreset } from './presets.js';
+import { PRESETS, loadPreset, clearPreset, fullClearPreset, activePreset } from './presets.js';
 import { ipInit, ipRender, ipPause, ipReset, ipToggle, ipFwd, ipBack,
          ipEditCell, ipResize } from './tab-inner.js';
 
@@ -179,7 +179,7 @@ function buildPresetBar() {
 }
 
 function selectPreset(id) {
-  if (!id) { deselectPreset(); return; }
+  if (!id) { deselectPreset({ clearFills: true }); return; }
   const data = loadPreset(id);
   if (!data) return;
 
@@ -216,8 +216,9 @@ function selectPreset(id) {
   }
 }
 
-function deselectPreset() {
-  clearPreset();
+function deselectPreset({ clearFills = false } = {}) {
+  if (clearFills) fullClearPreset();
+  else clearPreset();
   resetLabels();
   const sel = document.getElementById('presetSelect');
   if (sel) sel.value = '';
@@ -236,7 +237,7 @@ function rebuild(rnd) {
   efPause(); ebPause();
   setBuildComplete(false);
 
-  deselectPreset();
+  deselectPreset({ clearFills: true });
 
   computeData(rnd);
   ipInit(rnd);
