@@ -744,20 +744,24 @@ export function mmReset() {
 export function mmScrubCollapse(t) {
   stopColAnim();
   mmClearSelection();
+  // Re-render A/B grids to standard view (clears exploration highlights)
+  renderA(-1, -1, -1); renderB(-1, -1, -1);
   // Hide both sub-viz panels during collapse
   const opPanel = document.getElementById('opDisplay');
   if (opPanel) { opPanel.classList.add('hidden'); opPanel.innerHTML = ''; }
   const subViz = document.getElementById('dpSubViz');
   if (subViz) subViz.style.display = 'none';
   if (mmPhase === 'build') {
-    ensureAllGreen();
+    if (boxes.length) ensureAllGreen();
     t1 = totalSteps() - 1;
   }
   mmPhase = 'collapse';
   collapseT = t;
   setBuildComplete(true);
-  if (t > 0 && plusPlanes.length === 0) addPlusPlanes();
-  applyCollapse(collapseT);
+  try {
+    if (t > 0 && plusPlanes.length === 0) addPlusPlanes();
+    applyCollapse(collapseT);
+  } catch (e) { /* WebGL unavailable */ }
   document.getElementById('spCollapse').disabled = false;
   document.getElementById('pbMM').textContent = '▶';
   if (collapseT >= 1) mmPhase = 'done';
@@ -988,7 +992,7 @@ function mmHighlightCubeForExploration() {
 
     if (collapsed) {
       if (selI >= 0 && i === selI && k === selK) {
-        paintBox(i, j, k, 0x20c0e0, 0.95, 0x0a3040, Res[i][k]);
+        paintBox(i, j, k, 0x20c0e0, 0.95, 0x0a3040, Res[i][k], '#000000');
       } else {
         paintBox(i, j, k, 0x50c878, 0.78, 0, Res[i][k]);
       }
@@ -997,9 +1001,9 @@ function mmHighlightCubeForExploration() {
         const factorStr = A[i][j] + '×' + B[j][k];
         paintBox(i, j, k, 0xe06000, 0.95, 0x2a0e00, factorStr);
       } else if (mmHoverJVal >= 0) {
-        paintBox(i, j, k, 0x20c0e0, 0.50, 0, Cube[i][j][k]);
+        paintBox(i, j, k, 0x20c0e0, 0.50, 0, Cube[i][j][k], '#000000');
       } else {
-        paintBox(i, j, k, 0x20c0e0, 0.95, 0x0a3040, Cube[i][j][k]);
+        paintBox(i, j, k, 0x20c0e0, 0.95, 0x0a3040, Cube[i][j][k], '#000000');
       }
     } else if (selI >= 0) {
       paintBox(i, j, k, 0x50c878, 0.25, 0, Cube[i][j][k]);

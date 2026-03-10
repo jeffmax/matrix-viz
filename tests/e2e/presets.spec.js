@@ -718,3 +718,52 @@ test('clicking already-selected result cell deselects it', async ({ page }) => {
   expect(result.hasCurAfterDeselect).toBe(false);
   expect(result.hint2).toContain('click cell');
 });
+
+test('collapsing while cell selected clears A/B exploration highlights', async ({ page }) => {
+  await gotoMatmul(page);
+
+  const result = await page.evaluate(() => {
+    try { window.selectPreset('identity'); } catch (e) {}
+
+    // Complete the build
+    for (let i = 0; i < 9; i++) {
+      try { window.mmFwd(); } catch (e) {}
+    }
+
+    // Select cell (1,1) — enters exploration mode
+    try { window.mmJumpToCell(1, 1); } catch (e) {}
+
+    // Check that A panel has exploration-style highlights (.hi class)
+    const panelA = document.getElementById('mmPanelA');
+    const highlightedBefore = panelA?.querySelectorAll('.mat-cell.hi').length || 0;
+
+    // Now scrub collapse to 50%
+    try { window.mmScrubCollapse(0.5); } catch (e) {}
+
+    // Check result grid — should have no selected cell
+    const grid = document.getElementById('mmResultGrid');
+    const hasCurAfterCollapse = !!grid?.querySelector('.mat-cell.cur');
+
+    // Check A panel — exploration highlights should be gone
+    const panelAAfter = document.getElementById('mmPanelA');
+    const highlightedAfter = panelAAfter?.querySelectorAll('.mat-cell.hi').length || 0;
+
+    // Check sub-viz is hidden
+    const subViz = document.getElementById('dpSubViz');
+    const subVizHidden = !subViz || subViz.style.display === 'none';
+
+    return { highlightedBefore, hasCurAfterCollapse, highlightedAfter, subVizHidden };
+  });
+
+  // Before collapse, exploration was active
+  expect(result.highlightedBefore).toBeGreaterThan(0);
+
+  // After collapse, no selected result cell
+  expect(result.hasCurAfterCollapse).toBe(false);
+
+  // After collapse, no exploration highlights in A panel
+  expect(result.highlightedAfter).toBe(0);
+
+  // Sub-viz should be hidden
+  expect(result.subVizHidden).toBe(true);
+});

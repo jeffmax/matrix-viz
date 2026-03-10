@@ -40,12 +40,12 @@ export function rebuildBoxes() {
   orb.theta = FIXED_THETA; orb.phi = FIXED_PHI;
 }
 
-export function paintBox(i, j, k, col, opacity, emissive, val) {
+export function paintBox(i, j, k, col, opacity, emissive, val, textColor) {
   const b = boxes[i][j][k];
   b.mat.color.setHex(col); b.mat.opacity = opacity; b.mat.emissive.setHex(emissive || 0);
   b.em.color.setHex(col === 0xeeeeee ? 0xcccccc : col); b.em.opacity = opacity < 0.2 ? 0.18 : 0.65;
   b.mesh.visible = true; b.edges.visible = true;
-  if (val != null) { b.spr.material.map = makeTex(val, '#ffffff'); b.spr.material.needsUpdate = true; b.spr.material.opacity = 1; b.spr.visible = true; }
+  if (val != null) { b.spr.material.map = makeTex(val, textColor || '#ffffff'); b.spr.material.needsUpdate = true; b.spr.material.opacity = 1; b.spr.visible = true; }
   else { b.spr.visible = false; }
 }
 
