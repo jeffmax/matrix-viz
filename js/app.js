@@ -15,7 +15,7 @@ import { mmPauseAll, mmReset, mmToggle, mmFwd, mmBack, mmScrubCollapse,
          mmRenderResult, mmSelectResultCell, mmJumpToCell, mmHoverCell, mmClearHover,
          setBuildMode, dpRenderVectorIntro, buildMode, mmToggleDetail } from './tab-matmul.js';
 import { efInit, efRender, efFwd, efBack, efToggle, efReset, efPause,
-         efJumpToPos, efTraceBack, efChangeDim, efToggleDetail } from './tab-embed-fwd.js';
+         efJumpToPos, efTraceBack, efChangeDim, efToggleDetail, getEfState } from './tab-embed-fwd.js';
 import { ebInit, ebRender, ebFwd, ebBack, ebToggle, ebReset, ebPause,
          ebJumpToPos, ebTraceBack, ebChangeDim } from './tab-embed-bwd.js';
 import { PRESETS, loadPreset, clearPreset, fullClearPreset, activePreset } from './presets.js';
@@ -480,6 +480,7 @@ window.efJumpToPos = efJumpToPos;
 window.efTraceBack = efTraceBack;
 window.efChangeDim = efChangeDim;
 window.efToggleDetail = efToggleDetail;
+window.getEfState = getEfState;
 // Embedding Backward (hidden, kept for future use)
 window.ebFwd = ebFwd;
 window.ebBack = ebBack;

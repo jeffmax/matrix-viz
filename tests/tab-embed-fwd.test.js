@@ -263,10 +263,11 @@ describe('tab-embed-fwd', () => {
   it('stacked tensor expands on mouseenter', () => {
     efRender();
     const wrap = document.getElementById('efDisplay');
-    const stackedEl = wrap.querySelector('.ef-stacked-tensor.expandable');
-    stackedEl.dispatchEvent(new Event('mouseenter'));
+    const anchor = wrap.querySelector('.ef-stacked-anchor');
+    const stackedEl = anchor.querySelector('.ef-stacked-tensor.expandable');
+    anchor.dispatchEvent(new Event('mouseenter'));
     expect(stackedEl.classList.contains('expanded')).toBe(true);
-    stackedEl.dispatchEvent(new Event('mouseleave'));
+    anchor.dispatchEvent(new Event('mouseleave'));
     expect(stackedEl.classList.contains('expanded')).toBe(false);
   });
 

@@ -133,6 +133,10 @@ function renderStackedTensor(data3D, axisLabels, options = {}) {
 
   const expandable = options.expandable ?? false;
   const expandCls = expandable ? ' expandable' : '';
+  // Wrapper keeps original dimensions when the stacked tensor goes absolute on expand
+  if (expandable) {
+    html += `<div class="ef-stacked-anchor" style="width:${totalW}px;height:${totalH}px;position:relative">`;
+  }
   html += `<div class="ef-stacked-tensor${expandCls}" style="width:${totalW}px;height:${totalH}px">`;
 
   // Render pages back to front (b=0 on top, higher batches behind/below)
@@ -184,6 +188,9 @@ function renderStackedTensor(data3D, axisLabels, options = {}) {
     html += '</div>'; // tensor-page
   }
   html += '</div>'; // stacked-tensor
+  if (expandable) {
+    html += '</div>'; // ef-stacked-anchor
+  }
 
   html += '</div>'; // body-row
   html += '</div>'; // tensor-with-axes
@@ -192,12 +199,25 @@ function renderStackedTensor(data3D, axisLabels, options = {}) {
 
 // ── Wire hover-to-expand on stacked tensors ──
 function wireStackedHover(container) {
-  const stackeds = container.querySelectorAll('.ef-stacked-tensor.expandable');
-  stackeds.forEach(el => {
-    el.addEventListener('mouseenter', () => {
-      if (!efPlaying) el.classList.add('expanded');
+  const anchors = container.querySelectorAll('.ef-stacked-anchor');
+  anchors.forEach(anchor => {
+    const el = anchor.querySelector('.ef-stacked-tensor.expandable');
+    if (!el) return;
+    anchor.addEventListener('mouseenter', () => {
+      if (efPlaying) return;
+      el.classList.add('expanded');
+      // Reorder pages so front-page is in the middle, others above/below
+      const pages = Array.from(el.querySelectorAll('.ef-tensor-page'));
+      const front = pages.find(p => p.classList.contains('front-page'));
+      if (front) {
+        // Move front page to end so it appears last (bottom in normal flow)
+        // But we want: back pages above, front page below
+        // Current DOM order from renderStackedTensor: highest batch first
+        // Just ensure front page is visually stable — no reorder needed
+        // The CSS handles position:relative for all pages when expanded
+      }
     });
-    el.addEventListener('mouseleave', () => {
+    anchor.addEventListener('mouseleave', () => {
       el.classList.remove('expanded');
     });
   });
