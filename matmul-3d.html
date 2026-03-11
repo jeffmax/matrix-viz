@@ -755,12 +755,10 @@ input[type=range] { width: 88px; accent-color: #333; }
 }
 .ef-tensor-row {
   display: flex; align-items: flex-start; justify-content: center;
-  gap: 0; width: 100%; position: relative;
+  gap: 0; width: 100%;
 }
 .ef-pill-block {
-  display: flex; flex-direction: column; align-items: center;
-  justify-content: center; padding-top: 30px;
-  flex-shrink: 0; position: absolute; left: -120px; top: 30px; z-index: 5;
+  display: none; /* pill now rendered inside X tensor block */
 }
 .ef-tensor-block {
   display: flex; flex-direction: column; align-items: center; gap: 6px;

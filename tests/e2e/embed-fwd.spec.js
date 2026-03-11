@@ -13,23 +13,19 @@ async function gotoEmbedFwd(page) {
   await expect(page.locator('#ctrl-embed-fwd')).not.toHaveClass(/hidden/);
 }
 
-// ── Bug 1: Pill should be positioned close to left, not in the way ──
-test('F.one_hot pill is near the left edge, not overlapping tensors', async ({ page }) => {
+// ── Bug 1: Pill should be above X tensor, not overlapping W or Y ──
+test('F.one_hot pill is above X tensor and does not overlap W', async ({ page }) => {
   await gotoEmbedFwd(page);
-  // Step forward so we're in active mode with sub-viz
-  await page.evaluate(() => { window.efFwd(); });
 
   const pill = page.locator('.ef-prior-pill');
   await expect(pill).toBeVisible();
 
-  // The pill should be positioned near the left edge of the layout
   const pillBox = await pill.boundingBox();
-  const xTensor = page.locator('.ef-tensor-block').first();
-  const xBox = await xTensor.boundingBox();
+  const wTensor = page.locator('.ef-tensor-block').nth(1);
+  const wBox = await wTensor.boundingBox();
 
-  // Pill's right edge should not overlap with the X tensor's content area
-  // (pill should be to the left of X, not in the middle of things)
-  expect(pillBox.x + pillBox.width).toBeLessThan(xBox.x + xBox.width * 0.5);
+  // Pill should be entirely to the left of the W tensor
+  expect(pillBox.x + pillBox.width).toBeLessThan(wBox.x);
 });
 
 // ── Bug 2: Batch hover should not disrupt horizontal flow ──
