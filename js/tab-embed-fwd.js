@@ -13,6 +13,7 @@ let efStep = -1;        // -1 = overview, 0..P-1 = stepping through positions
 let efPlaying = false;
 let efTm = null;
 let efSelectedCell = null; // {b, l, c} for trace-back
+let efDetail = false;      // detail mode (show intermediate H×C grid)
 
 const totalPositions = () => eB * eL;
 const posTobl = (p) => [Math.floor(p / eL), p % eL];
@@ -232,17 +233,14 @@ function renderPriorPill() {
     + `<div class="ef-pill-tooltip">${tooltip}</div></div>`;
 }
 
-// ── One-hot column for contraction detail ──
-function renderOneHotSlice(b, l) {
+// ── One-hot row for contraction detail (horizontal, matches X display) ──
+function renderOneHotRow(b, l) {
   const tok = tokenIds[b][l];
-  let html = '<div class="ef-onehot-col">';
+  let html = '<div class="ef-hrow">';
   for (let h = 0; h < eH; h++) {
     const val = h === tok ? 1 : 0;
     const cls = val === 1 ? 'mat-cell a cur' : 'mat-cell a dim';
-    html += '<div class="ef-onehot-row">';
-    html += `<span class="ef-onehot-rowlabel">h=${h}</span>`;
-    html += `<div class="${cls}" style="width:36px;height:36px;font-size:0.82rem">${val}</div>`;
-    html += '</div>';
+    html += `<div class="${cls}" style="width:32px;height:32px;font-size:0.78rem">${val}</div>`;
   }
   html += '</div>';
   return html;
@@ -286,54 +284,87 @@ function renderIntermediate(b, l) {
   return html;
 }
 
-// ── Output vector for contraction result ──
-function renderOutputVec(b, l) {
-  let html = '<div style="display:flex;flex-direction:column;gap:3px">';
+// ── Output row for contraction result (horizontal) ──
+function renderOutputRow(b, l) {
+  let html = '<div class="ef-hrow">';
   for (let c = 0; c < eC; c++) {
-    html += `<div class="mat-cell r cur" style="width:36px;height:36px;font-size:0.78rem" `
+    html += `<div class="mat-cell r cur" style="width:32px;height:32px;font-size:0.78rem" `
       + `onclick="efTraceBack(${b},${l},${c})">${Y[b][l][c]}</div>`;
   }
   html += '</div>';
   return html;
 }
 
-// ── Contraction detail panel (horizontal flow) ──
+// ── Contraction detail panel ──
 function renderContractionDetail(b, l) {
   const tok = tokenIds[b][l];
 
-  let html = '<div class="ef-contraction-detail">';
+  if (!efDetail) {
+    // Compact: X[b,l,:] × W → W[tok,:] = Y[b,l,:]
+    let html = '<div class="ef-subviz">';
 
-  // One-hot slice
-  html += '<div class="ef-contraction-section">';
-  html += `<div class="ef-contraction-label">X[${b},${l},:]</div>`;
-  html += renderOneHotSlice(b, l);
+    // Row 1: X row → W → result
+    html += '<div class="ef-subviz-row">';
+
+    html += '<div class="ef-subviz-section">';
+    html += `<div class="ef-subviz-label">X[${b},${l},:] (1&times;${eH})</div>`;
+    html += renderOneHotRow(b, l);
+    html += '</div>';
+
+    html += '<div class="ef-subviz-sym">&times;</div>';
+
+    html += '<div class="ef-subviz-section">';
+    html += `<div class="ef-subviz-label">W (${eH}&times;${eC})</div>`;
+    html += renderWTable(tok);
+    html += '</div>';
+
+    html += '<div class="ef-subviz-sym">=</div>';
+
+    html += '<div class="ef-subviz-section">';
+    html += `<div class="ef-subviz-label">W[${tok},:] = Y[${b},${l},:]</div>`;
+    html += renderOutputRow(b, l);
+    html += '</div>';
+
+    html += '</div>'; // subviz-row
+    html += '</div>'; // subviz
+    return html;
+  }
+
+  // Detail mode: show full H×C intermediate grid
+  let html = '<div class="ef-subviz">';
+
+  // Row 1: X row
+  html += '<div class="ef-subviz-row">';
+
+  html += '<div class="ef-subviz-section">';
+  html += `<div class="ef-subviz-label">X[${b},${l},:] (1&times;${eH})</div>`;
+  html += renderOneHotRow(b, l);
   html += '</div>';
 
-  html += '<div class="ef-contraction-sym">&times;</div>';
+  html += '<div class="ef-subviz-sym">&times;</div>';
 
-  // W table with fading
-  html += '<div class="ef-contraction-section">';
-  html += '<div class="ef-contraction-label">W</div>';
+  html += '<div class="ef-subviz-section">';
+  html += `<div class="ef-subviz-label">W (${eH}&times;${eC})</div>`;
   html += renderWTable(tok);
   html += '</div>';
 
-  html += '<div class="ef-contraction-sym">=</div>';
+  html += '<div class="ef-subviz-sym">=</div>';
 
   // Intermediate H×C grid
-  html += '<div class="ef-contraction-section">';
-  html += `<div class="ef-contraction-label">X[${b},${l},:] &middot; W</div>`;
+  html += '<div class="ef-inter-section">';
+  html += `<div class="ef-subviz-label">X[${b},${l},h]&times;W[h,c]</div>`;
   html += renderIntermediate(b, l);
   html += '</div>';
 
-  html += '<div class="ef-contraction-sym">&Sigma;<sub style="font-size:0.6em">h</sub>&rarr;</div>';
+  html += '<div class="ef-subviz-sym">&Sigma;<sub style="font-size:0.6em">h</sub>&rarr;</div>';
 
-  // Output vector
-  html += '<div class="ef-contraction-section">';
-  html += `<div class="ef-contraction-label">Y[${b},${l},:]</div>`;
-  html += renderOutputVec(b, l);
+  html += '<div class="ef-subviz-section">';
+  html += `<div class="ef-subviz-label">Y[${b},${l},:]</div>`;
+  html += renderOutputRow(b, l);
   html += '</div>';
 
-  html += '</div>';
+  html += '</div>'; // subviz-row
+  html += '</div>'; // subviz
   return html;
 }
 
@@ -578,6 +609,12 @@ export function efJumpToPos(p) {
   efRender();
 }
 
+// ── Detail toggle ──
+export function efToggleDetail() {
+  efDetail = !!document.getElementById('chkEfDetail')?.checked;
+  efRender();
+}
+
 // ── Dimension changes ──
 export function efChangeDim(dim, delta) {
   if (dim === 'B') eB = Math.max(1, Math.min(4, eB + delta));
@@ -591,5 +628,5 @@ export function efChangeDim(dim, delta) {
 // ── Getters for tests ──
 /* @testable */
 export function getEfState() {
-  return { eB, eL, eH, eC, tokenIds, X, W, Y, efStep, efPlaying, efSelectedCell };
+  return { eB, eL, eH, eC, tokenIds, X, W, Y, efStep, efPlaying, efSelectedCell, efDetail };
 }

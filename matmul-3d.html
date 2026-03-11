@@ -688,22 +688,24 @@ input[type=range] { width: 88px; accent-color: #333; }
   display: block;
 }
 .ef-pill-tooltip {
-  display: none; position: absolute; top: 100%; left: 0;
-  margin-top: 6px; z-index: 10;
+  display: none; position: absolute; left: 100%; top: 50%;
+  transform: translateY(-50%); margin-left: 8px; z-index: 10;
   background: #fff; border: 1px solid #ddd; border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.10);
   padding: 10px 14px; font-size: 0.70rem; line-height: 1.6;
   color: #444; white-space: nowrap; text-align: left; width: max-content;
 }
 .ef-pill-tooltip::before {
-  content: ''; position: absolute; top: -6px; left: 20px;
-  border-left: 6px solid transparent; border-right: 6px solid transparent;
-  border-bottom: 6px solid #ddd;
+  content: ''; position: absolute; left: -6px; top: 50%;
+  transform: translateY(-50%);
+  border-top: 6px solid transparent; border-bottom: 6px solid transparent;
+  border-right: 6px solid #ddd;
 }
 .ef-pill-tooltip::after {
-  content: ''; position: absolute; top: -5px; left: 21px;
-  border-left: 5px solid transparent; border-right: 5px solid transparent;
-  border-bottom: 5px solid #fff;
+  content: ''; position: absolute; left: -5px; top: 50%;
+  transform: translateY(-50%);
+  border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+  border-right: 5px solid #fff;
 }
 /* Token grid inside pill tooltip */
 .ef-pill-token-grid {
@@ -762,6 +764,7 @@ input[type=range] { width: 88px; accent-color: #333; }
 }
 .ef-tensor-block {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
+  position: relative;
 }
 
 /* ── Token ID row labels ── */
@@ -777,9 +780,15 @@ input[type=range] { width: 88px; accent-color: #333; }
   cursor: pointer;
 }
 .ef-stacked-tensor.expanded {
-  /* Override the fixed height — let pages flow vertically */
+  /* Float over content instead of pushing it down */
+  position: absolute !important;
+  z-index: 20;
   height: auto !important;
   width: auto !important;
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  padding: 6px;
 }
 .ef-stacked-tensor.expanded .ef-tensor-page {
   position: relative !important;
@@ -816,6 +825,34 @@ input[type=range] { width: 88px; accent-color: #333; }
 .ef-row-highlight {
   background: rgba(224, 96, 0, 0.08);
   border-radius: 3px;
+}
+
+/* ── Horizontal sub-viz (one-hot row × W) ── */
+.ef-subviz {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 8px; padding: 10px 0; background: #fafafa;
+  border: 1px solid #e8e8e8; border-radius: 6px; margin-top: 4px;
+}
+.ef-subviz-row {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.ef-subviz-label {
+  font-size: 0.58rem; color: #aaa; letter-spacing: .04em;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  text-align: center;
+}
+.ef-subviz-sym {
+  font-size: 1.1rem; color: #bbb; font-weight: 300;
+  flex-shrink: 0; padding: 0 4px;
+}
+.ef-subviz-section {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.ef-hrow {
+  display: flex; gap: 3px;
+}
+.ef-inter-section {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
 }
 </style>
 </head>
@@ -1104,6 +1141,10 @@ input[type=range] { width: 88px; accent-color: #333; }
           <span>fast</span>
         </div>
       </div>
+      <label class="detail-chk" style="margin-left:10px">
+        <input type="checkbox" id="chkEfDetail" onchange="efToggleDetail()">
+        <span>Show detail</span>
+      </label>
       <div class="einsum-badge" id="einsumEmbedFwd"></div>
     </div>
     <div id="efDisplay" class="ef-wrap"></div>

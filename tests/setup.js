@@ -174,6 +174,7 @@ function buildDOM() {
     <div id="ctrl-embed-fwd" class="hidden">
       <button id="pbEF">▶</button>
       <input type="range" id="spEF" value="600">
+      <input type="checkbox" id="chkEfDetail">
       <div id="efDisplay"></div>
       <div id="fEF"></div>
       <div id="dEF"></div>

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { efInit, efRender, efFwd, efBack, efReset, efJumpToPos,
-         efTraceBack, efPause, getEfState } from '../js/tab-embed-fwd.js';
+         efTraceBack, efPause, efToggleDetail, getEfState } from '../js/tab-embed-fwd.js';
 
 describe('tab-embed-fwd', () => {
   beforeEach(() => {
@@ -144,31 +144,35 @@ describe('tab-embed-fwd', () => {
     efFwd();
     efRender();
     const wrap = document.getElementById('efDisplay');
-    expect(wrap.querySelector('.ef-contraction-detail')).not.toBeNull();
+    expect(wrap.querySelector('.ef-subviz')).not.toBeNull();
   });
 
   it('overview mode has no contraction detail', () => {
     efRender();
     const wrap = document.getElementById('efDisplay');
-    expect(wrap.querySelector('.ef-contraction-detail')).toBeNull();
+    expect(wrap.querySelector('.ef-subviz')).toBeNull();
   });
 
-  it('contraction detail: one-hot column has eH rows', () => {
+  it('one-hot row has eH cells in compact mode', () => {
     efFwd();
     efRender();
     const wrap = document.getElementById('efDisplay');
-    const onehotCol = wrap.querySelector('.ef-onehot-col');
-    expect(onehotCol).not.toBeNull();
+    const hrow = wrap.querySelector('.ef-subviz .ef-hrow');
+    expect(hrow).not.toBeNull();
     const s = getEfState();
-    const rows = onehotCol.querySelectorAll('.ef-onehot-row');
-    expect(rows.length).toBe(s.eH);
+    const cells = hrow.querySelectorAll('.mat-cell.a');
+    expect(cells.length).toBe(s.eH);
     // Exactly one cell should have value "1" with class 'cur'
-    const curCells = onehotCol.querySelectorAll('.mat-cell.a.cur');
+    const curCells = hrow.querySelectorAll('.mat-cell.a.cur');
     expect(curCells.length).toBe(1);
     expect(curCells[0].textContent).toBe('1');
   });
 
-  it('intermediate grid shows zeros for non-token rows', () => {
+  it('intermediate grid shows zeros for non-token rows (detail mode)', () => {
+    // Enable detail mode
+    const chk = document.getElementById('chkEfDetail');
+    chk.checked = true;
+    efToggleDetail();
     efFwd();
     efRender();
     const wrap = document.getElementById('efDisplay');
@@ -187,13 +191,19 @@ describe('tab-embed-fwd', () => {
         }
       }
     }
+    chk.checked = false;
+    efToggleDetail();
   });
 
-  it('intermediate grid shows W values for token row', () => {
+  it('intermediate grid shows W values for token row (detail mode)', () => {
+    const chk = document.getElementById('chkEfDetail');
+    chk.checked = true;
+    efToggleDetail();
     efFwd();
     efRender();
     const wrap = document.getElementById('efDisplay');
     const interGrid = wrap.querySelector('.ef-inter-grid');
+    expect(interGrid).not.toBeNull();
     const s = getEfState();
     const tok = s.tokenIds[0][0];
     const cells = interGrid.querySelectorAll('.mat-cell');
@@ -202,15 +212,16 @@ describe('tab-embed-fwd', () => {
       expect(cell.textContent).toBe(String(s.W[tok][c]));
       expect(cell.classList.contains('cur')).toBe(true);
     }
+    chk.checked = false;
+    efToggleDetail();
   });
 
-  it('W grid rows are faded in contraction detail when position is active', () => {
+  it('W grid rows are faded in sub-viz when position is active', () => {
     efFwd();
     efRender();
     const wrap = document.getElementById('efDisplay');
-    // Contraction detail W table has faded rows
-    const contraction = wrap.querySelector('.ef-contraction-detail');
-    const fadedCells = contraction.querySelectorAll('.ef-w-row-faded');
+    const subviz = wrap.querySelector('.ef-subviz');
+    const fadedCells = subviz.querySelectorAll('.ef-w-row-faded');
     const s = getEfState();
     // (eH - 1) rows faded × eC cells each
     expect(fadedCells.length).toBe((s.eH - 1) * s.eC);
