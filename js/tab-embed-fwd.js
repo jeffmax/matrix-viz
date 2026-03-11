@@ -102,6 +102,7 @@ function renderStackedTensor(data3D, axisLabels, options = {}) {
   const emptyPages = options.emptyPages ?? false;
   const doneUpTo = options.doneUpTo ?? -1; // for Y: fill up to this (b,l) position
   const onCellClick = options.onCellClick || null;
+  const rowLabels = options.rowLabels || null; // rowLabels[page][row] → label string
 
   const offsetX = 6; // px right per back page
   const offsetY = 4; // px up per back page
@@ -123,7 +124,8 @@ function renderStackedTensor(data3D, axisLabels, options = {}) {
   }
 
   // Calculate total stacked area
-  const gridW = cols * (sz + 3) - 3;
+  const labelExtra = rowLabels ? 24 : 0;
+  const gridW = cols * (sz + 3) - 3 + labelExtra;
   const gridH = rows * (sz + 3) - 3;
   const totalW = gridW + (pages - 1) * offsetX + 10;
   const totalH = gridH + (pages - 1) * offsetY + 30;
@@ -132,24 +134,30 @@ function renderStackedTensor(data3D, axisLabels, options = {}) {
   const expandCls = expandable ? ' expandable' : '';
   html += `<div class="ef-stacked-tensor${expandCls}" style="width:${totalW}px;height:${totalH}px">`;
 
-  // Render pages back to front
+  // Render pages back to front (b=0 on top, higher batches behind/below)
   for (let p = pages - 1; p >= 0; p--) {
-    const ox = p * offsetX;
-    const oy = (pages - 1 - p) * offsetY;
+    const ox = (pages - 1 - p) * offsetX;
+    const oy = p * offsetY;
     const isActive = p === activePage;
     const isFront = p === (activePage >= 0 ? activePage : 0);
     const pageCls = `ef-tensor-page${isFront ? ' front-page' : ' back-page'}${isActive ? ' active-page' : ''}`;
 
-    html += `<div class="${pageCls}" style="left:${ox}px;top:${oy}px;z-index:${p === activePage ? 10 : p}">`;
+    html += `<div class="${pageCls}" style="left:${ox}px;top:${oy}px;z-index:${p === activePage ? 10 : pages - 1 - p}">`;
 
     // Page header
     const headerCls = isActive ? 'ef-page-header active' : 'ef-page-header';
     html += `<div class="${headerCls}">${axisLabels.pageLabel || 'b'}=${p}</div>`;
 
     // Grid
-    html += `<div class="grid" style="grid-template-columns: repeat(${cols}, ${sz}px)">`;
+    const labelCol = rowLabels ? 'auto ' : '';
+    html += `<div class="grid" style="grid-template-columns: ${labelCol}repeat(${cols}, ${sz}px)">`;
     for (let r = 0; r < rows; r++) {
       const isActiveRow = isActive && r === activeRow;
+      if (rowLabels) {
+        const lbl = rowLabels[p] ? (rowLabels[p][r] ?? '') : '';
+        const lblCls = isActiveRow ? 'ef-row-label active' : 'ef-row-label';
+        html += `<div class="${lblCls}">${lbl}</div>`;
+      }
       for (let c = 0; c < cols; c++) {
         const val = data3D[p][r][c];
         const pos = blToPos(p, r);
@@ -367,7 +375,7 @@ function renderOverview(wrap) {
     top: 'h &rarr;', topContracted: true,
     left: 'l &darr;', leftContracted: false,
     pageLabel: 'b'
-  }, { cellRenderer: xCellRenderer, cellSize: 32, expandable: !efPlaying });
+  }, { cellRenderer: xCellRenderer, cellSize: 32, expandable: !efPlaying, rowLabels: tokenIds });
   html += '</div>';
 
   // W tensor (H×C) — 2D grid
@@ -421,7 +429,7 @@ function renderActivePosition(wrap) {
     top: 'h &rarr;', topContracted: true,
     left: 'l &darr;', leftContracted: false,
     pageLabel: 'b'
-  }, { activePage: b, activeRow: l, cellRenderer: xCellRenderer, cellSize: 32, expandable: !efPlaying });
+  }, { activePage: b, activeRow: l, cellRenderer: xCellRenderer, cellSize: 32, expandable: !efPlaying, rowLabels: tokenIds });
   html += '</div>';
 
   // W tensor with active row
