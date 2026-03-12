@@ -86,61 +86,101 @@ test('embed fwd detail checkbox says "Element by element"', async ({ page }) => 
 });
 
 // ── Bug 4: Detail checkbox toggles sub-viz content ──
-test('detail checkbox toggles between compact and element-by-element views', async ({ page }) => {
+test('detail checkbox toggles between dot-product and compact views', async ({ page }) => {
   await gotoEmbedFwd(page);
-  // Step to show sub-viz
+  // Step to show sub-viz — detail mode is on by default
   await page.evaluate(() => { window.efFwd(); });
 
-  // Sub-viz should be visible (compact mode)
+  // Sub-viz should be visible with dot-product columns (detail mode default)
   await expect(page.locator('.ef-subviz')).toBeVisible();
-
-  // Get HTML of sub-viz in compact mode
-  const compactHTML = await page.locator('.ef-subviz').innerHTML();
-
-  // Should NOT have the intermediate grid in compact mode
-  expect(compactHTML).not.toContain('ef-inter-grid');
-
-  // Toggle detail on
-  await page.evaluate(() => {
-    document.getElementById('chkEfDetail').checked = true;
-    window.efToggleDetail();
-  });
-
-  // Sub-viz should now show intermediate grid
   const detailHTML = await page.locator('.ef-subviz').innerHTML();
-  expect(detailHTML).toContain('ef-inter-grid');
+  expect(detailHTML).toContain('ef-dot-products');
+  expect(detailHTML).not.toContain('ef-w-grid');
 
-  // Toggle detail off
+  // Toggle detail off → compact mode
   await page.evaluate(() => {
     document.getElementById('chkEfDetail').checked = false;
     window.efToggleDetail();
   });
 
-  // Should be back to compact
-  const compactHTML2 = await page.locator('.ef-subviz').innerHTML();
-  expect(compactHTML2).not.toContain('ef-inter-grid');
-});
+  const compactHTML = await page.locator('.ef-subviz').innerHTML();
+  expect(compactHTML).toContain('ef-w-grid');
+  expect(compactHTML).not.toContain('ef-dot-products');
 
-// ── Bug 5: Detail mode shows per-cell calculation ──
-test('detail mode shows element-by-element calculation for each cell', async ({ page }) => {
-  await gotoEmbedFwd(page);
-  await page.evaluate(() => { window.efFwd(); });
-
-  // Enable detail mode
+  // Toggle detail on → back to dot-product view
   await page.evaluate(() => {
     document.getElementById('chkEfDetail').checked = true;
     window.efToggleDetail();
   });
 
-  // The intermediate grid should show the element-wise products
-  const interGrid = page.locator('.ef-inter-grid');
-  await expect(interGrid).toBeVisible();
+  const detailHTML2 = await page.locator('.ef-subviz').innerHTML();
+  expect(detailHTML2).toContain('ef-dot-products');
+});
 
-  // It should have H*C cells (4*3 = 12 by default)
+// ── Bug 5: Detail mode shows dot-product breakdown ──
+test('detail mode shows dot-product columns with products and sums', async ({ page }) => {
+  await gotoEmbedFwd(page);
+  await page.evaluate(() => { window.efFwd(); });
+
+  // Detail mode is on by default — should show dot-product columns
   const state = await page.evaluate(() => {
     const s = window.getEfState();
-    return { eH: s.eH, eC: s.eC };
+    return { eH: s.eH, eC: s.eC, tok: s.tokenIds[0][0] };
   });
-  const cells = await interGrid.locator('.mat-cell').count();
-  expect(cells).toBe(state.eH * state.eC);
+
+  // Should have eC dot-product columns
+  const dotCols = page.locator('.ef-dot-col');
+  await expect(dotCols).toHaveCount(state.eC);
+
+  // Each column has row vector (eH cells) and column vector (eH cells)
+  const col0 = dotCols.first();
+  const rowVec = col0.locator('.dp-sub-viz-vec:not(.col) .mat-cell');
+  await expect(rowVec).toHaveCount(state.eH);
+  const colVec = col0.locator('.dp-sub-viz-vec.col .mat-cell');
+  await expect(colVec).toHaveCount(state.eH);
+
+  // Products line: eH terms, exactly 1 cur and eH-1 dim
+  const curProds = col0.locator('.dp-term-prod.cur');
+  await expect(curProds).toHaveCount(1);
+  const dimProds = col0.locator('.dp-term-prod.dim');
+  await expect(dimProds).toHaveCount(state.eH - 1);
+
+  // Sum line exists
+  const accum = col0.locator('.dp-accum');
+  await expect(accum).toHaveCount(1);
+
+  // Insight callout should mention row selection
+  const insight = page.locator('.ef-term-insight');
+  await expect(insight).toBeVisible();
+  await expect(insight).toContainText('selects row');
+});
+
+// ── Bug 6: Detail mode steps same as compact (per position, not per h) ──
+test('detail mode does not add extra steps per h element', async ({ page }) => {
+  await gotoEmbedFwd(page);
+
+  const state = await page.evaluate(() => {
+    const s = window.getEfState();
+    return { eB: s.eB, eL: s.eL, eH: s.eH };
+  });
+
+  // Step through all positions — should be eB*eL steps total, not eB*eL*eH
+  const totalPositions = state.eB * state.eL;
+
+  for (let i = 0; i < totalPositions; i++) {
+    await page.evaluate(() => { window.efFwd(); });
+  }
+
+  // Should be at the last position
+  const finalStep = await page.evaluate(() => window.getEfState().efStep);
+  expect(finalStep).toBe(totalPositions - 1);
+
+  // One more step should NOT advance further
+  await page.evaluate(() => { window.efFwd(); });
+  const noAdvance = await page.evaluate(() => window.getEfState().efStep);
+  expect(noAdvance).toBe(totalPositions - 1);
+
+  // Step dots should match position count, not position*eH count
+  const dotCount = await page.locator('#dEF .step-dot').count();
+  expect(dotCount).toBe(totalPositions);
 });

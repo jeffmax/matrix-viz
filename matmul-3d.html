@@ -609,6 +609,7 @@ input[type=range] { width: 88px; accent-color: #333; }
   display: grid; gap: 3px;
 }
 .ef-w-row-faded { opacity: 0.18; }
+.ef-h-pending { background: #f0f0f0; border: 1px dashed #ddd; opacity: 0.3; }
 /* Mini one-hot dots inside token cells */
 .ef-mini-onehot {
   display: flex; gap: 2px; justify-content: center; margin-top: 2px;
@@ -857,6 +858,24 @@ input[type=range] { width: 88px; accent-color: #333; }
 }
 .ef-inter-section {
   display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+/* ── Dot-product detail view (mirrors matmul sub-viz) ── */
+.ef-dot-products {
+  display: flex; gap: 24px; justify-content: center; flex-wrap: wrap;
+}
+.ef-dot-col {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 8px 12px; border: 1px solid #e8e8e8; border-radius: 6px;
+  background: #fff;
+}
+.ef-dot-header {
+  font-size: 0.68rem; color: #666; font-weight: 600;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+}
+.ef-term-insight {
+  font-size: 0.72rem; color: #888; text-align: center;
+  padding: 8px 12px; margin-top: 6px;
+  background: #f8f8f4; border-radius: 4px; border: 1px solid #e8e4d8;
 }
 </style>
 </head>
@@ -1146,7 +1165,7 @@ input[type=range] { width: 88px; accent-color: #333; }
         </div>
       </div>
       <label class="detail-chk" style="margin-left:10px">
-        <input type="checkbox" id="chkEfDetail" onchange="efToggleDetail()">
+        <input type="checkbox" id="chkEfDetail" checked onchange="efToggleDetail()">
         <span id="chkEfDetailLabel">Element by element</span>
       </label>
       <div class="einsum-badge" id="einsumEmbedFwd"></div>

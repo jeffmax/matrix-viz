@@ -13,7 +13,7 @@ let efStep = -1;        // -1 = overview, 0..P-1 = stepping through positions
 let efPlaying = false;
 let efTm = null;
 let efSelectedCell = null; // {b, l, c} for trace-back
-let efDetail = false;      // detail mode (show intermediate H×C grid)
+let efDetail = true;       // detail mode (show element-by-element breakdown) — default ON
 
 const totalPositions = () => eB * eL;
 const posTobl = (p) => [Math.floor(p / eL), p % eL];
@@ -35,6 +35,7 @@ export function efInit(randomize = true) {
   efStep = -1;
   efPlaying = false;
   efSelectedCell = null;
+  efDetail = true;
 }
 
 // ══════════════════════════════════════════════════
@@ -285,22 +286,66 @@ function renderWTable(activeTokenId) {
   return html;
 }
 
-// ── Intermediate H×C grid ──
-function renderIntermediate(b, l) {
+// ── Dot-product sub-viz for detail mode (mirrors matmul tab pattern) ──
+// Shows C dot products: X[b,l,:] · W[:,c] = Y[b,l,c] for each output column c
+function renderDotProducts(b, l) {
   const tok = tokenIds[b][l];
-  let html = `<div class="ef-inter-grid" style="grid-template-columns: repeat(${eC}, 36px)">`;
-  for (let h = 0; h < eH; h++) {
-    const isActive = h === tok;
-    for (let c = 0; c < eC; c++) {
-      const val = X[b][l][h] * W[h][c];
-      if (isActive) {
-        html += `<div class="mat-cell r cur" style="width:36px;height:36px;font-size:0.78rem">${val}</div>`;
-      } else {
-        html += `<div class="mat-cell r empty" style="width:36px;height:36px;font-size:0.72rem;opacity:0.25">0</div>`;
-      }
+  let html = '<div class="ef-dot-products">';
+
+  // Show all C dot products side by side
+  for (let c = 0; c < eC; c++) {
+    html += `<div class="ef-dot-col">`;
+    html += `<div class="ef-dot-header">Y[${b},${l},${c}]</div>`;
+
+    // X[b,l,:] as horizontal row  ·  W[:,c] as vertical column  =  result
+    html += '<div class="dp-sub-viz-vectors">';
+
+    // X[b,l,:] — one-hot row (horizontal)
+    html += '<div class="dp-sub-viz-vec">';
+    for (let h = 0; h < eH; h++) {
+      const xVal = X[b][l][h];
+      const cls = h === tok ? 'mat-cell a cur' : 'mat-cell a dim';
+      html += `<div class="${cls}" style="width:32px;height:32px;font-size:0.78rem">${xVal}</div>`;
     }
+    html += '</div>';
+
+    html += '<span style="font-size:1.1rem;color:#bbb;font-weight:300">&middot;</span>';
+
+    // W[:,c] — column of W (vertical)
+    html += '<div class="dp-sub-viz-vec col">';
+    for (let h = 0; h < eH; h++) {
+      const cls = h === tok ? 'mat-cell b cur' : 'mat-cell b';
+      html += `<div class="${cls}" style="width:32px;height:32px;font-size:0.78rem">${W[h][c]}</div>`;
+    }
+    html += '</div>';
+
+    html += '<span style="font-size:1.1rem;color:#bbb;font-weight:300">=</span>';
+
+    // Result scalar
+    html += `<div class="mat-cell r cur" style="width:36px;height:36px;font-size:0.95rem;font-weight:700" onclick="efTraceBack(${b},${l},${c})">${Y[b][l][c]}</div>`;
+    html += '</div>'; // dp-sub-viz-vectors
+
+    // Products line
+    html += '<div class="dp-products" style="justify-content:center"><span style="color:#666;font-size:0.72rem">Products:</span> ';
+    for (let h = 0; h < eH; h++) {
+      const prod = X[b][l][h] * W[h][c];
+      const cls = h === tok ? 'dp-term dp-term-prod cur' : 'dp-term dp-term-prod dim';
+      html += `<span class="${cls}">${prod}</span>`;
+      if (h < eH - 1) html += ' <span style="color:#ccc">+</span> ';
+    }
+    html += '</div>';
+
+    // Sum line
+    html += `<div class="dp-sum-line" style="justify-content:center"><span style="color:#666;font-size:0.72rem">Sum:</span> <span class="dp-accum">${Y[b][l][c]}</span></div>`;
+
+    html += '</div>'; // ef-dot-col
   }
-  html += '</div>';
+
+  html += '</div>'; // ef-dot-products
+
+  // Insight
+  html += `<div class="ef-term-insight">Only h=${tok} contributes (the rest multiply by 0). The &ldquo;dot product&rdquo; just selects row ${tok} of W.</div>`;
+
   return html;
 }
 
@@ -350,40 +395,10 @@ function renderContractionDetail(b, l) {
     return html;
   }
 
-  // Detail mode: show full H×C intermediate grid
+  // Detail mode: dot-product breakdown (same pattern as matmul tab)
   let html = '<div class="ef-subviz">';
-
-  // Row 1: X row
-  html += '<div class="ef-subviz-row">';
-
-  html += '<div class="ef-subviz-section">';
-  html += `<div class="ef-subviz-label">X[${b},${l},:] (1&times;${eH})</div>`;
-  html += renderOneHotRow(b, l);
-  html += '</div>';
-
-  html += '<div class="ef-subviz-sym">&times;</div>';
-
-  html += '<div class="ef-subviz-section">';
-  html += `<div class="ef-subviz-label">W (${eH}&times;${eC})</div>`;
-  html += renderWTable(tok);
-  html += '</div>';
-
-  html += '<div class="ef-subviz-sym">=</div>';
-
-  // Intermediate H×C grid
-  html += '<div class="ef-inter-section">';
-  html += `<div class="ef-subviz-label">X[${b},${l},h]&times;W[h,c]</div>`;
-  html += renderIntermediate(b, l);
-  html += '</div>';
-
-  html += '<div class="ef-subviz-sym">&Sigma;<sub style="font-size:0.6em">h</sub>&rarr;</div>';
-
-  html += '<div class="ef-subviz-section">';
-  html += `<div class="ef-subviz-label">Y[${b},${l},:]</div>`;
-  html += renderOutputRow(b, l);
-  html += '</div>';
-
-  html += '</div>'; // subviz-row
+  html += `<div class="ef-subviz-label" style="margin-bottom:6px">Y[${b},${l},c] = X[${b},${l},:] &middot; W[:,c]  &mdash;  one dot product per output column:</div>`;
+  html += renderDotProducts(b, l);
   html += '</div>'; // subviz
   return html;
 }
@@ -550,11 +565,11 @@ function efUpdateDots() {
   if (!el) return;
   el.innerHTML = '';
   const P = totalPositions();
-  for (let p = 0; p < P; p++) {
+  for (let s = 0; s < P; s++) {
     const dot = document.createElement('div');
     dot.className = 'step-dot';
-    if (efStep > p) dot.classList.add('done');
-    else if (efStep === p) dot.classList.add('cur');
+    if (efStep > s) dot.classList.add('done');
+    else if (efStep === s) dot.classList.add('cur');
     el.appendChild(dot);
   }
 }

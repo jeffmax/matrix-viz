@@ -154,6 +154,10 @@ describe('tab-embed-fwd', () => {
   });
 
   it('one-hot row has eH cells in compact mode', () => {
+    // Switch to compact mode
+    const chk = document.getElementById('chkEfDetail');
+    chk.checked = false;
+    efToggleDetail();
     efFwd();
     efRender();
     const wrap = document.getElementById('efDisplay');
@@ -168,55 +172,70 @@ describe('tab-embed-fwd', () => {
     expect(curCells[0].textContent).toBe('1');
   });
 
-  it('intermediate grid shows zeros for non-token rows (detail mode)', () => {
-    // Enable detail mode
-    const chk = document.getElementById('chkEfDetail');
-    chk.checked = true;
-    efToggleDetail();
+  it('detail mode shows C dot-product columns', () => {
+    // Detail mode is the default
     efFwd();
     efRender();
     const wrap = document.getElementById('efDisplay');
-    const interGrid = wrap.querySelector('.ef-inter-grid');
-    expect(interGrid).not.toBeNull();
+    const dotCols = wrap.querySelectorAll('.ef-dot-col');
     const s = getEfState();
-    const tok = s.tokenIds[0][0];
-    const cells = interGrid.querySelectorAll('.mat-cell');
-    expect(cells.length).toBe(s.eH * s.eC);
-    for (let h = 0; h < s.eH; h++) {
-      for (let c = 0; c < s.eC; c++) {
-        const cell = cells[h * s.eC + c];
-        if (h !== tok) {
-          expect(cell.textContent).toBe('0');
-          expect(cell.classList.contains('empty')).toBe(true);
-        }
-      }
-    }
-    chk.checked = false;
-    efToggleDetail();
+    expect(dotCols.length).toBe(s.eC);
   });
 
-  it('intermediate grid shows W values for token row (detail mode)', () => {
-    const chk = document.getElementById('chkEfDetail');
-    chk.checked = true;
-    efToggleDetail();
+  it('detail mode dot product has row vector · column vector = result', () => {
     efFwd();
     efRender();
     const wrap = document.getElementById('efDisplay');
-    const interGrid = wrap.querySelector('.ef-inter-grid');
-    expect(interGrid).not.toBeNull();
+    const s = getEfState();
+    // First dot-product column
+    const col0 = wrap.querySelector('.ef-dot-col');
+    // Row vector: X[b,l,:] — eH cells with class 'a'
+    const rowVec = col0.querySelector('.dp-sub-viz-vec:not(.col)');
+    expect(rowVec.querySelectorAll('.mat-cell').length).toBe(s.eH);
+    // Column vector: W[:,0] — eH cells with class 'b'
+    const colVec = col0.querySelector('.dp-sub-viz-vec.col');
+    expect(colVec.querySelectorAll('.mat-cell').length).toBe(s.eH);
+    // Result cell
+    const result = col0.querySelector('.dp-sub-viz-vectors > .mat-cell.r.cur');
+    expect(result).not.toBeNull();
+    expect(result.textContent).toBe(String(s.Y[0][0][0]));
+  });
+
+  it('detail mode shows products with live and dim terms', () => {
+    efFwd();
+    efRender();
+    const wrap = document.getElementById('efDisplay');
     const s = getEfState();
     const tok = s.tokenIds[0][0];
-    const cells = interGrid.querySelectorAll('.mat-cell');
+    // Check products in first dot column
+    const col0 = wrap.querySelector('.ef-dot-col');
+    const prods = col0.querySelectorAll('.dp-term-prod');
+    expect(prods.length).toBe(s.eH);
+    // Exactly one should be 'cur' (the token row), rest 'dim'
+    const curProds = col0.querySelectorAll('.dp-term-prod.cur');
+    expect(curProds.length).toBe(1);
+    // X is one-hot, so X[0][0][tok] = 1, product = 1 * W[tok][0]
+    expect(curProds[0].textContent).toBe(String(s.W[tok][0]));
+    const dimProds = col0.querySelectorAll('.dp-term-prod.dim');
+    expect(dimProds.length).toBe(s.eH - 1);
+  });
+
+  it('detail mode sum matches Y values', () => {
+    efFwd();
+    efRender();
+    const wrap = document.getElementById('efDisplay');
+    const s = getEfState();
+    const accums = wrap.querySelectorAll('.dp-accum');
+    expect(accums.length).toBe(s.eC);
     for (let c = 0; c < s.eC; c++) {
-      const cell = cells[tok * s.eC + c];
-      expect(cell.textContent).toBe(String(s.W[tok][c]));
-      expect(cell.classList.contains('cur')).toBe(true);
+      expect(accums[c].textContent).toBe(String(s.Y[0][0][c]));
     }
-    chk.checked = false;
-    efToggleDetail();
   });
 
-  it('W grid rows are faded in sub-viz when position is active', () => {
+  it('W grid rows are faded in sub-viz when position is active (compact mode)', () => {
+    const chk = document.getElementById('chkEfDetail');
+    chk.checked = false;
+    efToggleDetail();
     efFwd();
     efRender();
     const wrap = document.getElementById('efDisplay');
@@ -227,7 +246,10 @@ describe('tab-embed-fwd', () => {
     expect(fadedCells.length).toBe((s.eH - 1) * s.eC);
   });
 
-  it('W grid has active row label for current token', () => {
+  it('W grid has active row label for current token (compact mode)', () => {
+    const chk = document.getElementById('chkEfDetail');
+    chk.checked = false;
+    efToggleDetail();
     efFwd(); // step 0 = position (0,0)
     efRender();
     const s = getEfState();
