@@ -408,6 +408,11 @@ export function efRender() {
 function renderOverview(wrap) {
   let html = '<div class="ef-tensor-row">';
 
+  // Prior pill — to the left of the tensors
+  html += '<div class="ef-pill-block">';
+  html += renderPriorPill();
+  html += '</div>';
+
   html += '<div class="ef-overview-tensors">';
 
   // X tensor (B×L×H) — stacked pages
@@ -416,7 +421,6 @@ function renderOverview(wrap) {
     return { text: '0', cls: 'mat-cell a dim' };
   };
   html += '<div class="ef-tensor-block">';
-  html += renderPriorPill();
   html += '<div class="ef-tensor-label">X <span class="ef-dim">(B=' + eB + ', L=' + eL + ', H=' + eH + ')</span></div>';
   html += renderStackedTensor(X, {
     top: 'h &rarr;', topContracted: true,
@@ -456,6 +460,11 @@ function renderActivePosition(wrap) {
 
   let html = '<div class="ef-tensor-row">';
 
+  // Prior pill — to the left of the tensors
+  html += '<div class="ef-pill-block">';
+  html += renderPriorPill();
+  html += '</div>';
+
   html += '<div class="ef-overview-tensors">';
 
   // X tensor with active row highlighted
@@ -466,7 +475,6 @@ function renderActivePosition(wrap) {
     return { text: '0', cls: isActiveRow ? 'mat-cell a dim' : 'mat-cell a dim' };
   };
   html += '<div class="ef-tensor-block">';
-  html += renderPriorPill();
   html += '<div class="ef-tensor-label">X <span class="ef-dim">(B=' + eB + ', L=' + eL + ', H=' + eH + ')</span></div>';
   html += renderStackedTensor(X, {
     top: 'h &rarr;', topContracted: true,

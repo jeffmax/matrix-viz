@@ -758,7 +758,9 @@ input[type=range] { width: 88px; accent-color: #333; }
   gap: 0; width: 100%;
 }
 .ef-pill-block {
-  display: none; /* pill now rendered inside X tensor block */
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding-top: 30px; margin-right: 10px;
+  flex-shrink: 0;
 }
 .ef-tensor-block {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
