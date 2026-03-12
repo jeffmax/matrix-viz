@@ -223,3 +223,25 @@ test('detail mode does not add extra steps per h element', async ({ page }) => {
   const dotCount = await page.locator('#dEF .step-dot').count();
   expect(dotCount).toBe(totalPositions);
 });
+
+// ── Bug 7: Stacked tensor hover should work after play completes ──
+test('stacked tensor hover works after play finishes', async ({ page }) => {
+  await gotoEmbedFwd(page);
+
+  // Play and wait for it to finish
+  await page.evaluate(() => { window.efToggle(); });
+  // Wait for play to complete — 6 positions at minimum speed
+  await page.waitForFunction(() => !window.getEfState().efPlaying, { timeout: 15000 });
+
+  // After play, stacked tensors should have expandable class
+  const expandableCount = await page.locator('.ef-stacked-tensor.expandable').count();
+  expect(expandableCount).toBeGreaterThan(0);
+
+  // Hover should expand the tensor
+  const anchor = page.locator('.ef-stacked-anchor').first();
+  await anchor.hover();
+  await page.waitForTimeout(200);
+
+  const expandedCount = await page.locator('.ef-stacked-tensor.expanded').count();
+  expect(expandedCount).toBe(1);
+});

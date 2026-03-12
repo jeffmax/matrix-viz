@@ -628,6 +628,7 @@ function efTick() {
     efTm = setTimeout(efTick, efDelay());
   } else {
     efPause();
+    efRender(); // re-render so stacked tensors get expandable class back
   }
 }
 
