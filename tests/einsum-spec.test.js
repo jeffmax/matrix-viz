@@ -2,18 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { parseEinsum, computeEinsum } from '../js/einsum-spec.js';
 
 describe('parseEinsum', () => {
-  it('parses embedding forward: blh,hc->blc', () => {
-    const spec = parseEinsum('blh,hc->blc', { b: 2, l: 3, h: 4, c: 3 });
-    expect(spec.signature).toBe('blh,hc->blc');
+  it('parses embedding forward: btv,vc->btc', () => {
+    const spec = parseEinsum('btv,vc->btc', { b: 2, t: 3, v: 4, c: 3 });
+    expect(spec.signature).toBe('btv,vc->btc');
     expect(spec.inputs).toHaveLength(2);
-    expect(spec.inputs[0].indices).toEqual(['b', 'l', 'h']);
+    expect(spec.inputs[0].indices).toEqual(['b', 't', 'v']);
     expect(spec.inputs[0].shape).toEqual([2, 3, 4]);
-    expect(spec.inputs[1].indices).toEqual(['h', 'c']);
+    expect(spec.inputs[1].indices).toEqual(['v', 'c']);
     expect(spec.inputs[1].shape).toEqual([4, 3]);
-    expect(spec.output.indices).toEqual(['b', 'l', 'c']);
+    expect(spec.output.indices).toEqual(['b', 't', 'c']);
     expect(spec.output.shape).toEqual([2, 3, 3]);
-    expect(spec.contracted).toEqual(['h']);
-    expect(spec.free).toEqual(['b', 'l', 'c']);
+    expect(spec.contracted).toEqual(['v']);
+    expect(spec.free).toEqual(['b', 't', 'c']);
     expect(spec.intermediateRank).toBe(4);
   });
 
@@ -24,10 +24,10 @@ describe('parseEinsum', () => {
     expect(spec.output.shape).toEqual([3, 3]);
   });
 
-  it('parses embedding backward: blh,blc->hc', () => {
-    const spec = parseEinsum('blh,blc->hc', { b: 2, l: 3, h: 4, c: 3 });
-    expect(spec.contracted).toEqual(['b', 'l']);
-    expect(spec.free).toEqual(['h', 'c']);
+  it('parses embedding backward: btv,btc->vc', () => {
+    const spec = parseEinsum('btv,btc->vc', { b: 2, t: 3, v: 4, c: 3 });
+    expect(spec.contracted).toEqual(['b', 't']);
+    expect(spec.free).toEqual(['v', 'c']);
     expect(spec.output.shape).toEqual([4, 3]);
   });
 
@@ -95,8 +95,8 @@ describe('computeEinsum', () => {
     expect(result).toEqual([[1, 4], [2, 5], [3, 6]]);
   });
 
-  it('computes embedding forward blh,hc->blc', () => {
-    const spec = parseEinsum('blh,hc->blc', { b: 1, l: 2, h: 3, c: 2 });
+  it('computes embedding forward btv,vc->btc', () => {
+    const spec = parseEinsum('btv,vc->btc', { b: 1, t: 2, v: 3, c: 2 });
     // one-hot X: batch=1, seq=2, vocab=3
     // token 0 at pos 0, token 2 at pos 1
     const X = [[[1, 0, 0], [0, 0, 1]]];
@@ -107,8 +107,8 @@ describe('computeEinsum', () => {
     expect(result).toEqual([[[10, 20], [50, 60]]]);
   });
 
-  it('computes embedding backward blh,blc->hc', () => {
-    const spec = parseEinsum('blh,blc->hc', { b: 1, l: 2, h: 3, c: 2 });
+  it('computes embedding backward btv,btc->vc', () => {
+    const spec = parseEinsum('btv,btc->vc', { b: 1, t: 2, v: 3, c: 2 });
     // one-hot X: token 0 at pos 0, token 2 at pos 1
     const X = [[[1, 0, 0], [0, 0, 1]]];
     const G = [[[1, 2], [3, 4]]];

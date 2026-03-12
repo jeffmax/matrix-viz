@@ -11,10 +11,10 @@ describe('tab-embed-fwd', () => {
     const s = getEfState();
     expect(s.tokenIds.length).toBe(2);
     expect(s.tokenIds[0].length).toBe(3);
-    expect(s.W.length).toBe(4);  // H
+    expect(s.W.length).toBe(4);  // V
     expect(s.W[0].length).toBe(3); // C
     expect(s.Y.length).toBe(2);  // B
-    expect(s.Y[0].length).toBe(3); // L
+    expect(s.Y[0].length).toBe(3); // T
     expect(s.Y[0][0].length).toBe(3); // C
   });
 
@@ -109,11 +109,11 @@ describe('tab-embed-fwd', () => {
     expect(pages.length).toBe(s.eB * 2);
   });
 
-  it('axis labels present with contracted coloring for h', () => {
+  it('axis labels present with contracted coloring for v', () => {
     efRender();
     const wrap = document.getElementById('efDisplay');
     const contractedLabels = wrap.querySelectorAll('.ef-axis-label.contracted');
-    // h axis appears on X (top) and W (left) = 2 contracted labels
+    // v axis appears on X (top) and W (left) = 2 contracted labels
     expect(contractedLabels.length).toBe(2);
   });
 
@@ -132,10 +132,10 @@ describe('tab-embed-fwd', () => {
     const batchLabels = tooltip.querySelectorAll('.ef-pill-batch-label');
     expect(batchLabels.length).toBe(s.eB);
     const tokenCells = tooltip.querySelectorAll('.ef-pill-token-cell');
-    expect(tokenCells.length).toBe(s.eB * s.eL);
+    expect(tokenCells.length).toBe(s.eB * s.eT);
     // Each token cell has mini-onehot dots
     const dotGroups = tooltip.querySelectorAll('.ef-mini-onehot');
-    expect(dotGroups.length).toBe(s.eB * s.eL);
+    expect(dotGroups.length).toBe(s.eB * s.eT);
   });
 
   // ── Contraction detail tests ──
@@ -153,7 +153,7 @@ describe('tab-embed-fwd', () => {
     expect(wrap.querySelector('.ef-subviz')).toBeNull();
   });
 
-  it('one-hot row has eH cells in compact mode', () => {
+  it('one-hot row has eV cells in compact mode', () => {
     // Switch to compact mode
     const chk = document.getElementById('chkEfDetail');
     chk.checked = false;
@@ -165,7 +165,7 @@ describe('tab-embed-fwd', () => {
     expect(hrow).not.toBeNull();
     const s = getEfState();
     const cells = hrow.querySelectorAll('.mat-cell.a');
-    expect(cells.length).toBe(s.eH);
+    expect(cells.length).toBe(s.eV);
     // Exactly one cell should have value "1" with class 'cur'
     const curCells = hrow.querySelectorAll('.mat-cell.a.cur');
     expect(curCells.length).toBe(1);
@@ -191,10 +191,10 @@ describe('tab-embed-fwd', () => {
     const col0 = wrap.querySelector('.ef-dot-col');
     // Row vector: X[b,l,:] — eH cells with class 'a'
     const rowVec = col0.querySelector('.dp-sub-viz-vec:not(.col)');
-    expect(rowVec.querySelectorAll('.mat-cell').length).toBe(s.eH);
+    expect(rowVec.querySelectorAll('.mat-cell').length).toBe(s.eV);
     // Column vector: W[:,0] — eH cells with class 'b'
     const colVec = col0.querySelector('.dp-sub-viz-vec.col');
-    expect(colVec.querySelectorAll('.mat-cell').length).toBe(s.eH);
+    expect(colVec.querySelectorAll('.mat-cell').length).toBe(s.eV);
     // Result cell
     const result = col0.querySelector('.dp-sub-viz-vectors > .mat-cell.r.cur');
     expect(result).not.toBeNull();
@@ -210,14 +210,14 @@ describe('tab-embed-fwd', () => {
     // Check products in first dot column
     const col0 = wrap.querySelector('.ef-dot-col');
     const prods = col0.querySelectorAll('.dp-term-prod');
-    expect(prods.length).toBe(s.eH);
+    expect(prods.length).toBe(s.eV);
     // Exactly one should be 'cur' (the token row), rest 'dim'
     const curProds = col0.querySelectorAll('.dp-term-prod.cur');
     expect(curProds.length).toBe(1);
     // X is one-hot, so X[0][0][tok] = 1, product = 1 * W[tok][0]
     expect(curProds[0].textContent).toBe(String(s.W[tok][0]));
     const dimProds = col0.querySelectorAll('.dp-term-prod.dim');
-    expect(dimProds.length).toBe(s.eH - 1);
+    expect(dimProds.length).toBe(s.eV - 1);
   });
 
   it('detail mode sum matches Y values', () => {
@@ -243,7 +243,7 @@ describe('tab-embed-fwd', () => {
     const fadedCells = subviz.querySelectorAll('.ef-w-row-faded');
     const s = getEfState();
     // (eH - 1) rows faded × eC cells each
-    expect(fadedCells.length).toBe((s.eH - 1) * s.eC);
+    expect(fadedCells.length).toBe((s.eV - 1) * s.eC);
   });
 
   it('W grid has active row label for current token (compact mode)', () => {
@@ -257,7 +257,7 @@ describe('tab-embed-fwd', () => {
     const wrap = document.getElementById('efDisplay');
     const activeLabels = wrap.querySelectorAll('.ef-w-rowlabel.active');
     expect(activeLabels.length).toBe(1);
-    expect(activeLabels[0].textContent).toBe('h=' + tok);
+    expect(activeLabels[0].textContent).toBe('v=' + tok);
   });
 
   it('formula bar shows Σ_h decomposition in active mode', () => {
@@ -269,7 +269,7 @@ describe('tab-embed-fwd', () => {
     expect(f.innerHTML).toContain(s.Y[0][0].join(', '));
   });
 
-  it('overview formula mentions contracted axis h', () => {
+  it('overview formula mentions contracted axis v', () => {
     efRender();
     const f = document.getElementById('fEF');
     expect(f.innerHTML).toContain('contracted');

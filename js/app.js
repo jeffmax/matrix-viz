@@ -283,25 +283,25 @@ export function copyTorchCode(tab) {
   } else if (tab === 'embed-fwd') {
     code += `import torch.nn.functional as F\n\n`;
     code += `# Embedding forward: one-hot × weight = row lookup\n`;
-    code += `B, L, H, C = 2, 3, 4, 3\n`;
-    code += `tokens = torch.randint(0, H, (B, L))\n`;
-    code += `X = F.one_hot(tokens, H).float()  # (B, L, H)\n`;
-    code += `W = torch.randn(H, C)\n\n`;
+    code += `B, T, V, C = 2, 3, 4, 3  # batch, time, vocab, channels\n`;
+    code += `tokens = torch.randint(0, V, (B, T))\n`;
+    code += `X = F.one_hot(tokens, V).float()  # (B, T, V)\n`;
+    code += `W = torch.randn(V, C)\n\n`;
     code += `# These are equivalent:\n`;
-    code += `Y_einsum = torch.einsum('blh,hc->blc', X, W)\n`;
+    code += `Y_einsum = torch.einsum('btv,vc->btc', X, W)\n`;
     code += `Y_lookup = W[tokens]  # simple row selection\n`;
     code += `assert torch.allclose(Y_einsum, Y_lookup)\n`;
   } else if (tab === 'embed-bwd') {
     code += `import torch.nn.functional as F\n\n`;
     code += `# Embedding backward: scatter gradients into weight update\n`;
-    code += `B, L, H, C = 2, 3, 4, 3\n`;
-    code += `tokens = torch.randint(0, H, (B, L))\n`;
-    code += `X = F.one_hot(tokens, H).float()  # (B, L, H)\n`;
-    code += `G = torch.randn(B, L, C)  # upstream gradients\n\n`;
+    code += `B, T, V, C = 2, 3, 4, 3  # batch, time, vocab, channels\n`;
+    code += `tokens = torch.randint(0, V, (B, T))\n`;
+    code += `X = F.one_hot(tokens, V).float()  # (B, T, V)\n`;
+    code += `G = torch.randn(B, T, C)  # upstream gradients\n\n`;
     code += `# Weight gradient via einsum:\n`;
-    code += `dW = torch.einsum('blh,blc->hc', X, G)\n`;
+    code += `dW = torch.einsum('btv,btc->vc', X, G)\n`;
     code += `# Equivalent scatter-add:\n`;
-    code += `dW2 = torch.zeros(H, C)\n`;
+    code += `dW2 = torch.zeros(V, C)\n`;
     code += `dW2.index_add_(0, tokens.reshape(-1), G.reshape(-1, C))\n`;
     code += `assert torch.allclose(dW, dW2)\n`;
   } else {
@@ -343,9 +343,9 @@ export function renderEinsumBadge(containerId, tab) {
   } else if (tab === 'matmul') {
     el.innerHTML = `einsum('<span class="ei-free">i</span><span class="ei-contract">j</span>, <span class="ei-contract">j</span><span class="ei-free">k</span> → <span class="ei-free">ik</span>', A, B)`;
   } else if (tab === 'embed-fwd') {
-    el.innerHTML = `einsum('<span class="ei-free">b</span><span class="ei-free">l</span><span class="ei-contract">h</span>, <span class="ei-contract">h</span><span class="ei-free">c</span> → <span class="ei-free">b</span><span class="ei-free">l</span><span class="ei-free">c</span>', X, W)`;
+    el.innerHTML = `einsum('<span class="ei-free">b</span><span class="ei-free">t</span><span class="ei-contract">v</span>, <span class="ei-contract">v</span><span class="ei-free">c</span> → <span class="ei-free">b</span><span class="ei-free">t</span><span class="ei-free">c</span>', X, W)`;
   } else if (tab === 'embed-bwd') {
-    el.innerHTML = `einsum('<span class="ei-contract">b</span><span class="ei-contract">l</span><span class="ei-free">h</span>, <span class="ei-contract">b</span><span class="ei-contract">l</span><span class="ei-free">c</span> → <span class="ei-free">h</span><span class="ei-free">c</span>', X, G)`;
+    el.innerHTML = `einsum('<span class="ei-contract">b</span><span class="ei-contract">t</span><span class="ei-free">v</span>, <span class="ei-contract">b</span><span class="ei-contract">t</span><span class="ei-free">c</span> → <span class="ei-free">v</span><span class="ei-free">c</span>', X, G)`;
   }
   document.querySelectorAll('.copy-torch-btn.active-tab').forEach(b => b.classList.remove('active-tab'));
   el.innerHTML += ` <button class="copy-torch-btn active-tab" onclick="copyTorchCode('${tab}')">📋 torch</button>`;
@@ -391,19 +391,23 @@ function updateShelfContent() {
   } else if (currentMode === 'embed-fwd') {
     el.innerHTML =
       `<div class="broadcast-rules">`
-      + `<strong>Embedding Forward: blh,hc→blc</strong>`
+      + `<strong>Embedding Forward: btv,vc→btc</strong>`
       + `<p style="margin-top:6px">Each token is a one-hot vector. Multiplying by the embedding table W selects a row — embedding lookup <em>is</em> matrix multiplication.</p>`
-      + `<p style="margin-top:6px"><code>Y[b,l,:] = X[b,l,:] @ W = W[token_id, :]</code></p>`
-      + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic">This is nn.Embedding forward from Karpathy's makemore Part 4. The contraction over h is the "lookup" — only the h=token_id term survives.</p>`
+      + `<p style="margin-top:6px"><code>Y[b,t,:] = X[b,t,:] @ W = W[token_id, :]</code></p>`
+      + `<p style="margin-top:6px">The sum over <strong>v</strong> (vocab size) is the contraction — but since X is one-hot, only the v=token_id term survives. The "matrix multiply" is just a row lookup.</p>`
+      + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic"><strong>Notation:</strong> We use Karpathy's convention: <strong>B</strong>=batch, <strong>T</strong>=time/sequence position, <strong>C</strong>=channels (embedding dim). <strong>V</strong>=vocab size (the contracted axis). `
+      + `Karpathy's nanoGPT unpacks <code>B, T, C = x.size()</code>. `
+      + `Other conventions exist: PyTorch docs use N,S,E; <a href="https://github.com/pixqc/einsum-puzzles/blob/master/main.ipynb" target="_blank" style="color:#69c">einsum-puzzles</a> uses b,l,d. `
+      + `We reserve <strong>h</strong> for attention heads (as in the <a href="https://arxiv.org/abs/1706.03762" target="_blank" style="color:#69c">original transformer paper</a>).</p>`
       + `</div>`;
   } else if (currentMode === 'embed-bwd') {
     el.innerHTML =
       `<div class="broadcast-rules">`
-      + `<strong>Embedding Backward: blh,blc→hc</strong>`
+      + `<strong>Embedding Backward: btv,btc→vc</strong>`
       + `<p style="margin-top:6px">The weight gradient accumulates upstream gradients: each position scatters its gradient to the row of its token.</p>`
-      + `<p style="margin-top:6px"><code>dW[h,:] = Σ G[b,l,:] for all (b,l) where token==h</code></p>`
+      + `<p style="margin-top:6px"><code>dW[v,:] = Σ G[b,t,:] for all (b,t) where token==v</code></p>`
       + `<p style="margin-top:6px">This is the reverse of forward's "gather" — forward selects rows, backward <em>scatters</em> gradients back. Rare tokens get smaller updates (fewer terms in the sum).</p>`
-      + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic">Each position contributes a rank-1 outer product X[b,l,:]⊗G[b,l,:]. The weight update is a sum of these rank-1 terms — the same structure as the Outer Product View.</p>`
+      + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic">Each position contributes a rank-1 outer product X[b,t,:]⊗G[b,t,:]. The weight update is a sum of these rank-1 terms — the same structure as the Outer Product View.</p>`
       + `</div>`;
   }
 }

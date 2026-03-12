@@ -70,7 +70,7 @@ test('stacked tensor hover keeps batch 0 under mouse when batch 0 is active', as
 
 test('stacked tensor hover keeps batch 1 under mouse when batch 1 is active', async ({ page }) => {
   await gotoEmbedFwd(page);
-  // Jump to position 3 = batch 1, l=0 (with eL=3)
+  // Jump to position 3 = batch 1, t=0 (with eT=3)
   await page.evaluate(() => { window.efJumpToPos(3); });
 
   const anchor = page.locator('.ef-stacked-anchor').first();
@@ -164,25 +164,25 @@ test('detail mode shows dot-product columns with products and sums', async ({ pa
   // Detail mode is on by default — should show dot-product columns
   const state = await page.evaluate(() => {
     const s = window.getEfState();
-    return { eH: s.eH, eC: s.eC, tok: s.tokenIds[0][0] };
+    return { eV: s.eV, eC: s.eC, tok: s.tokenIds[0][0] };
   });
 
   // Should have eC dot-product columns
   const dotCols = page.locator('.ef-dot-col');
   await expect(dotCols).toHaveCount(state.eC);
 
-  // Each column has row vector (eH cells) and column vector (eH cells)
+  // Each column has row vector (eV cells) and column vector (eV cells)
   const col0 = dotCols.first();
   const rowVec = col0.locator('.dp-sub-viz-vec:not(.col) .mat-cell');
-  await expect(rowVec).toHaveCount(state.eH);
+  await expect(rowVec).toHaveCount(state.eV);
   const colVec = col0.locator('.dp-sub-viz-vec.col .mat-cell');
-  await expect(colVec).toHaveCount(state.eH);
+  await expect(colVec).toHaveCount(state.eV);
 
-  // Products line: eH terms, exactly 1 cur and eH-1 dim
+  // Products line: eV terms, exactly 1 cur and eV-1 dim
   const curProds = col0.locator('.dp-term-prod.cur');
   await expect(curProds).toHaveCount(1);
   const dimProds = col0.locator('.dp-term-prod.dim');
-  await expect(dimProds).toHaveCount(state.eH - 1);
+  await expect(dimProds).toHaveCount(state.eV - 1);
 
   // Sum line exists
   const accum = col0.locator('.dp-accum');
@@ -195,16 +195,16 @@ test('detail mode shows dot-product columns with products and sums', async ({ pa
 });
 
 // ── Bug 6: Detail mode steps same as compact (per position, not per h) ──
-test('detail mode does not add extra steps per h element', async ({ page }) => {
+test('detail mode does not add extra steps per v element', async ({ page }) => {
   await gotoEmbedFwd(page);
 
   const state = await page.evaluate(() => {
     const s = window.getEfState();
-    return { eB: s.eB, eL: s.eL, eH: s.eH };
+    return { eB: s.eB, eT: s.eT, eV: s.eV };
   });
 
-  // Step through all positions — should be eB*eL steps total, not eB*eL*eH
-  const totalPositions = state.eB * state.eL;
+  // Step through all positions — should be eB*eT steps total, not eB*eT*eV
+  const totalPositions = state.eB * state.eT;
 
   for (let i = 0; i < totalPositions; i++) {
     await page.evaluate(() => { window.efFwd(); });
@@ -219,7 +219,7 @@ test('detail mode does not add extra steps per h element', async ({ page }) => {
   const noAdvance = await page.evaluate(() => window.getEfState().efStep);
   expect(noAdvance).toBe(totalPositions - 1);
 
-  // Step dots should match position count, not position*eH count
+  // Step dots should match position count, not position*eV count
   const dotCount = await page.locator('#dEF .step-dot').count();
   expect(dotCount).toBe(totalPositions);
 });

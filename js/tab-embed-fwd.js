@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════
-// TAB 3 — EMBEDDING FORWARD: blh,hc→blc (row selection)
+// TAB 3 — EMBEDDING FORWARD: btv,vc→btc (row selection)
 // ══════════════════════════════════════════════════
 // Einsum-centric redesign: the einsum badge maps to labeled axes on tensors.
 // Pure 2D tab — no Three.js needed.
@@ -7,7 +7,7 @@
 import { generateTokens, generateEmbedding, computeForward } from './embed-data.js';
 
 // ── State ──
-let eB = 2, eL = 3, eH = 4, eC = 3;
+let eB = 2, eT = 3, eV = 4, eC = 3;
 let tokenIds = [], X = [], W = [], Y = [];
 let efStep = -1;        // -1 = overview, 0..P-1 = stepping through positions
 let efPlaying = false;
@@ -15,21 +15,21 @@ let efTm = null;
 let efSelectedCell = null; // {b, l, c} for trace-back
 let efDetail = true;       // detail mode (show element-by-element breakdown) — default ON
 
-const totalPositions = () => eB * eL;
-const posTobl = (p) => [Math.floor(p / eL), p % eL];
-const blToPos = (b, l) => b * eL + l;
+const totalPositions = () => eB * eT;
+const posTobl = (p) => [Math.floor(p / eT), p % eT];
+const blToPos = (b, l) => b * eT + l;
 
 // ── Init ──
 export function efInit(randomize = true) {
   if (randomize) {
-    const tok = generateTokens(eB, eL, eH);
+    const tok = generateTokens(eB, eT, eV);
     tokenIds = tok.tokenIds;
     X = tok.X;
-    W = generateEmbedding(eH, eC);
+    W = generateEmbedding(eV, eC);
   } else {
-    tokenIds = Array.from({ length: eB }, () => Array.from({ length: eL }, (_, l) => l % eH));
-    X = tokenIds.map(seq => seq.map(tok => { const oh = Array(eH).fill(0); oh[tok] = 1; return oh; }));
-    W = Array.from({ length: eH }, () => Array(eC).fill(1));
+    tokenIds = Array.from({ length: eB }, () => Array.from({ length: eT }, (_, l) => l % eV));
+    X = tokenIds.map(seq => seq.map(tok => { const oh = Array(eV).fill(0); oh[tok] = 1; return oh; }));
+    W = Array.from({ length: eV }, () => Array(eC).fill(1));
   }
   Y = computeForward(X, W);
   efStep = -1;
@@ -228,8 +228,8 @@ function wireStackedHover(container) {
 // ── Mini one-hot dots HTML ──
 function renderMiniOneHot(tokenId) {
   let html = '<div class="ef-mini-onehot">';
-  for (let h = 0; h < eH; h++) {
-    html += `<div class="ef-mini-dot${h === tokenId ? ' active' : ''}"></div>`;
+  for (let v = 0; v < eV; v++) {
+    html += `<div class="ef-mini-dot${v === tokenId ? ' active' : ''}"></div>`;
   }
   html += '</div>';
   return html;
@@ -241,7 +241,7 @@ function renderPriorPill() {
   for (let b = 0; b < eB; b++) {
     tooltip += '<div class="ef-pill-token-row">';
     tooltip += `<span class="ef-pill-batch-label">b=${b}</span>`;
-    for (let l = 0; l < eL; l++) {
+    for (let l = 0; l < eT; l++) {
       const tok = tokenIds[b][l];
       tooltip += '<div class="ef-pill-token-cell">';
       tooltip += `<span class="ef-pill-tok-id">${tok}</span>`;
@@ -259,8 +259,8 @@ function renderPriorPill() {
 function renderOneHotRow(b, l) {
   const tok = tokenIds[b][l];
   let html = '<div class="ef-hrow">';
-  for (let h = 0; h < eH; h++) {
-    const val = h === tok ? 1 : 0;
+  for (let v = 0; v < eV; v++) {
+    const val = v === tok ? 1 : 0;
     const cls = val === 1 ? 'mat-cell a cur' : 'mat-cell a dim';
     html += `<div class="${cls}" style="width:32px;height:32px;font-size:0.78rem">${val}</div>`;
   }
@@ -274,13 +274,13 @@ function renderWTable(activeTokenId) {
   let html = `<div class="ef-w-grid" style="grid-template-columns: auto repeat(${eC}, 40px)">`;
   html += '<div class="ef-w-header"></div>';
   for (let c = 0; c < eC; c++) html += '<div class="ef-w-header">c' + c + '</div>';
-  for (let h = 0; h < eH; h++) {
-    const isActiveRow = fading && h === activeTokenId;
+  for (let v = 0; v < eV; v++) {
+    const isActiveRow = fading && v === activeTokenId;
     const rowFaded = fading && !isActiveRow;
-    html += `<div class="ef-w-rowlabel${isActiveRow ? ' active' : ''}"${rowFaded ? ' style="opacity:0.18"' : ''}>h=${h}</div>`;
+    html += `<div class="ef-w-rowlabel${isActiveRow ? ' active' : ''}"${rowFaded ? ' style="opacity:0.18"' : ''}>v=${v}</div>`;
     for (let c = 0; c < eC; c++) {
       const cls = isActiveRow ? 'mat-cell b cur' : 'mat-cell b';
-      html += `<div class="${cls}${rowFaded ? ' ef-w-row-faded' : ''}" style="width:40px;height:40px;font-size:0.82rem">${W[h][c]}</div>`;
+      html += `<div class="${cls}${rowFaded ? ' ef-w-row-faded' : ''}" style="width:40px;height:40px;font-size:0.82rem">${W[v][c]}</div>`;
     }
   }
   html += '</div>';
@@ -301,11 +301,11 @@ function renderDotProducts(b, l) {
     // X[b,l,:] as horizontal row  ·  W[:,c] as vertical column  =  result
     html += '<div class="dp-sub-viz-vectors">';
 
-    // X[b,l,:] — one-hot row (horizontal)
+    // X[b,t,:] — one-hot row (horizontal)
     html += '<div class="dp-sub-viz-vec">';
-    for (let h = 0; h < eH; h++) {
-      const xVal = X[b][l][h];
-      const cls = h === tok ? 'mat-cell a cur' : 'mat-cell a dim';
+    for (let v = 0; v < eV; v++) {
+      const xVal = X[b][l][v];
+      const cls = v === tok ? 'mat-cell a cur' : 'mat-cell a dim';
       html += `<div class="${cls}" style="width:32px;height:32px;font-size:0.78rem">${xVal}</div>`;
     }
     html += '</div>';
@@ -314,9 +314,9 @@ function renderDotProducts(b, l) {
 
     // W[:,c] — column of W (vertical)
     html += '<div class="dp-sub-viz-vec col">';
-    for (let h = 0; h < eH; h++) {
-      const cls = h === tok ? 'mat-cell b cur' : 'mat-cell b';
-      html += `<div class="${cls}" style="width:32px;height:32px;font-size:0.78rem">${W[h][c]}</div>`;
+    for (let v = 0; v < eV; v++) {
+      const cls = v === tok ? 'mat-cell b cur' : 'mat-cell b';
+      html += `<div class="${cls}" style="width:32px;height:32px;font-size:0.78rem">${W[v][c]}</div>`;
     }
     html += '</div>';
 
@@ -328,11 +328,11 @@ function renderDotProducts(b, l) {
 
     // Products line
     html += '<div class="dp-products" style="justify-content:center"><span style="color:#666;font-size:0.72rem">Products:</span> ';
-    for (let h = 0; h < eH; h++) {
-      const prod = X[b][l][h] * W[h][c];
-      const cls = h === tok ? 'dp-term dp-term-prod cur' : 'dp-term dp-term-prod dim';
+    for (let v = 0; v < eV; v++) {
+      const prod = X[b][l][v] * W[v][c];
+      const cls = v === tok ? 'dp-term dp-term-prod cur' : 'dp-term dp-term-prod dim';
       html += `<span class="${cls}">${prod}</span>`;
-      if (h < eH - 1) html += ' <span style="color:#ccc">+</span> ';
+      if (v < eV - 1) html += ' <span style="color:#ccc">+</span> ';
     }
     html += '</div>';
 
@@ -345,7 +345,7 @@ function renderDotProducts(b, l) {
   html += '</div>'; // ef-dot-products
 
   // Insight
-  html += `<div class="ef-term-insight">Only h=${tok} contributes (the rest multiply by 0). The &ldquo;dot product&rdquo; just selects row ${tok} of W.</div>`;
+  html += `<div class="ef-term-insight">Only v=${tok} contributes (the rest multiply by 0). The &ldquo;dot product&rdquo; just selects row ${tok} of W.</div>`;
 
   return html;
 }
@@ -373,14 +373,14 @@ function renderContractionDetail(b, l) {
     html += '<div class="ef-subviz-row">';
 
     html += '<div class="ef-subviz-section">';
-    html += `<div class="ef-subviz-label">X[${b},${l},:] (1&times;${eH})</div>`;
+    html += `<div class="ef-subviz-label">X[${b},${l},:] (1&times;${eV})</div>`;
     html += renderOneHotRow(b, l);
     html += '</div>';
 
     html += '<div class="ef-subviz-sym">&times;</div>';
 
     html += '<div class="ef-subviz-section">';
-    html += `<div class="ef-subviz-label">W (${eH}&times;${eC})</div>`;
+    html += `<div class="ef-subviz-label">W (${eV}&times;${eC})</div>`;
     html += renderWTable(tok);
     html += '</div>';
 
@@ -437,29 +437,29 @@ function renderOverview(wrap) {
     return { text: '0', cls: 'mat-cell a dim' };
   };
   html += '<div class="ef-tensor-block">';
-  html += '<div class="ef-tensor-label">X <span class="ef-dim">(B=' + eB + ', L=' + eL + ', H=' + eH + ')</span></div>';
+  html += '<div class="ef-tensor-label">X <span class="ef-dim">(B=' + eB + ', T=' + eT + ', V=' + eV + ')</span></div>';
   html += renderStackedTensor(X, {
-    top: 'h &rarr;', topContracted: true,
-    left: 'l &darr;', leftContracted: false,
+    top: 'v &rarr;', topContracted: true,
+    left: 't &darr;', leftContracted: false,
     pageLabel: 'b'
   }, { cellRenderer: xCellRenderer, cellSize: 32, expandable: !efPlaying, rowLabels: tokenIds });
   html += '</div>';
 
   // W tensor (H×C) — 2D grid
   html += '<div class="ef-tensor-block">';
-  html += '<div class="ef-tensor-label">W <span class="ef-dim">(H=' + eH + ', C=' + eC + ')</span></div>';
+  html += '<div class="ef-tensor-label">W <span class="ef-dim">(V=' + eV + ', C=' + eC + ')</span></div>';
   html += renderGrid2D(W, {
     top: 'c &rarr;', topContracted: false,
-    left: 'h &darr;', leftContracted: true
+    left: 'v &darr;', leftContracted: true
   }, { cellClass: 'mat-cell b', cellSize: 38 });
   html += '</div>';
 
   // Y tensor (B×L×C) — stacked pages, empty
   html += '<div class="ef-tensor-block">';
-  html += '<div class="ef-tensor-label">Y <span class="ef-dim">(B=' + eB + ', L=' + eL + ', C=' + eC + ')</span></div>';
+  html += '<div class="ef-tensor-label">Y <span class="ef-dim">(B=' + eB + ', T=' + eT + ', C=' + eC + ')</span></div>';
   html += renderStackedTensor(Y, {
     top: 'c &rarr;', topContracted: false,
-    left: 'l &darr;', leftContracted: false,
+    left: 't &darr;', leftContracted: false,
     pageLabel: 'b'
   }, { emptyPages: true, cellSize: 32, onCellClick: 'efTraceBack', expandable: !efPlaying });
   html += '</div>';
@@ -491,29 +491,29 @@ function renderActivePosition(wrap) {
     return { text: '0', cls: isActiveRow ? 'mat-cell a dim' : 'mat-cell a dim' };
   };
   html += '<div class="ef-tensor-block">';
-  html += '<div class="ef-tensor-label">X <span class="ef-dim">(B=' + eB + ', L=' + eL + ', H=' + eH + ')</span></div>';
+  html += '<div class="ef-tensor-label">X <span class="ef-dim">(B=' + eB + ', T=' + eT + ', V=' + eV + ')</span></div>';
   html += renderStackedTensor(X, {
-    top: 'h &rarr;', topContracted: true,
-    left: 'l &darr;', leftContracted: false,
+    top: 'v &rarr;', topContracted: true,
+    left: 't &darr;', leftContracted: false,
     pageLabel: 'b'
   }, { activePage: b, activeRow: l, cellRenderer: xCellRenderer, cellSize: 32, expandable: !efPlaying, rowLabels: tokenIds });
   html += '</div>';
 
   // W tensor with active row
   html += '<div class="ef-tensor-block">';
-  html += '<div class="ef-tensor-label">W <span class="ef-dim">(H=' + eH + ', C=' + eC + ')</span></div>';
+  html += '<div class="ef-tensor-label">W <span class="ef-dim">(V=' + eV + ', C=' + eC + ')</span></div>';
   html += renderGrid2D(W, {
     top: 'c &rarr;', topContracted: false,
-    left: 'h &darr;', leftContracted: true
+    left: 'v &darr;', leftContracted: true
   }, { cellClass: 'mat-cell b', cellSize: 38, highlightRow: tok, fadedRows: true });
   html += '</div>';
 
   // Y tensor — filled up to current step
   html += '<div class="ef-tensor-block">';
-  html += '<div class="ef-tensor-label">Y <span class="ef-dim">(B=' + eB + ', L=' + eL + ', C=' + eC + ')</span></div>';
+  html += '<div class="ef-tensor-label">Y <span class="ef-dim">(B=' + eB + ', T=' + eT + ', C=' + eC + ')</span></div>';
   html += renderStackedTensor(Y, {
     top: 'c &rarr;', topContracted: false,
-    left: 'l &darr;', leftContracted: false,
+    left: 't &darr;', leftContracted: false,
     pageLabel: 'b'
   }, { emptyPages: true, doneUpTo: efStep, activePage: b, cellSize: 32, onCellClick: 'efTraceBack', expandable: !efPlaying });
   html += '</div>';
@@ -536,28 +536,28 @@ function efUpdateFormula() {
     const { b, l, c } = efSelectedCell;
     const tok = tokenIds[b][l];
     let terms = [];
-    for (let h = 0; h < eH; h++) {
-      const xVal = X[b][l][h];
-      const wVal = W[h][c];
-      const cls = h === tok ? 'ef-term-live' : 'ef-term-zero';
-      terms.push(`<span class="${cls}"><span class="fa">X[${b},${l},${h}]</span>&middot;<span class="fb">W[${h},${c}]</span> = ${xVal}&times;${wVal}</span>`);
+    for (let v = 0; v < eV; v++) {
+      const xVal = X[b][l][v];
+      const wVal = W[v][c];
+      const cls = v === tok ? 'ef-term-live' : 'ef-term-zero';
+      terms.push(`<span class="${cls}"><span class="fa">X[${b},${l},${v}]</span>&middot;<span class="fb">W[${v},${c}]</span> = ${xVal}&times;${wVal}</span>`);
     }
-    f.innerHTML = `Y[${b},${l},${c}] = &Sigma;<sub>h</sub> X[${b},${l},h]&middot;W[h,${c}] = ${terms.join(' + ')} = <span class="fc">${Y[b][l][c]}</span>`
+    f.innerHTML = `Y[${b},${l},${c}] = &Sigma;<sub>v</sub> X[${b},${l},v]&middot;W[v,${c}] = ${terms.join(' + ')} = <span class="fc">${Y[b][l][c]}</span>`
       + `<br><em style="color:#999;font-size:0.78rem">One-hot selects row ${tok} of W &mdash; it's just a lookup!</em>`;
     return;
   }
 
   if (efStep < 0) {
-    f.innerHTML = `<span class="ei-contract" style="font-size:0.82rem">h</span> is the contracted axis &mdash; each position's one-hot selects a row of W. Press &#9654; to step through.`;
+    f.innerHTML = `<span class="ei-contract" style="font-size:0.82rem">v</span> is the contracted axis (vocab) &mdash; each position's one-hot selects a row of W. Press &#9654; to step through.`;
   } else {
     const [b, l] = posTobl(efStep);
     const tok = tokenIds[b][l];
     let terms = [];
-    for (let h = 0; h < eH; h++) {
-      const cls = h === tok ? 'ef-term-live' : 'ef-term-zero';
-      terms.push(`<span class="${cls}">${X[b][l][h]}&middot;<span class="fb">W[${h},:]</span></span>`);
+    for (let v = 0; v < eV; v++) {
+      const cls = v === tok ? 'ef-term-live' : 'ef-term-zero';
+      terms.push(`<span class="${cls}">${X[b][l][v]}&middot;<span class="fb">W[${v},:]</span></span>`);
     }
-    f.innerHTML = `Y[${b},${l},:] = &Sigma;<sub>h</sub> X[${b},${l},h]&middot;W[h,:] = ${terms.join(' + ')} = <span class="fb">W[${tok},:]</span> = <span class="fc">[${Y[b][l].join(', ')}]</span>`;
+    f.innerHTML = `Y[${b},${l},:] = &Sigma;<sub>v</sub> X[${b},${l},v]&middot;W[v,:] = ${terms.join(' + ')} = <span class="fb">W[${tok},:]</span> = <span class="fc">[${Y[b][l].join(', ')}]</span>`;
   }
 }
 
@@ -655,8 +655,8 @@ export function efToggleDetail() {
 // ── Dimension changes ──
 export function efChangeDim(dim, delta) {
   if (dim === 'B') eB = Math.max(1, Math.min(4, eB + delta));
-  else if (dim === 'L') eL = Math.max(1, Math.min(4, eL + delta));
-  else if (dim === 'H') eH = Math.max(2, Math.min(5, eH + delta));
+  else if (dim === 'T') eT = Math.max(1, Math.min(4, eT + delta));
+  else if (dim === 'V') eV = Math.max(2, Math.min(5, eV + delta));
   else if (dim === 'C') eC = Math.max(1, Math.min(5, eC + delta));
   efInit(true);
   efRender();
@@ -665,5 +665,5 @@ export function efChangeDim(dim, delta) {
 // ── Getters for tests ──
 /* @testable */
 export function getEfState() {
-  return { eB, eL, eH, eC, tokenIds, X, W, Y, efStep, efPlaying, efSelectedCell, efDetail };
+  return { eB, eT, eV, eC, tokenIds, X, W, Y, efStep, efPlaying, efSelectedCell, efDetail };
 }

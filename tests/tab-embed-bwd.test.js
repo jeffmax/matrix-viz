@@ -73,7 +73,7 @@ describe('tab-embed-bwd', () => {
 
   it('trace-back sets selectedCell', () => {
     ebTraceBack(2, 1);
-    expect(getEbState().ebSelectedCell).toEqual({ h: 2, c: 1 });
+    expect(getEbState().ebSelectedCell).toEqual({ v: 2, c: 1 });
   });
 
   it('trace-back toggle clears selectedCell', () => {
