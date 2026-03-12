@@ -48,32 +48,71 @@ test('stacked tensor hover does not shift other tensors horizontally', async ({ 
   expect(Math.abs(wAfter.x - wBefore.x)).toBeLessThan(5);
 });
 
-test('stacked tensor hover keeps current batch under mouse', async ({ page }) => {
+test('stacked tensor hover keeps batch 0 under mouse when batch 0 is active', async ({ page }) => {
   await gotoEmbedFwd(page);
+  // Step forward — step 0 = batch 0
   await page.evaluate(() => { window.efFwd(); });
 
-  // Get active page batch index
-  const activeBatch = await page.evaluate(() => {
-    const st = window.getEfState?.() ?? {};
-    // efStep=0 means b=0, l=0
-    return Math.floor(st.efStep / st.eL);
-  });
+  // Get the X stacked tensor's first anchor
+  const anchor = page.locator('.ef-stacked-anchor').first();
+  // Get the front-page (active page) position before hover
+  const frontPage = anchor.locator('.ef-tensor-page.front-page');
+  const beforeBox = await frontPage.boundingBox();
 
-  // Hover over X stacked tensor
-  const xStack = page.locator('.ef-stacked-tensor').first();
-  await xStack.hover();
+  // Hover to expand
+  await anchor.hover();
   await page.waitForTimeout(200);
 
-  // The expanded tensor should show the active batch visible and not displaced
-  // The front-page (active batch) should still be under the mouse area
-  const expanded = await page.locator('.ef-stacked-tensor.expanded').count();
-  expect(expanded).toBe(1);
+  // After expand, the active page should not have shifted vertically
+  const afterBox = await frontPage.boundingBox();
+  expect(Math.abs(afterBox.y - beforeBox.y)).toBeLessThan(5);
+});
 
-  // Verify the active page is present in the expanded view
-  const activePage = page.locator('.ef-stacked-tensor.expanded .ef-tensor-page.active-page');
-  if (await activePage.count() > 0) {
-    await expect(activePage).toBeVisible();
+test('stacked tensor hover keeps batch 1 under mouse when batch 1 is active', async ({ page }) => {
+  await gotoEmbedFwd(page);
+  // Jump to position 3 = batch 1, l=0 (with eL=3)
+  await page.evaluate(() => { window.efJumpToPos(3); });
+
+  const anchor = page.locator('.ef-stacked-anchor').first();
+  // Get the front-page (batch 1) position before hover
+  const frontPage = anchor.locator('.ef-tensor-page.front-page');
+  const beforeBox = await frontPage.boundingBox();
+
+  // Hover to expand
+  await anchor.hover();
+  await page.waitForTimeout(200);
+
+  // After expand, batch 1 should not have shifted vertically
+  const afterBox = await frontPage.boundingBox();
+  expect(Math.abs(afterBox.y - beforeBox.y)).toBeLessThan(5);
+});
+
+test('expanded tensor shows pages in correct order relative to active page', async ({ page }) => {
+  await gotoEmbedFwd(page);
+  // Jump to batch 1
+  await page.evaluate(() => { window.efJumpToPos(3); });
+
+  const anchor = page.locator('.ef-stacked-anchor').first();
+  await anchor.hover();
+  await page.waitForTimeout(200);
+
+  // In expanded view, batch 0 should be ABOVE batch 1
+  const pages = page.locator('.ef-stacked-tensor.expanded .ef-tensor-page');
+  const count = await pages.count();
+  expect(count).toBe(2);
+
+  // Get vertical positions of each page
+  const boxes = [];
+  for (let i = 0; i < count; i++) {
+    const box = await pages.nth(i).boundingBox();
+    const header = await pages.nth(i).locator('.ef-page-header').textContent();
+    boxes.push({ y: box.y, header });
   }
+
+  // batch 0 should be above batch 1 (lower y value)
+  const b0 = boxes.find(b => b.header.includes('b=0'));
+  const b1 = boxes.find(b => b.header.includes('b=1'));
+  expect(b0.y).toBeLessThan(b1.y);
 });
 
 // ── Bug 3: Checkbox should say "Element by element" ──

@@ -148,7 +148,7 @@ function renderStackedTensor(data3D, axisLabels, options = {}) {
     const isFront = p === (activePage >= 0 ? activePage : 0);
     const pageCls = `ef-tensor-page${isFront ? ' front-page' : ' back-page'}${isActive ? ' active-page' : ''}`;
 
-    html += `<div class="${pageCls}" style="left:${ox}px;top:${oy}px;z-index:${p === activePage ? 10 : pages - 1 - p}">`;
+    html += `<div class="${pageCls}" data-page="${p}" style="left:${ox}px;top:${oy}px;z-index:${p === activePage ? 10 : pages - 1 - p}">`;
 
     // Page header
     const headerCls = isActive ? 'ef-page-header active' : 'ef-page-header';
@@ -207,19 +207,20 @@ function wireStackedHover(container) {
     anchor.addEventListener('mouseenter', () => {
       if (efPlaying) return;
       el.classList.add('expanded');
-      // Reorder pages so front-page is in the middle, others above/below
+      // Sort pages ascending by data-page so b=0 is on top, b=1 below, etc.
       const pages = Array.from(el.querySelectorAll('.ef-tensor-page'));
-      const front = pages.find(p => p.classList.contains('front-page'));
+      pages.sort((a, b) => +a.dataset.page - +b.dataset.page);
+      pages.forEach(p => el.appendChild(p));
+      // Shift container up so the active (front) page stays under the mouse
+      const front = el.querySelector('.ef-tensor-page.front-page');
       if (front) {
-        // Move front page to end so it appears last (bottom in normal flow)
-        // But we want: back pages above, front page below
-        // Current DOM order from renderStackedTensor: highest batch first
-        // Just ensure front page is visually stable — no reorder needed
-        // The CSS handles position:relative for all pages when expanded
+        const offsetTop = front.offsetTop;
+        el.style.top = (-offsetTop) + 'px';
       }
     });
     anchor.addEventListener('mouseleave', () => {
       el.classList.remove('expanded');
+      el.style.top = '';
     });
   });
 }
