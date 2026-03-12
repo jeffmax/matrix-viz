@@ -394,11 +394,11 @@ function updateShelfContent() {
       + `<strong>Embedding Forward: btv,vc→btc</strong>`
       + `<p style="margin-top:6px">Each token is a one-hot vector. Multiplying by the embedding table W selects a row — embedding lookup <em>is</em> matrix multiplication.</p>`
       + `<p style="margin-top:6px"><code>Y[b,t,:] = X[b,t,:] @ W = W[token_id, :]</code></p>`
-      + `<p style="margin-top:6px">The sum over <strong>v</strong> (vocab size) is the contraction — but since X is one-hot, only the v=token_id term survives. The "matrix multiply" is just a row lookup.</p>`
-      + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic"><strong>Notation:</strong> We use Karpathy's convention: <strong>B</strong>=batch, <strong>T</strong>=time/sequence position, <strong>C</strong>=channels (embedding dim). <strong>V</strong>=vocab size (the contracted axis). `
-      + `Karpathy's nanoGPT unpacks <code>B, T, C = x.size()</code>. `
-      + `Other conventions exist: PyTorch docs use N,S,E; <a href="https://github.com/pixqc/einsum-puzzles/blob/master/main.ipynb" target="_blank" style="color:#69c">einsum-puzzles</a> uses b,l,d. `
-      + `We reserve <strong>h</strong> for attention heads (as in the <a href="https://arxiv.org/abs/1706.03762" target="_blank" style="color:#69c">original transformer paper</a>).</p>`
+      + `<p style="margin-top:6px">The einsum contracts over <strong>v</strong> (vocab size). Since X is one-hot, all but one term in that sum is zero — the "matrix multiply" collapses to copying a single row of W.</p>`
+      + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic"><strong>Notation:</strong> We follow Karpathy's <a href="https://github.com/karpathy/nanochat/blob/master/nanochat/gpt.py#L83" target="_blank" style="color:#69c"><code>B, T, C = x.size()</code></a>: `
+      + `<strong>B</strong>=batch, <strong>T</strong>=sequence position, <strong>C</strong>=embedding channels. `
+      + `<strong>V</strong>=vocab size. We reserve <strong>h</strong> for attention heads (as in the <a href="https://arxiv.org/abs/1706.03762" target="_blank" style="color:#69c">original transformer paper</a>). `
+      + `You'll also see <strong>l</strong> for sequence length (<a href="https://github.com/pixqc/einsum-puzzles/blob/master/main.ipynb" target="_blank" style="color:#69c">einsum-puzzles</a>) and <strong>S,N,E</strong> in <a href="https://docs.pytorch.org/docs/stable/generated/torch.nn.MultiheadAttention.html" target="_blank" style="color:#69c">PyTorch docs</a>.</p>`
       + `</div>`;
   } else if (currentMode === 'embed-bwd') {
     el.innerHTML =
