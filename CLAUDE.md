@@ -365,7 +365,3 @@ That site is excellent for the dot-product view but hides all structure. The ins
 - `setBuildMode()` triggers full `mmReset()` — no mid-build mode switching
 - Single `collapseT` — no separate DP collapse state. One slider, one state variable.
 - `detailMode()` reads `#chkDetail` checkbox; label updates per build mode ("Element by element" / "Term by term")
-
-## User / learning context
-
-Jeff is working through Karpathy's nn-zero-to-hero, currently on makemore part 4 (manual backprop through MLPs). Primary goal is deep intuitive understanding of the math, not just working code. Particularly interested in the "why" behind operations — einsum, outer products, gradient flow. This visualization project is a direct companion to that learning.

@@ -11,7 +11,7 @@ npm start          # starts local server on http://localhost:3000
 
 Open `http://localhost:3000/matmul-3d.html` in a browser. ES modules require a local server — `file://` won't work.
 
-A pre-commit hook validates JS syntax on every commit. If it fails, fix the syntax error and commit again.
+A pre-commit hook validates JS syntax and runs unit tests on every commit. If it fails, fix the issue and commit again.
 
 ---
 
@@ -19,26 +19,36 @@ A pre-commit hook validates JS syntax on every commit. If it fails, fix the synt
 
 | File | Lines | Role |
 |------|------:|------|
-| `matmul-3d.html` | ~571 | HTML structure + CSS. No inline JS. |
-| `js/shared.js` | ~135 | Global state, dimension management, utilities, callback registry |
-| `js/scene.js` | ~80 | Three.js scene, camera, custom orbit controls, render loop |
-| `js/cube-manager.js` | ~90 | 3D box meshes: create, paint, plus-sign sprites |
-| `js/tab-intro.js` | ~337 | Tab 0: Outer Product (2D only, no Three.js) |
-| `js/tab-matmul.js` | ~452 | Tab 1: MatMul Build & Collapse (3D) |
-| `js/tab-dotprod.js` | ~416 | Tab 2: Dot Product perspective (3D) |
-| `js/app.js` | ~201 | Entry point: mode switching, rebuild, einsum badge, window globals |
+| `matmul-3d.html` | ~1211 | HTML structure + CSS. No inline JS. |
+| `js/shared.js` | ~162 | Global state, dimension management, utilities, callback registry |
+| `js/scene.js` | ~112 | Three.js scene, camera, custom orbit controls, render loop |
+| `js/cube-manager.js` | ~92 | 3D box meshes: create, paint, plus-sign sprites |
+| `js/presets.js` | ~196 | 11 named matrix multiply examples |
+| `js/einsum-spec.js` | ~119 | Einsum parser and tensor contraction engine |
+| `js/embed-data.js` | ~95 | Embedding data generation (tokens, one-hots, gradients) |
+| `js/tab-inner.js` | ~214 | Inner Product: a · b step-through (2D) |
+| `js/tab-intro.js` | ~396 | Outer Product: a ⊗ b broadcast animation (2D) |
+| `js/tab-matmul.js` | ~1238 | Matrix Multiply: unified build (outer/dot) + exploration + collapse (3D) |
+| `js/tab-embed-fwd.js` | ~669 | Embedding Forward: btv,vc→btc (2D) |
+| `js/tab-embed-bwd.js` | ~284 | Embedding Backward: btv,btc→vc (2D) |
+| `js/app.js` | ~504 | Entry point: tier/tab nav, preset system, mode switching, rebuild, window globals |
 
 ### Import graph
 
 Arrows show "is imported by." No circular dependencies.
 
 ```
-shared.js        ← scene.js, cube-manager.js, tab-intro.js, tab-matmul.js, tab-dotprod.js, app.js
-scene.js         ← cube-manager.js, tab-matmul.js, tab-dotprod.js, app.js
-cube-manager.js  ← tab-matmul.js, tab-dotprod.js, app.js
+shared.js        ← scene.js, cube-manager.js, presets.js, tab-inner.js, tab-intro.js, tab-matmul.js, tab-embed-fwd.js, tab-embed-bwd.js, app.js
+scene.js         ← cube-manager.js, tab-matmul.js, app.js
+cube-manager.js  ← tab-matmul.js, app.js
+presets.js       ← app.js
+einsum-spec.js   ← tab-embed-fwd.js, tab-embed-bwd.js
+embed-data.js    ← tab-embed-fwd.js, tab-embed-bwd.js
+tab-inner.js     ← app.js
 tab-intro.js     ← app.js
 tab-matmul.js    ← app.js
-tab-dotprod.js   ← app.js
+tab-embed-fwd.js ← app.js
+tab-embed-bwd.js ← app.js
 ```
 
 ---
@@ -48,12 +58,12 @@ tab-dotprod.js   ← app.js
 ### Dimensions
 
 ```
-I = rows of A / rows of Result      ∈ [1, 4]
-J = cols of A / rows of B           ∈ [1, 4]   (shared/contraction dimension)
-K = cols of B / cols of Result       ∈ [1, 4]
+I = rows of A / rows of Result      ∈ [1, 5]
+J = cols of A / rows of B           ∈ [1, 5]   (shared/contraction dimension)
+K = cols of B / cols of Result       ∈ [1, 5]
 ```
 
-Adjustable via +/- buttons in the UI. Maximum 4 to keep 3D performance smooth.
+Adjustable via +/- buttons in the UI. Maximum 5 to keep 3D performance smooth.
 
 ### Core arrays (all in `shared.js`)
 
@@ -68,7 +78,7 @@ Values are integers 1–9 (randomized) or user-editable in range [-99, 99].
 
 ### ES module state sharing
 
-Shared state uses `export let` — ES live bindings mean importers always read the current value. **Only shared.js can reassign** these variables. Other modules that need to update state in bulk (e.g., `carryIntroToMatmul`) call `setData({I, J, K, A, B, Cube, Res})`.
+Shared state uses `export let` — ES live bindings mean importers always read the current value. **Only shared.js can reassign** these variables. Other modules that need to update state in bulk call `setData({I, J, K, A, B, Cube, Res})`.
 
 ### Callback registry
 
@@ -86,6 +96,28 @@ if (tabCallbacks.onRecompute) tabCallbacks.onRecompute();
 
 `app.js` registers the handlers at startup via `registerCallbacks({onDimChange, onRecompute})`.
 
+### Preset system
+
+`js/presets.js` exports `PRESETS` array with 11 named examples:
+
+| ID | Name | Dims | Build mode |
+|----|------|------|------------|
+| `basic` | Basic 2×3 · 3×2 | 2×3×2 | outer |
+| `identity` | Identity | 3×3×3 | dot |
+| `row-select` | Row Selection | 2×3×3 | dot |
+| `permute` | Permutation | 3×3×3 | dot |
+| `sum-rows` | Sum Rows (1ᵀ @ B) | 1×3×3 | dot |
+| `sum-cols` | Sum Columns (B @ 1) | 3×3×1 | dot |
+| `average` | Average Rows | 1×3×3 | dot |
+| `mask-upper` | Cumulative Sum | 4×4×4 | dot |
+| `projection` | Projection | 3×3×3 | dot |
+| `outer` | Outer Product (a ⊗ b) | 3×1×3 | outer |
+| `roll` | Circular Shift | 4×4×4 | dot |
+
+Selecting a preset loads matrices via `setData()` + `recomputeFromMatrices()`, sets labels (`labelA`, `labelB`), and may switch build mode. Randomize, dim change, or cell edit calls `clearPreset()`.
+
+Presets also set `presetFillA`/`presetFillB` — functions that produce correct values when dimensions are changed via +/- buttons after preset load.
+
 ---
 
 ## Three.js scene (`scene.js`)
@@ -93,7 +125,7 @@ if (tabCallbacks.onRecompute) tabCallbacks.onRecompute();
 ### Setup
 
 - Three.js **r128** loaded as a global `<script>` (not an ES module). Access via `THREE`.
-- Single `<canvas id="mainCanvas">` (420×380), shared across tabs via `moveCanvasTo(hostId)`.
+- Single `<canvas id="mainCanvas">`, shared across 3D tabs via `moveCanvasTo(hostId)`.
 - `WebGLRenderer` with antialiasing, pixelRatio capped at 2, clear color `#fafafa`.
 - `PerspectiveCamera` with FOV 38. Distance auto-scales based on `max(I, J, K)`.
 - Three lights: ambient (0.82), two directional (0.48, 0.18).
@@ -159,20 +191,48 @@ This makes 3D slices visually align with 2D grids: k = columns, i = rows from th
 | `rebuildBoxes()` | Destroy old meshes, create new I×J×K grid. Resets orbit angles. |
 | `paintBox(i,j,k, col, opacity, emissive, val)` | Set color, opacity, edge color, and sprite text for one box. |
 | `paintSlice(j, state)` | Paint all boxes in slice j as `'empty'`, `'active'`, or `'done'`. |
-| `ensureAllGreen()` | Set all slices to `'done'` (green). Used when entering dotprod tab. |
+| `ensureAllGreen()` | Set all slices to `'done'` (green). Used after build completes. |
 | `packedY(j)` | Y coordinate of slice j. |
 | `addPlusPlanes()` / `removePlusPlanes()` | Add/remove "+" sprites between slices. |
-| `clearBoxes()` | Remove all 3D objects from the scene (used when switching to intro tab). |
-
-### Canvas textures
-
-`makeTex(text, color)` renders text to a 128×128 canvas and returns a `THREE.CanvasTexture`. Used for value labels on each box and for plus-sign sprites (`makePlusTex()`).
+| `clearBoxes()` | Remove all 3D objects from the scene (used when switching to 2D tabs). |
 
 ---
 
-## Tab 0: Outer Product (`tab-intro.js`)
+## Navigation: Three-tier system
 
-Pure 2D — no Three.js. Demonstrates `a ⊗ b` (outer product of two vectors).
+```
+Tier 1:  [Vector Operations]  [Matrix Multiply]  [Embeddings]
+Tier 2a: [Inner Product]  [Outer Product]              ← when Vector Operations active
+Tier 2b: (no sub-tabs, preset bar + build mode toggle)  ← when Matrix Multiply active
+Tier 2c: [Forward]  [Backward]                          ← when Embeddings active
+```
+
+- `setTier(tier)` toggles tier1 active states, shows/hides tier2 rows and preset bar
+- `setMode(m)` handles per-tab rendering and pausing, auto-selects correct tier
+- Each tier remembers its last-used sub-tab
+
+---
+
+## Inner Product (`tab-inner.js`)
+
+Pure 2D. Demonstrates `a · b = Σᵢ a[i] × b[i]`. Einsum: `i,i→`
+
+### State
+
+```
+ipA[n], ipB[n]   vectors (editable)
+ipN              vector size ∈ [1, 8]   (independent of matmul I/J/K)
+ipStep           -1 (overview) | 0..ipN-1 (highlighting term i)
+ipPlaying        bool
+```
+
+Steps through each term, showing `a[i] × b[i]` highlighted with running sum.
+
+---
+
+## Outer Product (`tab-intro.js`)
+
+Pure 2D. Demonstrates `a ⊗ b` (broadcast multiplication). Einsum: `i,k→ik`
 
 ### State
 
@@ -188,28 +248,30 @@ introPlaying     bool
 | Step | What happens |
 |------|-------------|
 | 0 | Show vectors `a` (column) and `b` (row). Formula explains broadcast. |
-| 1 | **Broadcast animation**: a copies rightward (K−1 times), b copies downward (I−1 times). Result grid appears with staggered CSS animations. |
-| 2 | Final outer product grid with **hover interaction**: hovering cell (i,k) highlights `a[i]` and `b[k]`, shows the multiplication formula. Cells cycle automatically when playing. |
+| 1 | **Broadcast animation**: a copies rightward, b copies downward. Result grid appears with staggered CSS animations. |
+| 2 | Final outer product grid with **hover interaction**: hovering cell (i,k) highlights `a[i]` and `b[k]`. Cells cycle automatically when playing. |
 
-### Speed
+### Carry-over to Matrix Multiply
 
-`delay = 1400 - sliderValue` (slider range 200–1200). Left = slow, right = fast.
-
-### Carry-over to Tab 1
-
-When switching from intro to any other tab (if `introA` has data), `carryIntroToMatmul(introA, introB)` fires:
-- Sets `A = introA ⊗ introB` (the outer product becomes the A matrix)
-- `J = introB.length`
-- `B` is randomized
-- `Cube` and `Res` are recomputed
-
-This creates a narrative connection: "your outer product becomes one input to matrix multiplication."
+When switching from intro to matmul, `carryIntroToMatmul(introA, introB)` fires — the outer product becomes the A matrix, creating a narrative connection.
 
 ---
 
-## Tab 1: Matrix Multiply — Build & Collapse (`tab-matmul.js`)
+## Matrix Multiply (`tab-matmul.js`)
 
-The central 3D visualization. Shows `Result = Σⱼ A[:,j] ⊗ B[j,:]` as a cube being built slice-by-slice then collapsed.
+The central 3D visualization. This single module handles both outer product and dot product build modes, exploration, and collapse. (The former `tab-dotprod.js` was merged here.)
+
+### Build modes (radio toggle)
+
+```
+(●) Outer Product    ( ) Dot Product    ☐ Element by element / Term by term
+```
+
+`setBuildMode('outer'|'dot')` triggers a full `mmReset()` — no mid-build mode switching.
+
+**Outer product mode**: Steps through j-slices. Each step shows `A[:,j] ⊗ B[j,:]` as a 2D sub-viz below the cube. Detail checkbox = "Element by element" (fills individual cells within each slice).
+
+**Dot product mode**: Steps through (i,k) result cells. Each step computes `A[i,:] · B[:,k]`. Detail checkbox = "Term by term" (shows individual j-terms with partial sums).
 
 ### State machine: `mmPhase`
 
@@ -221,11 +283,11 @@ The central 3D visualization. Shows `Result = Σⱼ A[:,j] ⊗ B[j,:]` as a cube
 
 ### Build phase
 
-- Steps through j-slices (or individual cells if "element-by-element" is checked).
 - `t1` = current step index, `-1` = idle.
-- `totalSteps1()` = `elemByElem ? J*I*K : J`.
-- `decodeS1(s)` converts step number to `{j, cellI, cellK}`.
-- Each step paints slices (`'empty'` → `'active'` → `'done'`) and updates 2D side grids.
+- Step counts depend on build mode and detail:
+  - Outer: `J` steps (or `J×I×K` if element-by-element)
+  - Dot: `I×K` steps (or `I×K×J` if term-by-term)
+- `applyStep(s)` dispatches to `applyS1(s)` (outer) or `applyDpStep(s)` (dot) based on `buildMode`.
 - After the last step, 600ms pause, then auto-transitions to collapse.
 
 ### Collapse phase
@@ -246,6 +308,13 @@ What happens as t increases:
 
 **Why pure?** Being a pure function of `t` means it's scrubable (slider), reversible (◀ button), and pausable at any point.
 
+### Exploration mode (post-build)
+
+After build completes, click any result cell → `mmJumpToCell(i, k)`:
+- Sub-viz shows the full dot product breakdown `A[i,:] · B[:,k]`
+- Cube highlights the selected vertical column
+- Hover A or B cells to inspect individual j-factor contributions
+
 ### Timers
 
 | Timer | Purpose | Cancel |
@@ -253,81 +322,137 @@ What happens as t increases:
 | `tm1` (setTimeout) | Build tick + 600ms build→collapse transition | `clearTimeout(tm1)` |
 | `colAnimId` (rAF) | Collapse animation frames | `cancelAnimationFrame(colAnimId)` |
 
-### Speed
+### Key exports
 
-`spdMM() = 1900 - sliderValue` (slider range 100–1800). Collapse speed: `COL_SPEED = 0.0005` per ms (frame-rate independent via `dt`).
-
-### rAF first-frame fix
-
-`runColAnim` skips its first frame (`if (!last) { last = now; return; }`). Without this, `dt = 0` on the first call would trigger the boundary check and stop immediately.
+| Function | Purpose |
+|----------|---------|
+| `mmToggle()`, `mmFwd()`, `mmBack()`, `mmReset()` | Playback control |
+| `mmPauseBuild()`, `mmPauseAll()` | Stop timers |
+| `applyStep(s)`, `applyS1(s)`, `applyCollapse(t)` | Paint functions |
+| `mmRenderResult()` | Render result grid (partial sums, final, or interactive) |
+| `mmJumpToCell(i, k)` | Enter exploration mode |
+| `mmHoverCell(j)`, `mmClearHover()` | Exploration hover |
+| `setBuildMode(mode)` | Switch outer/dot, triggers full reset |
+| `mmToggleDetail()` | Toggle detail checkbox, remaps step position |
+| `renderA(j, curI, curK)`, `renderB(j, curI, curK)` | Render side grids |
+| `getMmState()`, `getBuildMode()` | Testable state queries |
 
 ---
 
-## Tab 2: Dot Product (`tab-dotprod.js`)
+## Embedding Forward (`tab-embed-fwd.js`)
 
-Shows the same cube from a different perspective: each vertical column `Cube[i, :, k]` is a dot product `A[i,:] · B[:,k]`.
+Pure 2D. Shows `Y = X @ W` where X is one-hot encoded tokens. Einsum: `btv,vc→btc`
 
-### Two modes
+### State
 
-**Exploration mode** (`dpStep = -1`):
-- Click any result cell `(i, k)` to select it.
-- The corresponding column in the 3D cube lights up.
-- A detail panel shows the full dot product breakdown.
-
-**Animation mode** (`dpStep ≥ 0`):
-- Steps through all result cells, optionally term-by-term.
-- `totalSteps = dpTermByTerm ? I*K*J : I*K`.
-- `dpDecodeStep(s) → {i, k, j}` for term-by-term mode.
-
-### Collapse sync
-
-When switching from matmul to dotprod, the collapse state `collapseT` is preserved:
-
-```js
-let savedCollapseT = collapseT;       // from matmul
-setDpCollapseT(savedCollapseT);       // into dotprod
-dpApplyCollapse(savedCollapseT);      // apply to cube
+```
+eB, eT, eV, eC    batch, time, vocab, channels (adjustable)
+tokenIds[b][t]     token indices
+X[b][t][v]         one-hot encoded (V-length)
+W[v][c]            embedding weight table (V×C)
+Y[b][t][c]         output embeddings (B×T×C)
+efStep             -1 (overview) | 0..B×T-1 (highlighting position)
+efDetail           bool (default true) — element-by-element sub-viz
 ```
 
-The dotprod tab has its own collapse slider and `dpCollapseT` state, but they visualize the same concept.
+### Detail mode
+
+Checkbox `#chkEfDetail` (default checked):
+- **Off (compact)**: horizontal one-hot row × W → result row
+- **On (detail)**: full V×C intermediate grid showing which row of W is selected
+
+### Stacked tensor visualization
+
+X and Y are 3D tensors (B×T×V and B×T×C). Displayed as stacked 2D pages (one per batch). Hovering a batch page expands it using `position: absolute` overlay (doesn't shift other tensors).
+
+---
+
+## Embedding Backward (`tab-embed-bwd.js`)
+
+Pure 2D. Gradient accumulation: `dW = Xᵀ @ G`. Einsum: `btv,btc→vc`
+
+### State
+
+```
+Same dimensions as forward: eB, eT, eV, eC
+tokenIds, X, G[b][t][c] (upstream gradients), dW[v][c] (accumulated weight gradient)
+dWAccum            running accumulator, updated as ebStep advances
+ebStep             -1 (overview) | 0..B×T-1
+```
+
+Steps through positions showing each outer-product contribution to dW. Each step: `dW += X[b,t,:] ⊗ G[b,t,:]` (but only the selected row of W gets the gradient, since X is one-hot).
+
+---
+
+## Utility modules
+
+### `einsum-spec.js`
+
+Parses einsum signature strings and computes tensor contractions:
+- `parseEinsum(sig, dims)` — e.g. `'btv,vc->btc'` → parsed spec with contracted/free indices
+- `computeEinsum(spec, inputData)` — compute output tensor from nested arrays
+
+Used by the embedding tabs for rigorous tensor operations.
+
+### `embed-data.js`
+
+Generates random embedding data:
+- `generateTokens(B, T, V)` → `{tokenIds, X}` (one-hot encoded)
+- `generateEmbedding(V, C)` → `W` (values 1–9)
+- `generateGradients(B, T, C)` → `G` (values -4 to 4)
+- `computeForward(X, W)` → `Y`
+- `computeBackward(X, G)` → `dW`
 
 ---
 
 ## HTML structure (`matmul-3d.html`)
 
-### Top-level layout
+### Navigation DOM
 
 ```
-<h1> title
-<div.top-controls>      Randomize / Reset buttons
-<div.mode-tabs>          Tab buttons (⓪ ① ②)
-<div#ctrl-intro>         Tab 0 controls + content (hidden when inactive)
-<div#ctrl-matmul>        Tab 1 controls + content (hidden when inactive)
-<div#ctrl-dotprod>       Tab 2 controls + content (hidden when inactive)
+Tier 1 buttons: #tier1-blocks, #tier1-matmul, #tier1-embed
+Tier 2 rows:    #tier2-blocks, #tier2-matmul (hidden), #tier2-embed
+Tab buttons:    #tab-inner, #tab-intro, #tab-matmul,
+                #tab-embed-fwd-nav, #tab-embed-bwd-nav
 ```
 
 ### Key DOM IDs
 
 | ID | Element |
 |----|---------|
-| `tab-intro`, `tab-matmul`, `tab-dotprod` | Mode tab buttons |
-| `ctrl-intro`, `ctrl-matmul`, `ctrl-dotprod` | Tab content panels |
-| `mainCanvas` | The single shared Three.js canvas |
-| `mmCanvasHost`, `dpCanvasHost` | Canvas mount points (canvas moves between them) |
-| `gridA`, `gridB` | A and B matrix grids (matmul tab) |
-| `introDisplay` | Outer product vectors and grid (intro tab) |
-| `opDisplay` | Outer product detail panel (matmul tab, elem-by-elem mode) |
-| `dpMatrices` | A, B, Result grids (dotprod tab) |
-| `spIntro`, `spMM`, `spDP` | Speed sliders per tab |
-| `spCollapse` | Collapse slider (matmul tab) |
-| `dpCollapseSlider` | Collapse slider (dotprod tab) |
-| `pbIntro`, `pbMM`, `pbDP` | Play/pause buttons |
-| `chkElem` | "Show outer products element by element" checkbox |
-| `chkDpTerm` | "Show terms one by one" checkbox |
-| `fIntro`, `fMM`, `fDP` | Formula bar text |
-| `dIntro`, `dMM`, `dDP` | Step dots |
-| `einsumIntro`, `einsumMatmul`, `einsumDotprod` | Einsum badge containers |
-| `drawer-intro`, `drawer-dotprod` | Info drawer panels |
+| **Navigation** | |
+| `tier1-blocks`, `tier1-matmul`, `tier1-embed` | Tier 1 buttons |
+| `tab-inner`, `tab-intro` | Vector Operations sub-tabs |
+| `tab-embed-fwd-nav`, `tab-embed-bwd-nav` | Embeddings sub-tabs |
+| **Control panels** | |
+| `ctrl-inner`, `ctrl-intro`, `ctrl-matmul` | Tab content containers |
+| `ctrl-embed-fwd`, `ctrl-embed-bwd` | Embedding tab containers |
+| **Inner Product** | |
+| `innerDisplay`, `spInner`, `pbInner`, `fInner`, `dInner`, `einsumInner` | |
+| **Outer Product** | |
+| `introDisplay`, `spIntro`, `pbIntro`, `fIntro`, `dIntro`, `einsumIntro` | |
+| **Matrix Multiply** | |
+| `presetSelect` | Preset dropdown |
+| `presetDesc` | Preset description banner |
+| `buildModeToggle` | Outer/Dot radio buttons |
+| `chkDetail`, `chkDetailLabel` | Detail checkbox (label updates per mode) |
+| `gridA`, `gridB` | A and B matrix grids |
+| `mmCanvasHost`, `mainCanvas` | 3D canvas area |
+| `canvasTitle` | "Cube[i,j,k] = ..." / "Result[i,k]" |
+| `spCollapse` | Collapse slider (range 0–1000) |
+| `mmResultGrid`, `mmResultHint` | Result grid + hint text |
+| `opDisplay` | Outer product sub-viz (hidden during DP or exploration) |
+| `dpSubViz` | Dot product sub-viz / exploration sub-viz |
+| `spMM`, `pbMM`, `fMM`, `dMM`, `einsumMatmul` | Speed, play, formula, dots, einsum |
+| **Embedding Forward** | |
+| `efDisplay`, `spEF`, `pbEF`, `fEF`, `dEF`, `einsumEmbedFwd` | |
+| `chkEfDetail`, `chkEfDetailLabel` | Detail checkbox |
+| **Embedding Backward** | |
+| `ebDisplay`, `spEB`, `pbEB`, `fEB`, `dEB`, `einsumEmbedBwd` | |
+| **Shelves** | |
+| `infoShelf`, `infoShelfHandle`, `infoShelfBackdrop` | Info shelf (per-tab help) |
+| `shelfContent` | Dynamic shelf content |
+| `rulesShelf`, `rulesShelfHandle`, `rulesShelfBackdrop` | Einsum rules shelf |
 
 ### CSS: Matrix cell classes
 
@@ -346,6 +471,7 @@ All matrix cells use `.mat-cell` as base class, with modifiers:
 .hi-cell               /* Hover highlight (larger scale) */
 .done                  /* Computed result */
 .empty                 /* Unfilled result slot */
+.partial               /* Partially computed (outer product build) */
 .anim                  /* Fade-in animation */
 .editable              /* Click-to-edit */
 ```
@@ -353,36 +479,31 @@ All matrix cells use `.mat-cell` as base class, with modifiers:
 ### CSS: Layout containers
 
 ```css
-.mm-row          /* Flex row: A × B = Cube. Fixed height: 460px */
-.mm-mat-area     /* Matrix container. Fixed height: 280px, centers content vertically */
-.mm-cube-area    /* 3D canvas container. Fixed height: 440px */
+.mm-row          /* Flex row: A × B = Cube. Fixed height */
+.mm-mat-area     /* Matrix container. Fixed height, centers content vertically */
+.mm-cube-area    /* 3D canvas container. Fixed height */
+.mm-toolbar      /* Controls row: preset, build mode, playback, speed, detail, einsum */
 ```
 
 These use **fixed heights** (not min-height) so that controls below never shift when dimensions change.
-
-### CSS: Animations
-
-```css
-@keyframes introCopyRight    /* 0.4s — broadcast a rightward */
-@keyframes introCopyDown     /* 0.4s — broadcast b downward */
-@keyframes introMulAppear    /* 0.35s — result cell appear */
-@keyframes opSliceAppear     /* 0.45s — outer product slice appear */
-```
 
 ---
 
 ## Window globals and HTML event wiring
 
-HTML uses inline `onclick` handlers (e.g., `onclick="rebuild(true)"`). Since ES modules don't pollute the global scope, `app.js` explicitly assigns all handler functions to `window`:
+HTML uses inline `onclick` handlers. Since ES modules don't pollute the global scope, `app.js` explicitly assigns all handler functions to `window` (~50 total):
 
-```js
-// app.js
-window.rebuild = rebuild;
-window.setMode = setMode;
-window.toggleInfo = toggleInfo;
-window.changeDim = changeDim;
-// ... ~20 total
-```
+**Core**: `rebuild`, `setMode`, `setTier`, `selectPreset`, `toggleInfo`, `toggleRules`, `changeDim`, `updateSegControl`, `snapToDefault`, `copyTorchCode`
+
+**Inner Product**: `ipFwd`, `ipBack`, `ipToggle`, `ipReset`, `ipEditCell`, `ipResize`
+
+**Outer Product**: `stepFwdIntro`, `stepBackIntro`, `togglePlayIntro`, `resetIntro`, `introEditCell`, `introHover`, `introClearHover`
+
+**Matrix Multiply**: `mmBack`, `mmFwd`, `mmToggle`, `mmReset`, `mmScrubCollapse`, `mmRenderResult`, `mmSelectResultCell`, `mmJumpToCell`, `mmHoverCell`, `mmClearHover`, `mmToggleDetail`, `setBuildMode`
+
+**Embed Forward**: `efFwd`, `efBack`, `efToggle`, `efReset`, `efJumpToPos`, `efTraceBack`, `efChangeDim`, `efToggleDetail`, `getEfState`
+
+**Embed Backward**: `ebFwd`, `ebBack`, `ebToggle`, `ebReset`, `ebJumpToPos`, `ebTraceBack`, `ebChangeDim`
 
 If you add a new function that needs to be called from HTML, you must add a `window.fnName = fnName` line in `app.js`.
 
@@ -408,8 +529,8 @@ If you add a new function that needs to be called from HTML, you must add a `win
 ### Changing dimensions
 
 User clicks +/- buttons → `changeDim(dim, delta)` in shared.js:
-1. Clamp new dimension to [1, 4].
-2. Resize A, B arrays (preserve existing values, fill new cells with `rand()`).
+1. Clamp new dimension to [1, 5].
+2. Resize A, B arrays (preserve existing values, fill new cells via `presetFillA`/`presetFillB` or `rand()`).
 3. Recompute Cube and Res.
 4. Fire `tabCallbacks.onDimChange(oldI, oldJ, oldK)`.
 
@@ -429,7 +550,7 @@ Click an `.editable` cell → `editCellInline(el, currentValue, color, onCommit)
 1. Pause all animations across all tabs.
 2. `computeData(rnd)` — generate new A, B, Cube, Res (random if `rnd=true`, all 1s if `false`).
 3. `initIntroVecs(rnd)` — generate new introA, introB.
-4. Rebuild 3D boxes if on a 3D tab, or clear them if on intro.
+4. Rebuild 3D boxes if on a 3D tab, or clear them if on 2D.
 5. Re-render the current tab.
 
 ### Tab switching
@@ -438,7 +559,7 @@ Click an `.editable` cell → `editCellInline(el, currentValue, color, onCommit)
 1. Pause animations in the previous tab.
 2. Toggle `.active` / `.hidden` CSS classes on tab buttons and panels.
 3. If leaving intro, trigger carry-over.
-4. Move canvas to the new tab's host div.
+4. Move canvas to the new tab's host div (if 3D).
 5. Initialize the new tab's state (rebuild boxes, reset animation, render).
 
 ---
@@ -455,11 +576,72 @@ Click an `.editable` cell → `editCellInline(el, currentValue, color, onCommit)
 
 5. **`setData()` for cross-module writes**: Only shared.js can reassign its own `let` exports. If a tab module needs to update shared state, call `setData({...})`. Don't try direct assignment — it silently fails in ES modules.
 
-6. **`resetDpState()` clears `dpCollapseT`**: If you need to preserve collapse state across a reset (e.g., when switching tabs), save the value before calling reset and restore it after.
+6. **`mmBuildDone` uses `mmStopBuildTimer()`** (not `mmPauseBuild()`) to preserve highlight timers.
 
 7. **Three.js r128**: Pinned version loaded from CDN. Don't upgrade without testing. The custom orbit controls don't use `OrbitControls` from the library.
 
 8. **`jLbl` span bug**: Don't create separate span IDs inside `innerHTML` strings that get overwritten by subsequent renders — the IDs will become stale.
+
+9. **`setBuildMode()` triggers full reset**: No mid-build mode switching. Always resets to t1=-1, clears selection.
+
+10. **Single `collapseT`**: No separate DP collapse state. One slider, one state variable shared across build modes.
+
+11. **`detailMode()`** reads `#chkDetail` checkbox. Label text updates per build mode: "Element by element" (outer) vs "Term by term" (dot).
+
+---
+
+## Testing
+
+### Unit tests (Vitest)
+
+```bash
+npm test           # runs vitest (155 tests across 8 files)
+```
+
+| File | Tests | Coverage |
+|------|------:|---------|
+| `tests/shared.test.js` | 9 | computeData, changeDim, recompute |
+| `tests/embed-data.test.js` | 8 | Token generation, forward/backward compute |
+| `tests/einsum-spec.test.js` | 15 | Einsum parser, tensor contraction |
+| `tests/tab-intro.test.js` | 11 | Outer product rendering, step logic |
+| `tests/tab-inner.test.js` | 12 | Inner product rendering, step-through |
+| `tests/tab-embed-bwd.test.js` | 11 | Backward embedding, accumulator |
+| `tests/tab-embed-fwd.test.js` | 30 | Forward embedding, detail mode, tensors |
+| `tests/tab-matmul.test.js` | 59 | Build modes, detail, exploration, collapse, hover |
+
+**Key rules**:
+- Never import `app.js` in tests — it runs `rebuild(true)` + `setMode('intro')` at module init.
+- Import individual modules directly.
+- Functions marked `/* @testable */` are exported primarily for testing.
+- `tests/setup.js` mocks THREE.js globally, provides canvas getContext stub, builds full DOM.
+
+### Browser tests (Playwright)
+
+```bash
+npm run test:e2e   # runs playwright test (111 tests across 4 spec files)
+```
+
+| File | Scope |
+|------|-------|
+| `tests/e2e/smoke.spec.js` | Page load, tabs, presets, tier switching, grid rendering |
+| `tests/e2e/presets.spec.js` | Preset loading, switching, state reset, exploration |
+| `tests/e2e/qa-explore.spec.js` | OP/DP step-through, exploration, collapse slider |
+| `tests/e2e/embed-fwd.spec.js` | Embedding forward: pills, tensors, detail mode |
+
+**WebGL limitation**: Headless chromium lacks WebGL, so 3D-dependent tests use `page.evaluate()` with try/catch or test only DOM aspects. WebGL errors are filtered from error assertions.
+
+### Interactive browser testing (playwright-cli)
+
+For ad-hoc browser exploration, use `playwright-cli` (not the MCP Playwright server):
+
+```bash
+playwright-cli open http://localhost:3000/matmul-3d.html
+playwright-cli snapshot          # get accessible DOM tree
+playwright-cli click e5          # click element by ref
+playwright-cli eval "window.setBuildMode('dot')"
+playwright-cli screenshot --filename=check.png
+playwright-cli close
+```
 
 ---
 
@@ -492,59 +674,11 @@ export function nvToggle() { ... }        // play/pause
 import { nvRender, nvReset, nvPause, nvFwd, nvBack, nvToggle } from './tab-newview.js';
 ```
 
-Add to `setMode()`:
-
-```js
-if (prev === 'newview') nvPause();
-document.getElementById('tab-newview').classList.toggle('active', m === 'newview');
-document.getElementById('ctrl-newview').classList.toggle('hidden', m !== 'newview');
-
-if (m === 'newview') {
-  // If 3D: moveCanvasTo('nvCanvasHost');
-  nvReset();
-  nvRender();
-  renderEinsumBadge('einsumNewview', 'newview');
-}
-```
-
-Add to `rebuild()` and the `onDimChange` callback.
-
-Assign window globals:
-
-```js
-window.nvFwd = nvFwd;
-window.nvBack = nvBack;
-window.nvToggle = nvToggle;
-window.nvReset = nvReset;
-```
+Add to `setMode()` switch. Add to `rebuild()` and the `onDimChange` callback. Assign window globals.
 
 ### 3. Add HTML
 
-In `matmul-3d.html`, add:
-
-```html
-<!-- Tab button -->
-<button class="mode-tab" id="tab-newview" onclick="setMode('newview')">③ New View</button>
-
-<!-- Tab panel -->
-<div id="ctrl-newview" class="hidden tab-container">
-  <div class="controls-row">
-    <div class="playback">
-      <button class="play-btn" onclick="nvBack()">◀</button>
-      <button class="play-btn big" onclick="nvFwd()">▶|</button>
-      <button class="play-btn" id="pbNV" onclick="nvToggle()">▶</button>
-      <button class="play-btn" onclick="nvReset()">↺</button>
-      <div class="slider-wrap">
-        <input type="range" id="spNV" min="200" max="1200" value="200">
-      </div>
-    </div>
-    <div class="einsum-badge" id="einsumNewview"></div>
-  </div>
-  <!-- If 3D: -->
-  <div id="nvCanvasHost"></div>
-  <!-- Tab-specific content here -->
-</div>
-```
+In `matmul-3d.html`: add a tier2 tab button, a `ctrl-newview` controls div, and a canvas host div if 3D.
 
 ### 4. Update `renderEinsumBadge` in `app.js`
 
@@ -552,18 +686,12 @@ Add a case for your new tab's einsum notation.
 
 ---
 
-## Testing checklist
+## Developer tools
 
-After any change, verify:
-
-- [ ] All three tabs render correctly
-- [ ] Dimension +/- buttons work (try 1×1×1 and 4×4×4)
-- [ ] Inline cell editing (click a value, type a new one, press Enter)
-- [ ] Tab switching preserves state (intro→matmul carry-over, collapse sync)
-- [ ] Build animation plays, pauses, steps forward/back, resets
-- [ ] Collapse animation is scrubable via slider
-- [ ] ◀ during collapse reverses direction, reaches 0 and transitions back to build
-- [ ] Randomize and Reset buttons work from every tab
-- [ ] 3D orbit (drag to rotate) works
-- [ ] Info drawer opens/closes, state persists across page reload
-- [ ] No console errors
+| Tool | Purpose |
+|------|---------|
+| `npm test` | Unit tests (Vitest, 155 tests) |
+| `npm run test:e2e` | Browser tests (Playwright, 111 tests) |
+| `playwright-cli` | Interactive browser testing |
+| `engram` | Persistent memory across sessions (SQLite, `~/.engram/engram.db`) |
+| Obsidian vault | Shared notes at `~/obsidian-vault/` |
