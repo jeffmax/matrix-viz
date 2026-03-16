@@ -2,7 +2,7 @@
 
 ## What this is
 
-An interactive 3D visualization of matrix multiplication using Three.js (r128). The goal is to help people doing Karpathy's *nn-zero-to-hero* course (and similar) develop deep geometric intuition for matrix multiplication — not just the algorithm, but the underlying structure that matters for understanding attention, backprop, and linear layers. The perspective of einsum notation should be a guiding thread throughout the application. 
+An interactive 3D visualization of matrix multiplication using Three.js (r128). The goal is to help people doing Karpathy's *nn-zero-to-hero* course (and similar) develop deep geometric intuition for matrix multiplication — not just the algorithm, but the underlying structure that matters for understanding attention, backprop, and linear layers. The perspective of einsum notation should be a guiding thread throughout the application.
 
 ## Running locally
 
@@ -13,6 +13,18 @@ npm start          # serves on http://localhost:3000
 
 ES modules require a local server — `file://` won't work due to CORS.
 
+## Building for deployment
+
+```bash
+npm run build      # produces matrix.html (~717 KB)
+```
+
+`build.js` bundles everything into a single self-contained `matrix.html`:
+- Bundles all ES modules into one minified IIFE via esbuild
+- Fetches Three.js r128 from CDN and inlines it
+- Minifies inline CSS
+- No external dependencies — the output file works standalone
+
 ## File structure
 
 ```
@@ -22,48 +34,65 @@ js/
   scene.js              Three.js scene, camera, custom orbit controls, render loop
   cube-manager.js       3D box mesh management, paint functions, plus planes
   presets.js            11 named matrix multiply examples (identity, row selection, one-hot lookup, etc.)
-  tab-inner.js          Inner Product tab: a · b step-through (2D, Building Blocks tier)
-  tab-intro.js          Outer Product tab: a ⊗ b broadcast animation (2D, Building Blocks tier)
+  einsum-spec.js        Einsum parser and tensor contraction engine
+  embed-data.js         Embedding data generation (tokens, one-hots, gradients, forward/backward compute)
+  tab-inner.js          Inner Product tab: a · b step-through (2D, Vector Operations tier)
+  tab-intro.js          Outer Product tab: a ⊗ b broadcast animation (2D, Vector Operations tier)
   tab-matmul.js         Matrix Multiply: unified build (outer product / dot product toggle) + exploration + collapse (3D)
-  tab-embed-fwd.js      Embedding Forward (hidden, kept for future use)
-  tab-embed-bwd.js      Embedding Backward (hidden, kept for future use)
-  app.js                Entry point: two-tier nav, preset system, mode switching, rebuild, einsum badge
+  tab-embed-fwd.js      Embedding Forward: btv,vc→btc row-selection visualization (2D, Embeddings tier)
+  tab-embed-bwd.js      Embedding Backward: btv,btc→vc gradient accumulation (2D, Embeddings tier)
+  app.js                Entry point: three-tier nav, preset system, mode switching, rebuild, einsum badge, window globals
 package.json            Dev server (serve), test scripts
 vitest.config.js        Vitest config (jsdom environment, excludes e2e/)
 playwright.config.js    Playwright config (chromium, webServer on :3000)
 tests/
   setup.js              DOM stubs, THREE.js mock, canvas mock
   shared.test.js        computeData correctness tests
+  embed-data.test.js    Embedding data generation tests
+  einsum-spec.test.js   Einsum parser and compute tests
   tab-inner.test.js     Inner product tab tests (step, resize, render)
   tab-intro.test.js     Outer product tab tests (double-play bug)
   tab-matmul.test.js    MatMul tab tests (highlight timer, build modes, exploration, hover)
+  tab-embed-fwd.test.js Embedding forward tests (rendering, detail mode, tensors)
+  tab-embed-bwd.test.js Embedding backward tests (accumulator, stepping)
   e2e/
-    smoke.spec.js       Playwright browser smoke tests (9 tests)
+    smoke.spec.js       Core smoke tests (page load, tabs, presets, build modes)
+    presets.spec.js     Preset loading, switching, state reset, exploration
+    qa-explore.spec.js  OP/DP step-through, exploration, collapse slider
+    embed-fwd.spec.js   Embedding forward: pills, tensors, detail mode
+build.js                Build script: bundles everything into a single matrix.html
 .gitignore              node_modules/
+DEVELOPER_GUIDE.md      Comprehensive developer reference (architecture, DOM IDs, adding tabs, etc.)
 ```
 
 ### Import graph (no circular dependencies)
 
 ```
-shared.js        ← scene.js, cube-manager.js, presets.js, tab-inner.js, tab-intro.js, tab-matmul.js, app.js
+shared.js        ← scene.js, cube-manager.js, presets.js, tab-inner.js, tab-intro.js, tab-matmul.js, tab-embed-fwd.js, tab-embed-bwd.js, app.js
 scene.js         ← cube-manager.js, tab-matmul.js, app.js
 cube-manager.js  ← tab-matmul.js, app.js
 presets.js       ← app.js
+einsum-spec.js   ← tab-embed-fwd.js, tab-embed-bwd.js
+embed-data.js    ← tab-embed-fwd.js, tab-embed-bwd.js
 tab-inner.js     ← app.js
 tab-intro.js     ← app.js
 tab-matmul.js    ← app.js
+tab-embed-fwd.js ← app.js
+tab-embed-bwd.js ← app.js
 ```
 
 ### Key patterns
 
 - **ES module live bindings**: `export let I, J, K` in shared.js — importers always see current values. Only shared.js can reassign; other modules use `setData()` for bulk updates.
 - **Callback registry**: shared.js fires `tabCallbacks.onDimChange()` / `tabCallbacks.onRecompute()` without importing tab modules. app.js registers the handlers via `registerCallbacks()`.
-- **Window globals**: HTML onclick handlers call `window.functionName`. app.js assigns all needed functions to `window`.
+- **Window globals**: HTML onclick handlers call `window.functionName`. app.js assigns ~50 functions to `window`.
 - **Three.js as global**: Loaded via `<script>` tag before the ES module. Accessed as `THREE` (global).
 
 ## Workflow rules
 
 - **Always commit after any non-trivial change** before telling the user you're done. Don't leave uncommitted work.
+- **Run all tests before committing**: `npm test` (unit) AND `npm run test:e2e` (browser). The pre-commit hook runs unit tests and syntax checks, but you should also run e2e tests yourself.
+- **Visually verify changes using `playwright-cli`** before considering a task complete. Open the page, navigate to affected tabs, take screenshots, and confirm the UI looks correct. This catches layout issues, rendering bugs, and visual regressions that automated tests miss.
 - **Run syntax checks** before committing — the pre-commit hook will catch JS errors, but verify manually if making broad changes.
 
 ## Testing
@@ -71,7 +100,7 @@ tab-matmul.js    ← app.js
 ### Unit tests (Vitest)
 
 ```bash
-npm test           # runs vitest (105 tests across 8 files)
+npm test           # runs vitest (155 tests across 8 files)
 ```
 
 - **Framework**: Vitest with jsdom environment
@@ -84,14 +113,65 @@ npm test           # runs vitest (105 tests across 8 files)
 ### Browser tests (Playwright)
 
 ```bash
-npm run test:e2e   # runs playwright test (9 smoke tests, chromium)
+npm run test:e2e   # runs playwright test (111 tests across 4 spec files, chromium)
 ```
 
 - **Framework**: Playwright with chromium
 - **Config**: `playwright.config.js` — starts dev server via `npm start` on port 3000
-- **Scope**: Smoke tests covering page load, tab navigation, preset loading, 2D tab rendering, tier switching, grid rendering
+- **Scope**: Smoke tests, preset loading/switching, OP/DP step-through, exploration mode, collapse slider, embedding forward
 - **WebGL limitation**: Headless chromium lacks WebGL, so 3D-dependent tests (cube building, collapse animation) use `page.evaluate()` with error handling or test only 2D aspects. WebGL errors are filtered from error assertions.
-- **Writing new e2e tests**: Add to `tests/e2e/smoke.spec.js`. Use `page.evaluate(() => window.fnName())` to call app functions directly when button selectors are fragile.
+- **Writing new e2e tests**: Add to `tests/e2e/`. Use `page.evaluate(() => window.fnName())` to call app functions directly when button selectors are fragile.
+
+### Interactive browser testing (playwright-cli)
+
+For ad-hoc browser exploration and visual verification, use `playwright-cli` (NOT the MCP Playwright server):
+
+```bash
+playwright-cli open http://localhost:3000/matmul-3d.html
+playwright-cli snapshot          # get accessible DOM tree
+playwright-cli click e5          # click element by ref
+playwright-cli eval "window.setBuildMode('dot')"   # run JS
+playwright-cli screenshot --filename=check.png
+playwright-cli close
+```
+
+- **Use for**: visual verification of changes before committing, debugging UI state, checking layout
+- **Do not use**: as a substitute for `npm run test:e2e` — the test runner provides isolation, assertions, and structured reporting that playwright-cli cannot replicate
+- **Typical verification flow**: open page → navigate to affected tab → take screenshot → check layout/content → test interaction (click, hover) → close
+
+### Task completion checklist
+
+Before considering any task complete:
+
+1. **`npm test`** — all unit tests pass
+2. **`npm run test:e2e`** — all browser tests pass
+3. **`playwright-cli`** — visually verify affected tabs look correct (screenshot + snapshot)
+4. **Commit** — don't leave uncommitted work
+
+### Persistent memory (Engram)
+
+We use [Engram](https://github.com/Gentleman-Programming/engram) for persistent memory across sessions. It's a local CLI tool backed by SQLite (`~/.engram/engram.db`).
+
+```bash
+engram save "title" "content" --type TYPE --project matmult2
+engram search "query" --project matmult2
+engram context matmult2              # recent context from previous sessions
+engram stats                         # overview of stored memories
+```
+
+- **Types**: `architecture`, `decision`, `bugfix`, `lesson`, `workflow`, etc.
+- **Always use** `--project matmult2` to scope memories to this project
+- **Use for**: decisions, lessons learned, gotchas, architectural context that should survive across conversations
+- **Not a replacement for** CLAUDE.md (project instructions) or git history (code changes)
+
+### Shared notes (Obsidian vault)
+
+A shared Obsidian vault at `~/obsidian-vault/` serves as the knowledge base between Jeff and Claude Code.
+
+- **`Projects/matmult2/`** — project overview, lessons learned, decisions
+- **`Lessons/`** — cross-project insights
+- Claude Code writes markdown notes there; Jeff reviews and organizes in Obsidian
+- Use `[[wiki links]]` for cross-references between notes
 
 ## Pre-commit hook
 
@@ -102,17 +182,18 @@ npm run test:e2e   # runs playwright test (9 smoke tests, chromium)
 1. Create `js/tab-newtab.js` — import from `shared.js`, `scene.js`, `cube-manager.js` as needed
 2. Export render/reset/pause/step functions
 3. In `app.js`: import the new tab's exports, add to `setMode()` switch, register any callbacks, assign window globals
-4. In `matmul-3d.html`: add a `.mode-tab` button, a `ctrl-newtab` controls div, and a canvas host div if it uses 3D
+4. In `matmul-3d.html`: add a tier2 tab button, a `ctrl-newtab` controls div, and a canvas host div if it uses 3D
+5. See `DEVELOPER_GUIDE.md` for detailed step-by-step instructions and HTML templates
 
 ## Architecture
 
-### Two-tier navigation
+### Three-tier navigation
 
 ```
-Tier 1:  [Building Blocks]  [Matrix Multiply]          ← top-level toggle
-Tier 2a: [Inner Product]  [Outer Product]               ← when Building Blocks active
-Tier 2b: [Matrix Multiply]                              ← single tab with build-mode toggle
-         + preset bar (11 named examples)
+Tier 1:  [Vector Operations]  [Matrix Multiply]  [Embeddings]
+Tier 2a: [Inner Product]  [Outer Product]              ← when Vector Operations active
+Tier 2b: (no sub-tabs — preset bar + build-mode toggle) ← when Matrix Multiply active
+Tier 2c: [Forward]  [Backward]                          ← when Embeddings active
 ```
 
 Build mode toggle (radio buttons within the matmul tab):
@@ -123,21 +204,23 @@ Build mode toggle (radio buttons within the matmul tab):
 - `setTier(tier)` toggles tier1 active states, shows/hides tier2 rows and preset bar
 - `setMode(m)` handles per-tab rendering and pausing, auto-selects correct tier
 - `setBuildMode(mode)` switches between outer/dot build, triggers full reset
-- Each tier remembers its last-used sub-tab (`lastBlocksMode`)
+- Each tier remembers its last-used sub-tab
 
 ### Preset system
 
-- `js/presets.js` exports `PRESETS` array (11 examples), `loadPreset(id)`, `clearPreset()`
+- `js/presets.js` exports `PRESETS` array (11 examples), `loadPreset(id)`, `clearPreset()`, `fullClearPreset()`
 - `shared.js` exports `labelA`/`labelB` — dynamic matrix labels used by rendering code
+- `shared.js` exports `presetFillA`/`presetFillB` — functions that produce correct values when dimensions change via +/- after preset load
 - Selecting a preset loads its matrices via `setData()` + `recomputeFromMatrices()`
-- Randomize, dim change, or manual cell edit calls `deselectPreset()` (clears active pill + resets labels)
+- Randomize, dim change, or manual cell edit calls `clearPreset()` (clears active pill + resets labels)
 
 ### Tabs
 
-- **Inner Product** (2D, Building Blocks): `a · b = Σ a[i]×b[i]`, editable vectors, step-through
-- **Outer Product** (2D, Building Blocks): `a ⊗ b` broadcast animation, hover interaction
-- **Matrix Multiply** (3D): unified tab with build-mode toggle (outer product / dot product), shared exploration mode, collapse slider
-- **Embed Forward/Backward** (hidden): modules stay in codebase, tab buttons hidden
+- **Inner Product** (2D, Vector Operations): `a · b = Σ a[i]×b[i]`, editable vectors, step-through. Einsum: `i,i→`
+- **Outer Product** (2D, Vector Operations): `a ⊗ b` broadcast animation, hover interaction. Einsum: `i,k→ik`
+- **Matrix Multiply** (3D): unified tab with build-mode toggle (outer product / dot product), shared exploration mode, collapse slider. Einsum: `ij,jk→ik`
+- **Embed Forward** (2D, Embeddings): `Y = X @ W` where X is one-hot encoded tokens, with detail mode checkbox. Einsum: `btv,vc→btc`
+- **Embed Backward** (2D, Embeddings): `dW = Xᵀ @ G` gradient accumulation, shows outer-product contributions per position. Einsum: `btv,btc→vc`
 
 ### 3D
 
@@ -153,8 +236,7 @@ Build mode toggle (radio buttons within the matmul tab):
 
 ## Key design decisions made so far
 
-- **Two-tier navigation**: Building Blocks (Inner/Outer Product) and Matrix Multiply (single unified tab with build-mode toggle + 11 presets)
-- Embedding tabs hidden from nav but modules kept for future reactivation
+- **Three-tier navigation**: Vector Operations (Inner/Outer Product), Matrix Multiply (single unified tab with build-mode toggle + 11 presets), Embeddings (Forward/Backward)
 - One Three.js scene — single canvas, single `mmCanvasHost`
 - Speed slider: left = slow, right = fast (not reversed)
 - Detail checkbox applies to ALL steps, not just the first (label updates per build mode)
@@ -164,6 +246,7 @@ Build mode toggle (radio buttons within the matmul tab):
 - Max dimensions: I, J, K ∈ [1, 5] to keep performance smooth
 - Inner product tab has its own vector size (n=1..8), independent of matmul I/J/K
 - **3D axis mapping**: k→X (horizontal), j→Y (vertical/collapse axis), i→Z (depth). This makes the 3D cube slices visually align with the 2D outer product grid below (k=columns left-to-right, i=rows top-to-bottom from the overhead camera angle)
+- **`tab-dotprod.js` was deleted** — all dot product functionality merged into `tab-matmul.js` via `buildMode` toggle. Single `collapseT`, single collapse slider, unified step decoding.
 
 ## The full taxonomy of views to build toward
 
@@ -234,10 +317,10 @@ Good for: the bridge from matmul to attention.
 Score (Q·Kᵀ) → softmax → weighted sum of V.
 Matmul appears at every step. Shows why the outer product structure of OV circuit matters.
 
-## Current tab layout (two-tier)
+## Current tab layout (three-tier)
 
 ```
-Building Blocks:
+Vector Operations:
   Inner Product — a · b              (DONE — 2D step-through)
   Outer Product — a ⊗ b              (DONE — 2D broadcast animation, carries over to matmul)
 
@@ -247,16 +330,19 @@ Matrix Multiply (+ 11 presets):
     Dot Product build → (i,k) cells    (DONE — 3D cell-by-cell build)
     Shared exploration mode post-build (DONE — sub-viz, hover, collapse slider)
 
+Embeddings:
+  Forward — btv,vc→btc               (DONE — 2D one-hot row selection, detail mode)
+  Backward — btv,btc→vc              (DONE — 2D gradient accumulation)
+
 Future tabs (not yet in nav):
   Matrix-vector: y = A @ x           (column mixing, sliders)
   Rank-1 sum: accumulating outer products   (2D heatmap panels)
   Bilinear scores → attention              (stretch goal)
-  Embed Forward/Backward                   (modules exist, tab buttons hidden)
 ```
 
-The narrative arc: *what a dot product is → what an outer product is → how matmul builds and collapses a cube of them → the standard algorithm → presets show real operations.*
+The narrative arc: *what a dot product is → what an outer product is → how matmul builds and collapses a cube of them → the standard algorithm → presets show real operations → embeddings show real deep learning use.*
 
-Note: Inner Product, Outer Product are pure 2D (no Three.js). 3D is isolated to Matrix Multiply tier.
+Note: Inner Product, Outer Product, Embeddings are pure 2D (no Three.js). 3D is isolated to the Matrix Multiply tier.
 
 ## Middle ground with matrixmultiplication.xyz
 
@@ -275,6 +361,10 @@ That site is excellent for the dot-product view but hides all structure. The ins
 - The orbit controls share one `orb` object — resetting theta/phi in `rebuildBoxes()` is intentional
 - Three.js r128 from cdnjs — don't upgrade without testing, OrbitControls not used (custom drag implementation)
 - `lastOpJ` tracks the last displayed j-slice in the outer product display to avoid re-triggering broadcast animations on same-j re-renders — reset it whenever build state resets (`mmReset`, `rebuild`)
+- `mmBuildDone` uses `mmStopBuildTimer()` (not `mmPauseBuild()`) to preserve highlight timers
+- `setBuildMode()` triggers full `mmReset()` — no mid-build mode switching
+- Single `collapseT` — no separate DP collapse state. One slider, one state variable.
+- `detailMode()` reads `#chkDetail` checkbox; label updates per build mode ("Element by element" / "Term by term")
 
 ## User / learning context
 

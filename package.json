@@ -7,7 +7,8 @@
     "start": "npx serve .",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "build": "node build.js"
   },
   "keywords": [],
   "author": "",
