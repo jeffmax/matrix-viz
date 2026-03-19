@@ -37,7 +37,7 @@ export const PRESETS = [
     id: 'row-select',
     label: 'Row Selection',
     buildMode: 'dot',
-    desc: `<strong>Row selection: S @ B picks rows from B.</strong> Matrix S has a single 1 in each row indicating which row of B to select. Here we pick rows [2, 0, 2] — row 2, then row 0, then row 2 again. This is equivalent to <code>B[[2, 0, 2], :]</code> in NumPy.`,
+    desc: `<strong>Row selection: S @ B picks rows from B.</strong> Matrix S has a single 1 in each row indicating which row of B to select. Here we pick rows [2, 0, 2] — row 2, then row 0, then row 2 again. This is equivalent to <code>B[[2, 0, 2], :]</code> in NumPy. This is exactly how embedding lookup works — see the <a href="javascript:void(0)" onclick="setMode('embed-fwd')" style="color:#69c">Embedding Forward</a> tab for the deep learning perspective.`,
     A: [[0, 0, 1],
         [1, 0, 0],
         [0, 0, 1]],
