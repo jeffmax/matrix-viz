@@ -512,32 +512,31 @@ function applyUrlParams() {
   const tab = params.get('tab');
   const preset = params.get('preset');
   const mode = params.get('mode');
+  const validMode = mode === 'outer' || mode === 'dot';
 
-  // Navigate to tab first (defaults to 'inner' if no param)
-  if (tab) {
-    setMode(tab);
-  } else {
-    setMode('inner');
-  }
-
-  // Set build mode before preset (preset may override it)
-  if (mode && (mode === 'outer' || mode === 'dot')) {
-    setBuildMode(mode);
-    updateSegControl(mode);
-  }
-
-  // Load preset (navigates to matmul tab if not already there)
+  // If preset is specified, go straight to matmul with preset
   if (preset) {
-    if (currentMode !== 'matmul') {
-      setMode('matmul');
-    }
-    selectPreset(preset);
-
-    // If mode param was specified, override the preset's default build mode
-    if (mode && (mode === 'outer' || mode === 'dot')) {
-      setBuildMode(mode);
+    try { setMode('matmul'); } catch (e) { /* WebGL unavailable */ }
+    if (validMode) {
+      setBuildMode(mode, { quiet: true });
       updateSegControl(mode);
     }
+    selectPreset(preset);
+    // Override preset's default build mode if mode param was specified
+    if (validMode) {
+      setBuildMode(mode, { quiet: true });
+      updateSegControl(mode);
+    }
+    return;
+  }
+
+  // Navigate to requested tab (defaults to 'inner')
+  try { setMode(tab || 'inner'); } catch (e) { /* WebGL unavailable */ }
+
+  // Set build mode (only meaningful on matmul tab)
+  if (validMode) {
+    setBuildMode(mode, { quiet: true });
+    updateSegControl(mode);
   }
 }
 applyUrlParams();
