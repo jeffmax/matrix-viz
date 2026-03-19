@@ -104,19 +104,55 @@ if (tabCallbacks.onRecompute) tabCallbacks.onRecompute();
 |----|------|------|------------|
 | `basic` | Basic 2×3 · 3×2 | 2×3×2 | outer |
 | `identity` | Identity | 3×3×3 | dot |
-| `row-select` | Row Selection | 2×3×3 | dot |
+| `row-select` | Row Selection | 3×3×3 | dot |
 | `permute` | Permutation | 3×3×3 | dot |
-| `sum-rows` | Sum Rows (1ᵀ @ B) | 1×3×3 | dot |
-| `sum-cols` | Sum Columns (B @ 1) | 3×3×1 | dot |
-| `average` | Average Rows | 1×3×3 | dot |
-| `mask-upper` | Cumulative Sum | 4×4×4 | dot |
-| `projection` | Projection | 3×3×3 | dot |
+| `sum-rows` | Sum Rows (1ᵀ @ B) | 1×3×2 | outer |
+| `sum-cols` | Sum Columns (B @ 1) | 3×3×1 | outer |
+| `average` | Average Rows | 1×3×2 | outer |
+| `mask-upper` | Cumulative Sum | 4×4×2 | outer |
+| `projection` | Projection | 3×3×1 | dot |
 | `outer` | Outer Product (a ⊗ b) | 3×1×3 | outer |
-| `roll` | Circular Shift | 4×4×4 | dot |
+| `roll` | Circular Shift | 4×4×1 | dot |
 
 Selecting a preset loads matrices via `setData()` + `recomputeFromMatrices()`, sets labels (`labelA`, `labelB`), and may switch build mode. Randomize, dim change, or cell edit calls `clearPreset()`.
 
 Presets also set `presetFillA`/`presetFillB` — functions that produce correct values when dimensions are changed via +/- buttons after preset load.
+
+### URL deep linking
+
+Query parameters on the page URL allow direct navigation to a specific tab, preset, and build mode. Useful for external links, documentation, and sharing.
+
+```
+/matmul-3d?tab=matmul&preset=identity&mode=dot
+```
+
+| Parameter | Values | Effect |
+|-----------|--------|--------|
+| `tab` | `inner`, `intro`, `matmul`, `embed-fwd`, `embed-bwd` | Navigate to tab (defaults to `inner`) |
+| `preset` | Any preset ID (see table below) | Load preset, auto-navigates to matmul tab |
+| `mode` | `outer`, `dot` | Set build mode; overrides preset default if both specified |
+
+All parameters are optional and can be combined. If `preset` is specified without `tab`, the app auto-navigates to the matmul tab.
+
+**Preset IDs for deep links:**
+
+| ID | Example URL |
+|----|-------------|
+| `basic` | `?preset=basic` |
+| `identity` | `?preset=identity` |
+| `row-select` | `?preset=row-select` |
+| `permute` | `?preset=permute` |
+| `sum-rows` | `?preset=sum-rows` |
+| `sum-cols` | `?preset=sum-cols` |
+| `average` | `?preset=average` |
+| `mask-upper` | `?preset=mask-upper` |
+| `projection` | `?preset=projection` |
+| `outer` | `?preset=outer` |
+| `roll` | `?preset=roll` |
+
+**Note**: The `serve` dev server uses clean URLs — use `/matmul-3d?...` (no `.html`) to avoid a redirect that may strip query parameters.
+
+**Implementation**: `applyUrlParams()` runs at the end of `app.js` init, after `buildPresetBar()` and `rebuild(true)`. It wraps `setMode()` calls in try/catch for WebGL resilience and uses `setBuildMode(mode, { quiet: true })` to avoid triggering `mmReset()` on bare state.
 
 ---
 
@@ -618,7 +654,7 @@ npm test           # runs vitest (155 tests across 8 files)
 ### Browser tests (Playwright)
 
 ```bash
-npm run test:e2e   # runs playwright test (111 tests across 4 spec files)
+npm run test:e2e   # runs playwright test (123 tests across 5 spec files)
 ```
 
 | File | Scope |
@@ -627,6 +663,7 @@ npm run test:e2e   # runs playwright test (111 tests across 4 spec files)
 | `tests/e2e/presets.spec.js` | Preset loading, switching, state reset, exploration |
 | `tests/e2e/qa-explore.spec.js` | OP/DP step-through, exploration, collapse slider |
 | `tests/e2e/embed-fwd.spec.js` | Embedding forward: pills, tensors, detail mode |
+| `tests/e2e/deeplink.spec.js` | URL query parameter deep linking (tab, preset, mode) |
 
 **WebGL limitation**: Headless chromium lacks WebGL, so 3D-dependent tests use `page.evaluate()` with try/catch or test only DOM aspects. WebGL errors are filtered from error assertions.
 
@@ -691,7 +728,7 @@ Add a case for your new tab's einsum notation.
 | Tool | Purpose |
 |------|---------|
 | `npm test` | Unit tests (Vitest, 155 tests) |
-| `npm run test:e2e` | Browser tests (Playwright, 111 tests) |
+| `npm run test:e2e` | Browser tests (Playwright, 123 tests) |
 | `playwright-cli` | Interactive browser testing |
 | `engram` | Persistent memory across sessions (SQLite, `~/.engram/engram.db`) |
 | Obsidian vault | Shared notes at `~/obsidian-vault/` |
