@@ -501,4 +501,43 @@ window.copyTorchCode = copyTorchCode;
 // ── Init ──
 buildPresetBar();
 rebuild(true);
-setMode('inner');
+
+// ── URL query parameter deep linking ──
+// Supports: ?tab=matmul&preset=identity&mode=dot
+// tab: inner, intro, matmul, embed-fwd, embed-bwd
+// preset: any preset id (basic, identity, row-select, etc.)
+// mode: outer, dot (build mode for matmul tab)
+function applyUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  const tab = params.get('tab');
+  const preset = params.get('preset');
+  const mode = params.get('mode');
+
+  // Navigate to tab first (defaults to 'inner' if no param)
+  if (tab) {
+    setMode(tab);
+  } else {
+    setMode('inner');
+  }
+
+  // Set build mode before preset (preset may override it)
+  if (mode && (mode === 'outer' || mode === 'dot')) {
+    setBuildMode(mode);
+    updateSegControl(mode);
+  }
+
+  // Load preset (navigates to matmul tab if not already there)
+  if (preset) {
+    if (currentMode !== 'matmul') {
+      setMode('matmul');
+    }
+    selectPreset(preset);
+
+    // If mode param was specified, override the preset's default build mode
+    if (mode && (mode === 'outer' || mode === 'dot')) {
+      setBuildMode(mode);
+      updateSegControl(mode);
+    }
+  }
+}
+applyUrlParams();
