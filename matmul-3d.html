@@ -1151,6 +1151,11 @@ input[type=range] { width: 88px; accent-color: #333; }
 <!-- TAB 3 — Embedding Forward: blh,hc→blc -->
 <div id="ctrl-embed-fwd" class="hidden tab-container">
   <div class="tab-inner">
+    <div class="tab-desc" id="efDesc">
+      <strong>Embedding Forward: Y = X @ W</strong> &mdash; Each token is a one-hot vector.
+      Multiplying by the embedding table W selects a row &mdash; embedding lookup <em>is</em> matrix multiplication.
+      See this as plain matrix math in the <a href="javascript:void(0)" onclick="selectPreset('row-select')" style="color:#69c">Row Selection preset</a>.
+    </div>
     <div class="controls-row">
       <div class="playback">
         <button class="play-btn" onclick="efBack()" title="Step back">|◀</button>
