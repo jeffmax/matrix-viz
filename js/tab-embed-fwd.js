@@ -548,7 +548,8 @@ function efUpdateFormula() {
   }
 
   if (efStep < 0) {
-    f.innerHTML = `<span class="ei-contract" style="font-size:0.82rem">v</span> is the contracted axis (vocab) &mdash; each position's one-hot selects a row of W. Press &#9654; to step through.`;
+    f.innerHTML = `<span class="ei-contract" style="font-size:0.82rem">v</span> is the contracted axis (vocab) &mdash; each position's one-hot selects a row of W. Press &#9654; to step through.`
+      + `<br><span style="font-size:0.78rem">See this as plain matrix multiplication: <a href="javascript:void(0)" onclick="selectPreset('row-select')" style="color:#69c;text-decoration:underline">Row Selection preset</a></span>`;
   } else {
     const [b, l] = posTobl(efStep);
     const tok = tokenIds[b][l];

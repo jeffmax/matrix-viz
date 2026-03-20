@@ -204,8 +204,10 @@ function selectPreset(id) {
   recomputeFromMatrices({ notify: false });
   mmPauseAll(); resetMmBuildState();
 
-  // 3. Rebuild scene and render initial state
-  if (currentMode === 'matmul') {
+  // 3. Navigate to matmul tab if not already there, then rebuild scene
+  if (currentMode !== 'matmul') {
+    setMode('matmul');
+  } else {
     try { rebuildBoxes(); removePlusPlanes(); } catch (e) { /* WebGL unavailable */ }
     document.getElementById('spCollapse').value = 0;
     document.getElementById('spCollapse').disabled = true;
@@ -394,7 +396,7 @@ function updateShelfContent() {
       + `<strong>Embedding Forward: btv,vc→btc</strong>`
       + `<p style="margin-top:6px">Each token is a one-hot vector. Multiplying by the embedding table W selects a row — embedding lookup <em>is</em> matrix multiplication.</p>`
       + `<p style="margin-top:6px"><code>Y[b,t,:] = X[b,t,:] @ W = W[token_id, :]</code></p>`
-      + `<p style="margin-top:6px">The einsum contracts over <strong>v</strong> (vocab size). Since X is one-hot, all but one term in that sum is zero — the "matrix multiply" collapses to copying a single row of W. See this same mechanic with plain matrices in the <a href="javascript:void(0)" onclick="selectPreset('row-select')" style="color:#69c">Row Selection</a> preset.</p>`
+      + `<p style="margin-top:6px">The einsum contracts over <strong>v</strong> (vocab size). Since X is one-hot, all but one term in that sum is zero — the "matrix multiply" collapses to copying a single row of W.</p>`
       + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic"><strong>Notation:</strong> We follow Karpathy's <a href="https://github.com/karpathy/nanochat/blob/master/nanochat/gpt.py#L83" target="_blank" style="color:#69c"><code>B, T, C = x.size()</code></a>: `
       + `<strong>B</strong>=batch, <strong>T</strong>=sequence position, <strong>C</strong>=embedding channels. `
       + `<strong>V</strong>=vocab size. We reserve <strong>h</strong> for attention heads (as in the <a href="https://arxiv.org/abs/1706.03762" target="_blank" style="color:#69c">original transformer paper</a>). `
