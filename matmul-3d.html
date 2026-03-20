@@ -1001,24 +1001,24 @@ input[type=range] { width: 88px; accent-color: #333; }
 <!-- TAB: Inner Product (Building Blocks) -->
 <div id="ctrl-inner" class="tab-container">
   <div class="tab-inner">
-    <div class="tab-desc" id="innerDesc">
-      <strong>Inner (Dot) Product: a &middot; b</strong> &mdash; Multiply corresponding elements and sum to a <strong>scalar</strong>.
-      In einsum: <code>i,i&rarr;</code> &mdash; the shared index <em>i</em> is contracted, leaving no free indices.
-    </div>
-    <div class="controls-row">
+    <div class="mm-toolbar">
       <div class="playback">
         <button class="play-btn" onclick="ipBack()" title="Step back">|◀</button>
         <button class="play-btn" onclick="ipFwd()" title="Step forward">▶|</button>
         <button class="play-btn secondary" id="pbInner" onclick="ipToggle()" title="Play / pause">▶</button>
         <button class="play-btn subtle" onclick="ipReset()" title="Reset">↺</button>
-        <button class="ctrl-btn primary" onclick="rebuild(true)" style="margin-left:6px">Randomize</button>
-        <div class="slider-wrap">
-          <span>slow</span>
-          <input type="range" id="spInner" min="200" max="1200" value="200" step="50">
-          <span>fast</span>
-        </div>
+        <button class="ctrl-btn primary" onclick="rebuild(true)">Randomize</button>
+      </div>
+      <div class="slider-wrap">
+        <span>slow</span>
+        <input type="range" id="spInner" min="200" max="1200" value="200" step="50">
+        <span>fast</span>
       </div>
       <div class="einsum-badge" id="einsumInner"></div>
+    </div>
+    <div class="preset-desc" id="innerDesc">
+      <strong>Inner (Dot) Product: a &middot; b</strong> &mdash; Multiply corresponding elements and sum to a <strong>scalar</strong>.
+      In einsum: <code>i,i&rarr;</code> &mdash; the shared index <em>i</em> is contracted, leaving no free indices.
     </div>
     <div id="innerDisplay" class="intro-wrap"></div>
     <div class="formula-bar">
@@ -1031,25 +1031,25 @@ input[type=range] { width: 88px; accent-color: #333; }
 <!-- TAB 0 — Broadcasting & Outer Product -->
 <div id="ctrl-intro" class="tab-container">
   <div class="tab-inner">
-    <div class="tab-desc" id="introDesc">
-      <strong>Outer Product: a &otimes; b</strong> &mdash; Every pair (a[i], b[k]) multiplied &rarr; a <strong>matrix</strong>.
-      In einsum: <code>i,k&rarr;ik</code> &mdash; both indices are free, so the result is 2D.
-      <em>Broadcasting view:</em> reshape a to a column via <code>a[:, None]</code>, b to a row via <code>b[None, :]</code>, then broadcast-multiply.
-    </div>
-    <div class="controls-row">
+    <div class="mm-toolbar">
       <div class="playback">
         <button class="play-btn" onclick="stepBackIntro()" title="Step back">|◀</button>
         <button class="play-btn" onclick="stepFwdIntro()" title="Step forward">▶|</button>
         <button class="play-btn secondary" id="pbIntro" onclick="togglePlayIntro()" title="Play / pause">▶</button>
         <button class="play-btn subtle" onclick="resetIntro()" title="Reset">↺</button>
-        <button class="ctrl-btn primary" onclick="rebuild(true)" style="margin-left:6px">Randomize</button>
-        <div class="slider-wrap">
-          <span>slow</span>
-          <input type="range" id="spIntro" min="200" max="1200" value="200" step="50">
-          <span>fast</span>
-        </div>
+        <button class="ctrl-btn primary" onclick="rebuild(true)">Randomize</button>
+      </div>
+      <div class="slider-wrap">
+        <span>slow</span>
+        <input type="range" id="spIntro" min="200" max="1200" value="200" step="50">
+        <span>fast</span>
       </div>
       <div class="einsum-badge" id="einsumIntro"></div>
+    </div>
+    <div class="preset-desc" id="introDesc">
+      <strong>Outer Product: a &otimes; b</strong> &mdash; Every pair (a[i], b[k]) multiplied &rarr; a <strong>matrix</strong>.
+      In einsum: <code>i,k&rarr;ik</code> &mdash; both indices are free, so the result is 2D.
+      <em>Broadcasting view:</em> reshape a to a column via <code>a[:, None]</code>, b to a row via <code>b[None, :]</code>, then broadcast-multiply.
     </div>
     <div id="introDisplay" class="intro-wrap"></div>
     <div class="formula-bar">
@@ -1151,29 +1151,29 @@ input[type=range] { width: 88px; accent-color: #333; }
 <!-- TAB 3 — Embedding Forward: blh,hc→blc -->
 <div id="ctrl-embed-fwd" class="hidden tab-container">
   <div class="tab-inner">
-    <div class="tab-desc" id="efDesc">
-      <strong>Embedding Forward: Y = X @ W</strong> &mdash; Each token is a one-hot vector.
-      Multiplying by the embedding table W selects a row &mdash; embedding lookup <em>is</em> matrix multiplication.
-      See this as plain matrix math in the <a href="javascript:void(0)" onclick="selectPreset('row-select')" style="color:#69c">Row Selection preset</a>.
-    </div>
-    <div class="controls-row">
+    <div class="mm-toolbar">
       <div class="playback">
         <button class="play-btn" onclick="efBack()" title="Step back">|◀</button>
         <button class="play-btn" onclick="efFwd()" title="Step forward">▶|</button>
         <button class="play-btn secondary" id="pbEF" onclick="efToggle()" title="Play / pause">▶</button>
         <button class="play-btn subtle" onclick="efReset()" title="Reset">↺</button>
-        <button class="ctrl-btn primary" onclick="rebuild(true)" style="margin-left:6px">Randomize</button>
-        <div class="slider-wrap">
-          <span>slow</span>
-          <input type="range" id="spEF" min="200" max="1200" value="200" step="50">
-          <span>fast</span>
-        </div>
+        <button class="ctrl-btn primary" onclick="rebuild(true)">Randomize</button>
       </div>
-      <label class="detail-chk" style="margin-left:10px">
+      <div class="slider-wrap">
+        <span>slow</span>
+        <input type="range" id="spEF" min="200" max="1200" value="200" step="50">
+        <span>fast</span>
+      </div>
+      <label class="check-wrap">
         <input type="checkbox" id="chkEfDetail" checked onchange="efToggleDetail()">
         <span id="chkEfDetailLabel">Element by element</span>
       </label>
       <div class="einsum-badge" id="einsumEmbedFwd"></div>
+    </div>
+    <div class="preset-desc" id="efDesc">
+      <strong>Embedding Forward: Y = X @ W</strong> &mdash; Each token is a one-hot vector.
+      Multiplying by the embedding table W selects a row &mdash; embedding lookup <em>is</em> matrix multiplication.
+      See this as plain matrix math in the <a href="javascript:void(0)" onclick="selectPreset('row-select')" style="color:#69c">Row Selection preset</a>.
     </div>
     <div id="efDisplay" class="ef-wrap"></div>
     <div class="formula-bar">
@@ -1186,20 +1186,24 @@ input[type=range] { width: 88px; accent-color: #333; }
 <!-- TAB 4 — Embedding Backward: blh,blc→hc -->
 <div id="ctrl-embed-bwd" class="hidden tab-container">
   <div class="tab-inner">
-    <div class="controls-row">
+    <div class="mm-toolbar">
       <div class="playback">
         <button class="play-btn" onclick="ebBack()" title="Step back">|◀</button>
         <button class="play-btn" onclick="ebFwd()" title="Step forward">▶|</button>
         <button class="play-btn secondary" id="pbEB" onclick="ebToggle()" title="Play / pause">▶</button>
         <button class="play-btn subtle" onclick="ebReset()" title="Reset">↺</button>
-        <button class="ctrl-btn primary" onclick="rebuild(true)" style="margin-left:6px">Randomize</button>
-        <div class="slider-wrap">
-          <span>slow</span>
-          <input type="range" id="spEB" min="200" max="1200" value="200" step="50">
-          <span>fast</span>
-        </div>
+        <button class="ctrl-btn primary" onclick="rebuild(true)">Randomize</button>
+      </div>
+      <div class="slider-wrap">
+        <span>slow</span>
+        <input type="range" id="spEB" min="200" max="1200" value="200" step="50">
+        <span>fast</span>
       </div>
       <div class="einsum-badge" id="einsumEmbedBwd"></div>
+    </div>
+    <div class="preset-desc" id="ebDesc">
+      <strong>Embedding Backward: dW = X&#7488; @ G</strong> &mdash; The weight gradient accumulates upstream gradients.
+      Each position scatters its gradient to the row of its token &mdash; the reverse of forward's row selection.
     </div>
     <div id="ebDisplay" class="eb-wrap"></div>
     <div class="formula-bar">

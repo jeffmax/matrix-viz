@@ -326,7 +326,7 @@ test('toolbar einsum badge stays on same row as controls', async ({ page }) => {
   await expect(page.locator('#ctrl-matmul')).not.toHaveClass(/hidden/);
 
   const info = await page.evaluate(() => {
-    const toolbar = document.querySelector('.mm-toolbar');
+    const toolbar = document.querySelector('#ctrl-matmul .mm-toolbar');
     const badge = document.getElementById('einsumMatmul');
     const firstChild = toolbar?.firstElementChild;
     if (!toolbar || !badge || !firstChild) return { sameRow: false, tbHeight: 999 };
