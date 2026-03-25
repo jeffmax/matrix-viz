@@ -348,8 +348,8 @@ input[type=range] { width: 88px; accent-color: #333; }
 /* ── Einsum badge (compact centered pill) ── */
 .einsum-badge {
   background: #f0f0f0; border: 1px solid #ddd; border-radius: 100px;
-  padding: 5px 16px 8px; font-family: 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 0.75rem; line-height: 1.5; color: #444;
+  padding: 5px 16px; font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.75rem; line-height: 1.5; color: #444; white-space: nowrap;
   text-align: center; width: fit-content; position: relative;
 }
 .einsum-badge .ei-sig { white-space: nowrap; }
@@ -363,34 +363,53 @@ input[type=range] { width: 88px; accent-color: #333; }
 }
 .copy-torch-btn:hover { background: #e8e8e8; color: #555; }
 
-/* ── Einsum index hover ── */
+/* ── Einsum index hover (operand-aware) ── */
 .ei-idx { cursor: pointer; transition: background .1s, color .1s; border-radius: 2px; padding: 0 1px; }
 .ei-idx:hover, .ei-idx-active { background: #ffe066; color: #333 !important; }
-.ei-hl { cursor: pointer; transition: background .1s; border-radius: 2px; padding: 0 1px; }
-.ei-hl:hover, .ei-hl.ei-idx-active { background: #ffe066; }
 
-/* ── English translation + shape story ── */
-.ei-english {
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-size: 0.65rem; line-height: 1.5; color: #666; margin-top: 4px;
-  white-space: normal; text-align: left;
-}
-.ei-english .ei-contract { color: #d04040; font-weight: 700; }
-.ei-shape {
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-size: 0.6rem; line-height: 1.4; color: #999; margin-top: 2px;
-  white-space: normal; text-align: left; font-style: italic;
-}
-.ei-shape .ei-contract { color: #d04040; font-weight: 600; font-style: normal; }
-
-/* ── Loops button ── */
-.ei-loops-btn {
+/* ── Overlay button row ── */
+.ei-loops-btn, .ei-info-btn {
   background: none; border: 1px solid #ddd; border-radius: 4px;
   font-size: 0.6rem; color: #888; cursor: pointer; padding: 2px 6px;
   margin-left: 4px; vertical-align: middle; font-family: 'SF Mono', Menlo, Consolas, monospace;
   transition: background .12s, color .12s;
 }
-.ei-loops-btn:hover { background: #e8e8e8; color: #555; }
+.ei-loops-btn:hover, .ei-info-btn:hover { background: #e8e8e8; color: #555; }
+
+/* ── Info overlay panel (English + shape) ── */
+.ei-info-panel {
+  display: none; position: absolute; z-index: 100;
+  top: 100%; left: 0; min-width: 280px; max-width: 420px;
+  background: #fff; border: 1px solid #ddd; border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 0;
+  text-align: left; margin-top: 4px;
+}
+.ei-info-panel.open { display: block; }
+.ei-info-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border-bottom: 1px solid #eee;
+  font-size: 0.62rem; color: #999;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+.ei-info-header span { flex: 1; }
+.ei-info-close {
+  background: none; border: none; color: #aaa; cursor: pointer;
+  font-size: 0.7rem; padding: 0 4px; line-height: 1;
+}
+.ei-info-close:hover { color: #555; }
+.ei-info-body { padding: 8px 12px; }
+.ei-english {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 0.68rem; line-height: 1.6; color: #555;
+  white-space: normal;
+}
+.ei-english .ei-contract { color: #d04040; font-weight: 700; }
+.ei-shape {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 0.62rem; line-height: 1.4; color: #999; margin-top: 4px;
+  white-space: normal; font-style: italic;
+}
+.ei-shape .ei-contract { color: #d04040; font-weight: 600; font-style: normal; }
 
 /* ── Loops overlay panel ── */
 .ei-loops-panel {
@@ -424,42 +443,39 @@ input[type=range] { width: 88px; accent-color: #333; }
   color: #cdd6f4; white-space: pre; overflow-x: auto;
 }
 
-/* ── Index hover highlighting on tab visualizations ── */
-/* MatMul: i=rows of A, j=shared dim (cols A / rows B), k=cols of B */
-.ei-hover-i #gridA .mat-cell { transition: opacity .15s; }
-.ei-hover-i #gridB .mat-cell { opacity: 0.3; }
-.ei-hover-k #gridB .mat-cell { transition: opacity .15s; }
-.ei-hover-k #gridA .mat-cell { opacity: 0.3; }
-.ei-hover-j #gridA .mat-cell { opacity: 0.3; }
-.ei-hover-j #gridB .mat-cell { opacity: 0.3; }
-/* Highlight row labels for i, col labels for k */
-.ei-hover-i #mmTitleA { background: #ffe066; border-radius: 3px; }
-.ei-hover-k #mmTitleB { background: #ffe066; border-radius: 3px; }
-.ei-hover-j #mmTitleA, .ei-hover-j #mmTitleB { background: #fff0f0; border-radius: 3px; }
+/* ── Operand-aware hover highlighting on tab visualizations ── */
+/* op0 = first input (a/A/X), op1 = second input (b/B/W/G), out = result */
 
-/* Inner product: i highlights both vectors */
-.ei-hover-i #innerDisplay .mat-cell.a,
-.ei-hover-i #innerDisplay .mat-cell.b { background: #ffe066 !important; }
+/* Inner product: op0 → vector a, op1 → vector b */
+#ctrl-inner.ei-hl-op0 #innerDisplay .mat-cell.a { background: #ffe066 !important; }
+#ctrl-inner.ei-hl-op1 #innerDisplay .mat-cell.b { background: #ffe066 !important; }
 
-/* Outer product: i highlights a column, k highlights b row */
-.ei-hover-i #introDisplay .intro-block:first-child .mat-cell { background: #ffe066 !important; }
-.ei-hover-k #introDisplay .intro-block:nth-child(3) .mat-cell { background: #ffe066 !important; }
+/* Outer product: op0 → vector a, op1 → vector b, out → result matrix */
+#ctrl-intro.ei-hl-op0 #introDisplay .intro-block:first-child .mat-cell { background: #ffe066 !important; }
+#ctrl-intro.ei-hl-op1 #introDisplay .intro-block:nth-child(5) .mat-cell { background: #b3d4ff !important; }
+#ctrl-intro.ei-hl-opout #introDisplay .intro-block:last-child .mat-cell { background: #b8e6c8 !important; }
 
-/* Embed forward: b,t,v,c highlight relevant tensor blocks */
-.ei-hover-v #efDisplay .ef-stacked-tensor { background: #fff0f0; border-radius: 4px; }
-.ei-hover-b #efDisplay, .ei-hover-t #efDisplay { /* batch/token: subtle */ }
-.ei-hover-c #efDisplay .ef-tensor-block:last-child { background: #ffe06640; border-radius: 4px; }
+/* MatMul: op0 → A matrix, op1 → B matrix, out → result */
+#ctrl-matmul.ei-hl-op0 #mmPanelA { background: #fff8e0; border-radius: 6px; }
+#ctrl-matmul.ei-hl-op0 #mmTitleA { background: #ffe066; border-radius: 3px; }
+#ctrl-matmul.ei-hl-op0 #mmPanelB .mat-cell { opacity: 0.3; }
+#ctrl-matmul.ei-hl-op1 #mmPanelB { background: #e8f0ff; border-radius: 6px; }
+#ctrl-matmul.ei-hl-op1 #mmTitleB { background: #b3d4ff; border-radius: 3px; }
+#ctrl-matmul.ei-hl-op1 #mmPanelA .mat-cell { opacity: 0.3; }
+#ctrl-matmul.ei-hl-opout #mmResultArea { background: #e8f5e8; border-radius: 6px; }
 
-/* Embed backward: b,t contracted; v,c free */
-.ei-hover-b #ebDisplay, .ei-hover-t #ebDisplay { opacity: 0.85; }
-.ei-hover-v #ebDisplay { background: #ffe06620; border-radius: 4px; }
-.ei-hover-c #ebDisplay { background: #ffe06620; border-radius: 4px; }
+/* Embed forward: op0 → X tensor, op1 → W tensor, out → Y tensor */
+#ctrl-embed-fwd.ei-hl-op0 #efDisplay .ef-tensor-block:first-child { background: #fff8e0; border-radius: 4px; }
+#ctrl-embed-fwd.ei-hl-op1 #efDisplay .ef-tensor-block:nth-child(2) { background: #e8f0ff; border-radius: 4px; }
+#ctrl-embed-fwd.ei-hl-opout #efDisplay .ef-tensor-block:last-child { background: #e8f5e8; border-radius: 4px; }
 
-/* Toolbar badge override: allow wrapping for english/shape lines */
-.mm-toolbar .einsum-badge {
-  white-space: normal; padding: 3px 8px 6px; font-size: 0.68rem;
-  flex-shrink: 1; min-width: 180px; max-width: 360px;
-}
+/* Embed backward: op0 → X (tokens), op1 → G (gradients), out → dW accumulator */
+#ctrl-embed-bwd.ei-hl-op0 #ebDisplay .eb-tokens { background: #fff8e0; border-radius: 4px; }
+#ctrl-embed-bwd.ei-hl-op1 #ebDisplay .eb-tokens { background: #e8f0ff; border-radius: 4px; }
+#ctrl-embed-bwd.ei-hl-opout #ebDisplay .eb-accum { background: #e8f5e8; border-radius: 4px; }
+
+/* Toolbar badge: keep compact */
+.mm-toolbar .einsum-badge { margin: 0; margin-left: auto; padding: 3px 8px; font-size: 0.68rem; flex-shrink: 0; }
 
 /* ── Compact toolbar ── */
 .mm-toolbar {

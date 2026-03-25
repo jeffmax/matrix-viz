@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { EINSUM_INFO, getEinsumInfo, renderEinsumBadge,
-         einsumToggleLoops, einsumIndexHover, einsumIndexClear,
+         einsumToggleLoops, einsumToggleInfo,
+         einsumIndexHover, einsumIndexClear,
          getActiveEinsumHover } from '../js/einsum-info.js';
 
 describe('EINSUM_INFO data', () => {
@@ -79,7 +80,6 @@ describe('EINSUM_INFO data', () => {
   it('loops contain "contracted" and "free" comments where applicable', () => {
     for (const tab of TABS) {
       const loops = EINSUM_INFO[tab].loops;
-      // Outer product has no contraction
       if (tab !== 'intro') expect(loops).toContain('contracted');
       if (tab !== 'inner') expect(loops).toContain('free');
     }
@@ -99,16 +99,6 @@ describe('EINSUM_INFO data', () => {
     expect(EINSUM_INFO['embed-fwd'].shape).toContain('4D tensor');
     expect(EINSUM_INFO['embed-bwd'].shape).toContain('4D tensor');
   });
-
-  it('english or shape has hoverable data-idx spans for each index', () => {
-    for (const tab of TABS) {
-      const info = EINSUM_INFO[tab];
-      const combined = info.english + info.shape;
-      for (const idx of info.indices) {
-        expect(combined).toContain(`data-idx="${idx.ch}"`);
-      }
-    }
-  });
 });
 
 describe('getEinsumInfo', () => {
@@ -123,49 +113,51 @@ describe('getEinsumInfo', () => {
 
 describe('renderEinsumBadge', () => {
   beforeEach(() => {
-    // Minimal DOM for badge rendering
     document.body.innerHTML = `
       <div id="ctrl-matmul">
         <div class="einsum-badge" id="einsumMatmul"></div>
-        <div id="gridA" class="grid"></div>
-        <div id="gridB" class="grid"></div>
+        <div id="mmPanelA"><div id="gridA" class="grid"></div></div>
+        <div id="mmPanelB"><div id="gridB" class="grid"></div></div>
       </div>
       <div id="ctrl-inner">
         <div class="einsum-badge" id="einsumInner"></div>
         <div id="innerDisplay"></div>
       </div>
     `;
-    // Clear any lingering hover state
     einsumIndexClear('matmul');
     einsumIndexClear('inner');
   });
 
-  it('renders signature with ei-idx spans for matmul', () => {
+  it('renders signature with ei-idx spans having data-op attributes', () => {
     renderEinsumBadge('einsumMatmul', 'matmul');
     const el = document.getElementById('einsumMatmul');
-    const idxSpans = el.querySelectorAll('.ei-idx');
-    expect(idxSpans.length).toBeGreaterThanOrEqual(4); // i, j, j, k
-    // Check data-idx attributes
-    const indices = [...idxSpans].map(s => s.dataset.idx);
-    expect(indices).toContain('i');
-    expect(indices).toContain('j');
-    expect(indices).toContain('k');
+    const idxSpans = el.querySelectorAll('.ei-idx[data-op]');
+    expect(idxSpans.length).toBeGreaterThanOrEqual(5); // i,j in A + j,k in B + output
+    // Check operand attributes
+    const op0Spans = el.querySelectorAll('.ei-idx[data-op="0"]');
+    const op1Spans = el.querySelectorAll('.ei-idx[data-op="1"]');
+    const outSpans = el.querySelectorAll('.ei-idx[data-op="out"]');
+    expect(op0Spans.length).toBe(2); // i, j in A
+    expect(op1Spans.length).toBe(2); // j, k in B
+    expect(outSpans.length).toBe(1); // ik output
   });
 
-  it('renders English translation', () => {
+  it('inner product has separate operands for each i', () => {
+    renderEinsumBadge('einsumInner', 'inner');
+    const el = document.getElementById('einsumInner');
+    const op0 = el.querySelectorAll('.ei-idx[data-op="0"]');
+    const op1 = el.querySelectorAll('.ei-idx[data-op="1"]');
+    expect(op0.length).toBe(1); // first i → a
+    expect(op1.length).toBe(1); // second i → b
+  });
+
+  it('renders info panel (hidden by default)', () => {
     renderEinsumBadge('einsumMatmul', 'matmul');
-    const el = document.getElementById('einsumMatmul');
-    const english = el.querySelector('.ei-english');
-    expect(english).not.toBeNull();
+    const panel = document.getElementById('einsumMatmulInfo');
+    expect(panel).not.toBeNull();
+    expect(panel.classList.contains('open')).toBe(false);
+    const english = panel.querySelector('.ei-english');
     expect(english.textContent).toContain('sum over j');
-  });
-
-  it('renders shape story', () => {
-    renderEinsumBadge('einsumMatmul', 'matmul');
-    const el = document.getElementById('einsumMatmul');
-    const shape = el.querySelector('.ei-shape');
-    expect(shape).not.toBeNull();
-    expect(shape.textContent).toContain('3D cube');
   });
 
   it('renders loops panel (hidden by default)', () => {
@@ -177,17 +169,11 @@ describe('renderEinsumBadge', () => {
     expect(code.textContent).toContain('for j in range(J)');
   });
 
-  it('renders loops button', () => {
+  it('renders info, loops, and torch buttons', () => {
     renderEinsumBadge('einsumMatmul', 'matmul');
-    const btn = document.querySelector('.ei-loops-btn');
-    expect(btn).not.toBeNull();
-    expect(btn.textContent).toContain('loops');
-  });
-
-  it('renders torch copy button', () => {
-    renderEinsumBadge('einsumMatmul', 'matmul');
-    const btn = document.querySelector('.copy-torch-btn');
-    expect(btn).not.toBeNull();
+    expect(document.querySelector('.ei-info-btn')).not.toBeNull();
+    expect(document.querySelector('.ei-loops-btn')).not.toBeNull();
+    expect(document.querySelector('.copy-torch-btn')).not.toBeNull();
   });
 
   it('renders all five tabs without error', () => {
@@ -203,18 +189,10 @@ describe('renderEinsumBadge', () => {
     renderEinsumBadge('einsumMatmul', 'matmul');
     renderEinsumBadge('einsumEmbedFwd', 'embed-fwd');
     renderEinsumBadge('einsumEmbedBwd', 'embed-bwd');
-    // Each should have english + shape
     for (const id of ['einsumInner', 'einsumIntro', 'einsumMatmul', 'einsumEmbedFwd', 'einsumEmbedBwd']) {
-      expect(document.getElementById(id).querySelector('.ei-english')).not.toBeNull();
-      expect(document.getElementById(id).querySelector('.ei-shape')).not.toBeNull();
+      expect(document.getElementById(id).querySelector('.ei-info-btn')).not.toBeNull();
+      expect(document.getElementById(id).querySelector('.ei-loops-btn')).not.toBeNull();
     }
-  });
-
-  it('escapes HTML in loops code', () => {
-    renderEinsumBadge('einsumMatmul', 'matmul');
-    const code = document.querySelector('.ei-loops-code');
-    // Should not contain raw < or > (they should be escaped)
-    expect(code.innerHTML).not.toContain('<span');
   });
 });
 
@@ -236,66 +214,110 @@ describe('einsumToggleLoops', () => {
   });
 });
 
-describe('einsumIndexHover / einsumIndexClear', () => {
+describe('einsumToggleInfo', () => {
   beforeEach(() => {
     document.body.innerHTML = `
-      <div id="ctrl-matmul">
-        <div id="einsumMatmul" class="einsum-badge"></div>
-        <div id="gridA" class="grid"><div class="mat-cell"></div></div>
-        <div id="gridB" class="grid"><div class="mat-cell"></div></div>
-      </div>
+      <div id="ctrl-matmul"><div id="einsumMatmul" class="einsum-badge"></div></div>
     `;
     renderEinsumBadge('einsumMatmul', 'matmul');
   });
 
-  it('adds ei-hover and ei-hover-{idx} to tab container', () => {
+  it('toggles open class on info panel', () => {
+    const panel = document.getElementById('einsumMatmulInfo');
+    expect(panel.classList.contains('open')).toBe(false);
+    einsumToggleInfo('einsumMatmul');
+    expect(panel.classList.contains('open')).toBe(true);
+    einsumToggleInfo('einsumMatmul');
+    expect(panel.classList.contains('open')).toBe(false);
+  });
+});
+
+describe('operand-aware einsumIndexHover / einsumIndexClear', () => {
+  beforeEach(() => {
+    document.body.innerHTML = `
+      <div id="ctrl-matmul">
+        <div id="einsumMatmul" class="einsum-badge"></div>
+        <div id="mmPanelA"><div id="gridA" class="grid"><div class="mat-cell"></div></div></div>
+        <div id="mmPanelB"><div id="gridB" class="grid"><div class="mat-cell"></div></div></div>
+      </div>
+      <div id="ctrl-inner">
+        <div id="einsumInner" class="einsum-badge"></div>
+        <div id="innerDisplay"><div class="mat-cell a"></div><div class="mat-cell b"></div></div>
+      </div>
+    `;
+    renderEinsumBadge('einsumMatmul', 'matmul');
+    renderEinsumBadge('einsumInner', 'inner');
+  });
+
+  it('adds ei-hl-op0 class for first operand hover', () => {
     const container = document.getElementById('ctrl-matmul');
-    einsumIndexHover('matmul', 'j');
-    expect(container.classList.contains('ei-hover')).toBe(true);
-    expect(container.classList.contains('ei-hover-j')).toBe(true);
+    einsumIndexHover('matmul', '0', 'i');
+    expect(container.classList.contains('ei-hl-active')).toBe(true);
+    expect(container.classList.contains('ei-hl-op0')).toBe(true);
   });
 
-  it('highlights matching ei-idx spans', () => {
-    einsumIndexHover('matmul', 'j');
-    const jSpans = document.querySelectorAll('.ei-idx[data-idx="j"]');
-    expect(jSpans.length).toBeGreaterThan(0);
-    jSpans.forEach(s => expect(s.classList.contains('ei-idx-active')).toBe(true));
-  });
-
-  it('highlights matching ei-hl spans in english text', () => {
-    einsumIndexHover('matmul', 'j');
-    const hlSpans = document.querySelectorAll('.ei-hl[data-idx="j"]');
-    expect(hlSpans.length).toBeGreaterThan(0);
-    hlSpans.forEach(s => expect(s.classList.contains('ei-idx-active')).toBe(true));
-  });
-
-  it('clears previous hover when hovering a new index', () => {
-    einsumIndexHover('matmul', 'j');
-    einsumIndexHover('matmul', 'i');
+  it('adds ei-hl-op1 class for second operand hover', () => {
     const container = document.getElementById('ctrl-matmul');
-    expect(container.classList.contains('ei-hover-j')).toBe(false);
-    expect(container.classList.contains('ei-hover-i')).toBe(true);
+    einsumIndexHover('matmul', '1', 'k');
+    expect(container.classList.contains('ei-hl-op1')).toBe(true);
+  });
+
+  it('adds ei-hl-opout for output hover', () => {
+    const container = document.getElementById('ctrl-matmul');
+    einsumIndexHover('matmul', 'out', undefined);
+    expect(container.classList.contains('ei-hl-opout')).toBe(true);
+  });
+
+  it('highlights matching operand spans in badge', () => {
+    einsumIndexHover('matmul', '0', 'i');
+    // All op=0 spans should be active
+    const op0Spans = document.querySelectorAll('#einsumMatmul .ei-idx[data-op="0"]');
+    op0Spans.forEach(s => expect(s.classList.contains('ei-idx-active')).toBe(true));
+    // op=1 spans should NOT be active
+    const op1Spans = document.querySelectorAll('#einsumMatmul .ei-idx[data-op="1"]');
+    op1Spans.forEach(s => expect(s.classList.contains('ei-idx-active')).toBe(false));
+  });
+
+  it('inner product: op0 highlights only a, op1 highlights only b', () => {
+    // Hover first i (operand 0 = vector a)
+    einsumIndexHover('inner', '0', 'i');
+    const innerContainer = document.getElementById('ctrl-inner');
+    expect(innerContainer.classList.contains('ei-hl-op0')).toBe(true);
+    expect(innerContainer.classList.contains('ei-hl-op1')).toBe(false);
+    einsumIndexClear('inner');
+
+    // Hover second i (operand 1 = vector b)
+    einsumIndexHover('inner', '1', 'i');
+    expect(innerContainer.classList.contains('ei-hl-op1')).toBe(true);
+    expect(innerContainer.classList.contains('ei-hl-op0')).toBe(false);
+  });
+
+  it('clears previous hover when hovering a different operand', () => {
+    einsumIndexHover('matmul', '0', 'i');
+    einsumIndexHover('matmul', '1', 'k');
+    const container = document.getElementById('ctrl-matmul');
+    expect(container.classList.contains('ei-hl-op0')).toBe(false);
+    expect(container.classList.contains('ei-hl-op1')).toBe(true);
   });
 
   it('clears all hover state', () => {
-    einsumIndexHover('matmul', 'j');
+    einsumIndexHover('matmul', '0', 'i');
     einsumIndexClear('matmul');
     const container = document.getElementById('ctrl-matmul');
-    expect(container.classList.contains('ei-hover')).toBe(false);
-    expect(container.classList.contains('ei-hover-j')).toBe(false);
+    expect(container.classList.contains('ei-hl-active')).toBe(false);
+    expect(container.classList.contains('ei-hl-op0')).toBe(false);
     expect(document.querySelectorAll('.ei-idx-active').length).toBe(0);
   });
 
-  it('getActiveEinsumHover tracks state', () => {
+  it('getActiveEinsumHover returns operand and index', () => {
     expect(getActiveEinsumHover()).toBeNull();
-    einsumIndexHover('matmul', 'k');
-    expect(getActiveEinsumHover()).toBe('k');
+    einsumIndexHover('matmul', '1', 'k');
+    expect(getActiveEinsumHover()).toEqual({ op: '1', idx: 'k' });
     einsumIndexClear('matmul');
     expect(getActiveEinsumHover()).toBeNull();
   });
 
   it('clear is a no-op when nothing is hovered', () => {
-    // Should not throw
     einsumIndexClear('matmul');
     expect(getActiveEinsumHover()).toBeNull();
   });

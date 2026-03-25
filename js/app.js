@@ -21,7 +21,7 @@ import { ebInit, ebRender, ebFwd, ebBack, ebToggle, ebReset, ebPause,
 import { PRESETS, loadPreset, clearPreset, fullClearPreset, activePreset } from './presets.js';
 import { ipInit, ipRender, ipPause, ipReset, ipToggle, ipFwd, ipBack,
          ipEditCell, ipResize } from './tab-inner.js';
-import { EINSUM_INFO, renderEinsumBadge, einsumToggleLoops,
+import { EINSUM_INFO, renderEinsumBadge, einsumToggleLoops, einsumToggleInfo,
          einsumCopyLoops, einsumIndexHover, einsumIndexClear } from './einsum-info.js';
 
 // ══════════════════════════════════════════════════
@@ -485,6 +485,7 @@ window.snapToDefault = snapToDefault;
 window.copyTorchCode = copyTorchCode;
 // Einsum info
 window.einsumToggleLoops = einsumToggleLoops;
+window.einsumToggleInfo = einsumToggleInfo;
 window.einsumCopyLoops = einsumCopyLoops;
 
 // ── Init ──
