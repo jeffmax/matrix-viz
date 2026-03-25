@@ -21,6 +21,8 @@ import { ebInit, ebRender, ebFwd, ebBack, ebToggle, ebReset, ebPause,
 import { PRESETS, loadPreset, clearPreset, fullClearPreset, activePreset } from './presets.js';
 import { ipInit, ipRender, ipPause, ipReset, ipToggle, ipFwd, ipBack,
          ipEditCell, ipResize } from './tab-inner.js';
+import { EINSUM_INFO, renderEinsumBadge, einsumToggleLoops,
+         einsumCopyLoops, einsumIndexHover, einsumIndexClear } from './einsum-info.js';
 
 // ══════════════════════════════════════════════════
 // TIER STATE
@@ -332,26 +334,8 @@ export function copyTorchCode(tab) {
   });
 }
 
-// ══════════════════════════════════════════════════
-// EINSUM BADGE RENDERER
-// ══════════════════════════════════════════════════
-export function renderEinsumBadge(containerId, tab) {
-  const el = document.getElementById(containerId);
-  if (!el) return;
-  if (tab === 'inner') {
-    el.innerHTML = `einsum('<span class="ei-contract">i</span>, <span class="ei-contract">i</span> → ', a, b)`;
-  } else if (tab === 'intro') {
-    el.innerHTML = `einsum('<span class="ei-free">i</span>, <span class="ei-free">k</span> → <span class="ei-free">ik</span>', a, b)`;
-  } else if (tab === 'matmul') {
-    el.innerHTML = `einsum('<span class="ei-free">i</span><span class="ei-contract">j</span>, <span class="ei-contract">j</span><span class="ei-free">k</span> → <span class="ei-free">ik</span>', A, B)`;
-  } else if (tab === 'embed-fwd') {
-    el.innerHTML = `einsum('<span class="ei-free">b</span><span class="ei-free">t</span><span class="ei-contract">v</span>, <span class="ei-contract">v</span><span class="ei-free">c</span> → <span class="ei-free">b</span><span class="ei-free">t</span><span class="ei-free">c</span>', X, W)`;
-  } else if (tab === 'embed-bwd') {
-    el.innerHTML = `einsum('<span class="ei-contract">b</span><span class="ei-contract">t</span><span class="ei-free">v</span>, <span class="ei-contract">b</span><span class="ei-contract">t</span><span class="ei-free">c</span> → <span class="ei-free">v</span><span class="ei-free">c</span>', X, G)`;
-  }
-  document.querySelectorAll('.copy-torch-btn.active-tab').forEach(b => b.classList.remove('active-tab'));
-  el.innerHTML += ` <button class="copy-torch-btn active-tab" onclick="copyTorchCode('${tab}')">📋 torch</button>`;
-}
+// ── renderEinsumBadge, einsumToggleLoops, einsumCopyLoops,
+// ── einsumIndexHover, einsumIndexClear → imported from einsum-info.js
 
 // ── Shelf content routing ──
 function updateShelfContent() {
@@ -499,6 +483,9 @@ window.ebChangeDim = ebChangeDim;
 window.snapToDefault = snapToDefault;
 // Copy torch code
 window.copyTorchCode = copyTorchCode;
+// Einsum info
+window.einsumToggleLoops = einsumToggleLoops;
+window.einsumCopyLoops = einsumCopyLoops;
 
 // ── Init ──
 buildPresetBar();

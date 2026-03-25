@@ -335,9 +335,9 @@ test('toolbar einsum badge stays on same row as controls', async ({ page }) => {
     const sameRow = Math.abs(badgeRect.top - firstRect.top) < 10;
     return { sameRow, tbHeight: toolbar.offsetHeight };
   });
-  // Badge on same row, toolbar should be a single row (under 50px)
+  // Badge signature on same row as controls; toolbar taller due to english+shape text below badge
   expect(info.sameRow).toBe(true);
-  expect(info.tbHeight).toBeLessThan(50);
+  expect(info.tbHeight).toBeLessThan(100);
 });
 
 test('OP build delays cube slice reveal until animation completes', async ({ page }) => {

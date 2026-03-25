@@ -348,10 +348,11 @@ input[type=range] { width: 88px; accent-color: #333; }
 /* ── Einsum badge (compact centered pill) ── */
 .einsum-badge {
   background: #f0f0f0; border: 1px solid #ddd; border-radius: 100px;
-  padding: 5px 16px; font-family: 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 0.75rem; line-height: 1.5; color: #444; white-space: nowrap;
-  text-align: center; width: fit-content;
+  padding: 5px 16px 8px; font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.75rem; line-height: 1.5; color: #444;
+  text-align: center; width: fit-content; position: relative;
 }
+.einsum-badge .ei-sig { white-space: nowrap; }
 .einsum-badge .ei-free { color: #555; }
 .einsum-badge .ei-contract { color: #d04040; font-weight: 700; }
 .einsum-badge .ei-note { color: #999; font-size: 0.68rem; font-style: italic; }
@@ -361,6 +362,104 @@ input[type=range] { width: 88px; accent-color: #333; }
   margin-left: 6px; vertical-align: middle; transition: background .12s, color .12s;
 }
 .copy-torch-btn:hover { background: #e8e8e8; color: #555; }
+
+/* ── Einsum index hover ── */
+.ei-idx { cursor: pointer; transition: background .1s, color .1s; border-radius: 2px; padding: 0 1px; }
+.ei-idx:hover, .ei-idx-active { background: #ffe066; color: #333 !important; }
+.ei-hl { cursor: pointer; transition: background .1s; border-radius: 2px; padding: 0 1px; }
+.ei-hl:hover, .ei-hl.ei-idx-active { background: #ffe066; }
+
+/* ── English translation + shape story ── */
+.ei-english {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 0.65rem; line-height: 1.5; color: #666; margin-top: 4px;
+  white-space: normal; text-align: left;
+}
+.ei-english .ei-contract { color: #d04040; font-weight: 700; }
+.ei-shape {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 0.6rem; line-height: 1.4; color: #999; margin-top: 2px;
+  white-space: normal; text-align: left; font-style: italic;
+}
+.ei-shape .ei-contract { color: #d04040; font-weight: 600; font-style: normal; }
+
+/* ── Loops button ── */
+.ei-loops-btn {
+  background: none; border: 1px solid #ddd; border-radius: 4px;
+  font-size: 0.6rem; color: #888; cursor: pointer; padding: 2px 6px;
+  margin-left: 4px; vertical-align: middle; font-family: 'SF Mono', Menlo, Consolas, monospace;
+  transition: background .12s, color .12s;
+}
+.ei-loops-btn:hover { background: #e8e8e8; color: #555; }
+
+/* ── Loops overlay panel ── */
+.ei-loops-panel {
+  display: none; position: absolute; z-index: 100;
+  top: 100%; left: 0; min-width: 340px; max-width: 520px;
+  background: #1e1e2e; border: 1px solid #555; border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.25); padding: 0;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  text-align: left; margin-top: 4px;
+}
+.ei-loops-panel.open { display: block; }
+.ei-loops-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border-bottom: 1px solid #444;
+  font-size: 0.6rem; color: #aaa;
+}
+.ei-loops-header span { flex: 1; }
+.ei-loops-copy {
+  background: none; border: 1px solid #555; border-radius: 3px;
+  font-size: 0.58rem; color: #aaa; cursor: pointer; padding: 1px 6px;
+  transition: background .12s, color .12s;
+}
+.ei-loops-copy:hover { background: #333; color: #ddd; }
+.ei-loops-close {
+  background: none; border: none; color: #888; cursor: pointer;
+  font-size: 0.7rem; padding: 0 4px; line-height: 1;
+}
+.ei-loops-close:hover { color: #ddd; }
+.ei-loops-code {
+  padding: 8px 12px; margin: 0; font-size: 0.65rem; line-height: 1.6;
+  color: #cdd6f4; white-space: pre; overflow-x: auto;
+}
+
+/* ── Index hover highlighting on tab visualizations ── */
+/* MatMul: i=rows of A, j=shared dim (cols A / rows B), k=cols of B */
+.ei-hover-i #gridA .mat-cell { transition: opacity .15s; }
+.ei-hover-i #gridB .mat-cell { opacity: 0.3; }
+.ei-hover-k #gridB .mat-cell { transition: opacity .15s; }
+.ei-hover-k #gridA .mat-cell { opacity: 0.3; }
+.ei-hover-j #gridA .mat-cell { opacity: 0.3; }
+.ei-hover-j #gridB .mat-cell { opacity: 0.3; }
+/* Highlight row labels for i, col labels for k */
+.ei-hover-i #mmTitleA { background: #ffe066; border-radius: 3px; }
+.ei-hover-k #mmTitleB { background: #ffe066; border-radius: 3px; }
+.ei-hover-j #mmTitleA, .ei-hover-j #mmTitleB { background: #fff0f0; border-radius: 3px; }
+
+/* Inner product: i highlights both vectors */
+.ei-hover-i #innerDisplay .mat-cell.a,
+.ei-hover-i #innerDisplay .mat-cell.b { background: #ffe066 !important; }
+
+/* Outer product: i highlights a column, k highlights b row */
+.ei-hover-i #introDisplay .intro-block:first-child .mat-cell { background: #ffe066 !important; }
+.ei-hover-k #introDisplay .intro-block:nth-child(3) .mat-cell { background: #ffe066 !important; }
+
+/* Embed forward: b,t,v,c highlight relevant tensor blocks */
+.ei-hover-v #efDisplay .ef-stacked-tensor { background: #fff0f0; border-radius: 4px; }
+.ei-hover-b #efDisplay, .ei-hover-t #efDisplay { /* batch/token: subtle */ }
+.ei-hover-c #efDisplay .ef-tensor-block:last-child { background: #ffe06640; border-radius: 4px; }
+
+/* Embed backward: b,t contracted; v,c free */
+.ei-hover-b #ebDisplay, .ei-hover-t #ebDisplay { opacity: 0.85; }
+.ei-hover-v #ebDisplay { background: #ffe06620; border-radius: 4px; }
+.ei-hover-c #ebDisplay { background: #ffe06620; border-radius: 4px; }
+
+/* Toolbar badge override: allow wrapping for english/shape lines */
+.mm-toolbar .einsum-badge {
+  white-space: normal; padding: 3px 8px 6px; font-size: 0.68rem;
+  flex-shrink: 1; min-width: 180px; max-width: 360px;
+}
 
 /* ── Compact toolbar ── */
 .mm-toolbar {
