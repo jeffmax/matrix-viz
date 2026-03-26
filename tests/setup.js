@@ -90,6 +90,10 @@ globalThis.THREE = {
   AmbientLight: class extends MockObject3D {},
   DirectionalLight: class extends MockObject3D {},
   CanvasTexture: class { constructor() { this.needsUpdate = false; } },
+  Vector3: class { constructor(x, y, z) { this.x = x || 0; this.y = y || 0; this.z = z || 0; } },
+  ArrowHelper: class extends MockObject3D {
+    constructor() { super(); this.line = { material: new MockMaterial() }; this.cone = { material: new MockMaterial() }; }
+  },
 };
 
 // ── rAF polyfill ──

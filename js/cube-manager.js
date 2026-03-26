@@ -8,82 +8,90 @@ const THREE = window.THREE;
 
 export let boxes = [];
 export let plusPlanes = [];
-let axisLabels = [];   // sprites + lines
+let axisLabels = [];   // arrows + label sprites
 let axisLabelsBuilt = false;  // true once addAxisLabels has run for current boxes
 let axisLabelsVisible = false;
 
-// Draw letter + arrow on a canvas sprite texture
-// dir: 'right' | 'up' | 'down-z' controls arrow direction
-function makeAxisTex(letter, color, dir) {
+function makeLabelTex(letter, color) {
   const S = 128, cv = document.createElement('canvas'); cv.width = S; cv.height = S;
   const ctx = cv.getContext('2d');
   ctx.fillStyle = color;
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 2.5;
-  ctx.lineCap = 'round';
-  // Letter
-  ctx.font = `bold ${Math.round(S * 0.38)}px 'SF Mono', Menlo, Consolas, monospace`;
+  ctx.font = `bold ${Math.round(S * 0.5)}px 'SF Mono', Menlo, Consolas, monospace`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  if (dir === 'right') {
-    ctx.fillText(letter, S * 0.28, S * 0.5);
-    // Arrow →
-    const ax = S * 0.52, ay = S * 0.5, aw = S * 0.32;
-    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax + aw, ay); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(ax + aw - 6, ay - 5); ctx.lineTo(ax + aw, ay); ctx.lineTo(ax + aw - 6, ay + 5); ctx.stroke();
-  } else if (dir === 'up') {
-    ctx.fillText(letter, S * 0.5, S * 0.72);
-    // Arrow ↑
-    const ax = S * 0.5, ay = S * 0.48, ah = S * 0.32;
-    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax, ay - ah); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(ax - 5, ay - ah + 6); ctx.lineTo(ax, ay - ah); ctx.lineTo(ax + 5, ay - ah + 6); ctx.stroke();
-  } else { // 'down-z' — arrow pointing toward viewer (down-right in screen space)
-    ctx.fillText(letter, S * 0.28, S * 0.35);
-    const ax = S * 0.50, ay = S * 0.45, al = S * 0.30;
-    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax + al * 0.6, ay + al * 0.8); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(ax + al * 0.6 - 7, ay + al * 0.8 - 2); ctx.lineTo(ax + al * 0.6, ay + al * 0.8); ctx.lineTo(ax + al * 0.6 - 1, ay + al * 0.8 - 7); ctx.stroke();
-  }
+  ctx.fillText(letter, S / 2, S / 2);
   const t = new THREE.CanvasTexture(cv); t.needsUpdate = true; return t;
 }
 
 function addAxisLabels() {
   removeAxisLabels();
   if (!sc) return;
-  const pad = STEP * 0.45;
-  // Cube extents (centered at origin)
+  const off = STEP * 0.35;  // offset from cube surface
+  // Cube extents
+  const xMin = -(K - 1) * STEP / 2 - CELL / 2;
   const xMax =  (K - 1) * STEP / 2 + CELL / 2;
   const yMin = packedY(J - 1) - CELL / 2;
   const yMax = packedY(0) + CELL / 2;
+  const zMin = -(I - 1) * STEP / 2 - CELL / 2;
   const zMax =  (I - 1) * STEP / 2 + CELL / 2;
-  const sz = CELL * 0.48;
-  // k along X axis — bottom-front edge, right end
-  const kSpr = new THREE.Sprite(new THREE.SpriteMaterial({map: makeAxisTex('k', '#5588cc', 'right'), depthTest: false, transparent: true}));
-  kSpr.scale.set(sz, sz, 1);
-  kSpr.position.set(xMax + pad, yMin - pad * 0.15, zMax + pad * 0.15);
-  sc.scene.add(kSpr); axisLabels.push(kSpr);
-  // j along Y axis — right-front edge, top (contracted = red)
-  const jSpr = new THREE.Sprite(new THREE.SpriteMaterial({map: makeAxisTex('j', '#d04040', 'up'), depthTest: false, transparent: true}));
-  jSpr.scale.set(sz, sz, 1);
-  jSpr.position.set(xMax + pad * 0.15, yMax + pad, zMax + pad * 0.15);
-  sc.scene.add(jSpr); axisLabels.push(jSpr);
-  // i along Z axis — bottom-right edge, front
-  const iSpr = new THREE.Sprite(new THREE.SpriteMaterial({map: makeAxisTex('i', '#5588cc', 'down-z'), depthTest: false, transparent: true}));
-  iSpr.scale.set(sz, sz, 1);
-  iSpr.position.set(xMax + pad * 0.15, yMin - pad * 0.15, zMax + pad);
-  sc.scene.add(iSpr); axisLabels.push(iSpr);
+  const xSpan = xMax - xMin, ySpan = yMax - yMin, zSpan = zMax - zMin;
+  const headFrac = 0.18, headW = 0.08;
+  const labelSz = CELL * 0.38;
+
+  // k → X axis: arrow along bottom-front edge, pointing right (+X)
+  const kY = yMin - off, kZ = zMax + off;
+  const kArrow = new THREE.ArrowHelper(
+    new THREE.Vector3(1, 0, 0), new THREE.Vector3(xMin, kY, kZ),
+    xSpan, 0x5588cc, xSpan * headFrac, headW
+  );
+  kArrow.line.material.transparent = true; kArrow.line.material.opacity = 0.6;
+  kArrow.cone.material.transparent = true; kArrow.cone.material.opacity = 0.6;
+  sc.scene.add(kArrow); axisLabels.push(kArrow);
+  const kLbl = new THREE.Sprite(new THREE.SpriteMaterial({map: makeLabelTex('k', '#5588cc'), depthTest: false, transparent: true}));
+  kLbl.scale.set(labelSz, labelSz, 1);
+  kLbl.position.set(xMax + off * 0.5, kY, kZ);
+  sc.scene.add(kLbl); axisLabels.push(kLbl);
+
+  // j → Y axis: arrow along right-front edge, pointing down (-Y, j increases downward)
+  const jX = xMax + off, jZ = zMax + off;
+  const jArrow = new THREE.ArrowHelper(
+    new THREE.Vector3(0, -1, 0), new THREE.Vector3(jX, yMax, jZ),
+    ySpan, 0xd04040, ySpan * headFrac, headW
+  );
+  jArrow.line.material.transparent = true; jArrow.line.material.opacity = 0.6;
+  jArrow.cone.material.transparent = true; jArrow.cone.material.opacity = 0.6;
+  sc.scene.add(jArrow); axisLabels.push(jArrow);
+  const jLbl = new THREE.Sprite(new THREE.SpriteMaterial({map: makeLabelTex('j', '#d04040'), depthTest: false, transparent: true}));
+  jLbl.scale.set(labelSz, labelSz, 1);
+  jLbl.position.set(jX, yMin - off * 0.5, jZ);
+  sc.scene.add(jLbl); axisLabels.push(jLbl);
+
+  // i → Z axis: arrow along bottom-right edge, pointing forward (+Z toward viewer)
+  const iX = xMax + off, iY = yMin - off;
+  const iArrow = new THREE.ArrowHelper(
+    new THREE.Vector3(0, 0, 1), new THREE.Vector3(iX, iY, zMin),
+    zSpan, 0x5588cc, zSpan * headFrac, headW
+  );
+  iArrow.line.material.transparent = true; iArrow.line.material.opacity = 0.6;
+  iArrow.cone.material.transparent = true; iArrow.cone.material.opacity = 0.6;
+  sc.scene.add(iArrow); axisLabels.push(iArrow);
+  const iLbl = new THREE.Sprite(new THREE.SpriteMaterial({map: makeLabelTex('i', '#5588cc'), depthTest: false, transparent: true}));
+  iLbl.scale.set(labelSz, labelSz, 1);
+  iLbl.position.set(iX, iY, zMax + off * 0.5);
+  sc.scene.add(iLbl); axisLabels.push(iLbl);
+
   axisLabelsBuilt = true;
-  // Respect current visibility (hidden until first box populated + checkbox on)
   setAxisLabelsVisible(axisLabelsVisible);
 }
 
 function removeAxisLabels() {
-  if (sc) axisLabels.forEach(s => sc.scene.remove(s));
+  if (sc) axisLabels.forEach(obj => sc.scene.remove(obj));
   axisLabels = [];
   axisLabelsBuilt = false;
 }
 
 function setAxisLabelsVisible(v) {
   axisLabelsVisible = v;
-  axisLabels.forEach(s => { s.visible = v; });
+  axisLabels.forEach(obj => { obj.visible = v; });
 }
 
 /* @testable */ export function showAxisLabels() {
