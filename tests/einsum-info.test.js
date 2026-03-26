@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { EINSUM_INFO, getEinsumInfo, renderEinsumBadge,
-         einsumToggleLoops, einsumToggleInfo,
+         einsumToggleLoops, einsumToggleInfo, einsumToggleTorch,
+         einsumCopyTorch, setTorchCodeGenerator,
          einsumIndexHover, einsumIndexClear,
          getActiveEinsumHover } from '../js/einsum-info.js';
 
@@ -173,7 +174,7 @@ describe('renderEinsumBadge', () => {
     renderEinsumBadge('einsumMatmul', 'matmul');
     expect(document.querySelector('.ei-info-btn')).not.toBeNull();
     expect(document.querySelector('.ei-loops-btn')).not.toBeNull();
-    expect(document.querySelector('.copy-torch-btn')).not.toBeNull();
+    expect(document.querySelector('.ei-torch-btn')).not.toBeNull();
   });
 
   it('renders all five tabs without error', () => {
@@ -229,6 +230,45 @@ describe('einsumToggleInfo', () => {
     expect(panel.classList.contains('open')).toBe(true);
     einsumToggleInfo('einsumMatmul');
     expect(panel.classList.contains('open')).toBe(false);
+  });
+});
+
+describe('mutual exclusion of panels', () => {
+  beforeEach(() => {
+    document.body.innerHTML = `
+      <div id="ctrl-matmul"><div id="einsumMatmul" class="einsum-badge"></div></div>
+    `;
+    setTorchCodeGenerator(() => 'import torch\n');
+    renderEinsumBadge('einsumMatmul', 'matmul');
+  });
+
+  it('opening loops closes info', () => {
+    einsumToggleInfo('einsumMatmul');
+    expect(document.getElementById('einsumMatmulInfo').classList.contains('open')).toBe(true);
+    einsumToggleLoops('einsumMatmul');
+    expect(document.getElementById('einsumMatmulLoops').classList.contains('open')).toBe(true);
+    expect(document.getElementById('einsumMatmulInfo').classList.contains('open')).toBe(false);
+  });
+
+  it('opening info closes loops', () => {
+    einsumToggleLoops('einsumMatmul');
+    expect(document.getElementById('einsumMatmulLoops').classList.contains('open')).toBe(true);
+    einsumToggleInfo('einsumMatmul');
+    expect(document.getElementById('einsumMatmulInfo').classList.contains('open')).toBe(true);
+    expect(document.getElementById('einsumMatmulLoops').classList.contains('open')).toBe(false);
+  });
+
+  it('opening torch closes loops and info', () => {
+    einsumToggleLoops('einsumMatmul');
+    einsumToggleTorch('einsumMatmul', 'matmul');
+    expect(document.getElementById('einsumMatmulTorch').classList.contains('open')).toBe(true);
+    expect(document.getElementById('einsumMatmulLoops').classList.contains('open')).toBe(false);
+  });
+
+  it('torch panel shows generated code', () => {
+    setTorchCodeGenerator(() => 'test_code_here');
+    einsumToggleTorch('einsumMatmul', 'matmul');
+    expect(document.getElementById('einsumMatmulTorchCode').textContent).toBe('test_code_here');
   });
 });
 

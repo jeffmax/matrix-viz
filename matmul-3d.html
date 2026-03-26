@@ -351,17 +351,20 @@ input[type=range] { width: 88px; accent-color: #333; }
   padding: 5px 16px; font-family: 'SF Mono', Menlo, Consolas, monospace;
   font-size: 0.75rem; line-height: 1.5; color: #444; white-space: nowrap;
   text-align: center; width: fit-content; position: relative;
+  margin: 6px auto 0;
 }
+.tab-inner > .einsum-badge { margin: 6px auto 0; }
 .einsum-badge .ei-sig { white-space: nowrap; }
 .einsum-badge .ei-free { color: #555; }
 .einsum-badge .ei-contract { color: #d04040; font-weight: 700; }
 .einsum-badge .ei-note { color: #999; font-size: 0.68rem; font-style: italic; }
-.copy-torch-btn {
+.ei-torch-btn {
   background: none; border: 1px solid #ddd; border-radius: 4px;
-  font-size: 0.62rem; color: #888; cursor: pointer; padding: 2px 6px;
-  margin-left: 6px; vertical-align: middle; transition: background .12s, color .12s;
+  font-size: 0.6rem; color: #888; cursor: pointer; padding: 2px 6px;
+  margin-left: 4px; vertical-align: middle; font-family: 'SF Mono', Menlo, Consolas, monospace;
+  transition: background .12s, color .12s;
 }
-.copy-torch-btn:hover { background: #e8e8e8; color: #555; }
+.ei-torch-btn:hover { background: #e8e8e8; color: #555; }
 
 /* ── Einsum index hover (operand-aware) ── */
 .ei-idx { cursor: pointer; transition: background .1s, color .1s; border-radius: 2px; padding: 0 1px; }
@@ -375,6 +378,9 @@ input[type=range] { width: 88px; accent-color: #333; }
   transition: background .12s, color .12s;
 }
 .ei-loops-btn:hover, .ei-info-btn:hover { background: #e8e8e8; color: #555; }
+.canvas-title-row { display: flex; align-items: center; gap: 8px; justify-content: center; }
+.canvas-title-row .einsum-badge { margin-top: 12px; }
+.canvas-title-row .canvas-title { flex-shrink: 0; }
 
 /* ── Info overlay panel (English + shape) ── */
 .ei-info-panel {
@@ -474,8 +480,7 @@ input[type=range] { width: 88px; accent-color: #333; }
 #ctrl-embed-bwd.ei-hl-op1 #ebDisplay .eb-tokens { background: #e8f0ff; border-radius: 4px; }
 #ctrl-embed-bwd.ei-hl-opout #ebDisplay .eb-accum { background: #e8f5e8; border-radius: 4px; }
 
-/* Toolbar badge: keep compact */
-.mm-toolbar .einsum-badge { margin: 0; margin-left: auto; padding: 3px 8px; font-size: 0.68rem; flex-shrink: 0; }
+/* Einsum badge below toolbar: centered */
 
 /* ── Compact toolbar ── */
 .mm-toolbar {
@@ -487,7 +492,6 @@ input[type=range] { width: 88px; accent-color: #333; }
 .mm-toolbar .play-btn { width: 30px; height: 30px; font-size: 0.8rem; border-width: 1.5px; }
 .mm-toolbar .play-btn.secondary { width: 28px; height: 28px; font-size: 0.75rem; }
 .mm-toolbar .play-btn.subtle { width: 24px; height: 24px; font-size: 0.7rem; }
-.mm-toolbar .einsum-badge { margin: 0; margin-left: auto; padding: 3px 8px; font-size: 0.68rem; flex-shrink: 0; }
 .mm-toolbar .slider-wrap { gap: 3px; flex-shrink: 1; min-width: 0; }
 .mm-toolbar .slider-wrap input[type="range"] { width: 70px; min-width: 40px; }
 .mm-toolbar .check-wrap { font-size: 0.65rem; white-space: nowrap; }
@@ -1129,8 +1133,8 @@ input[type=range] { width: 88px; accent-color: #333; }
         <input type="range" id="spInner" min="200" max="1200" value="200" step="50">
         <span>fast</span>
       </div>
-      <div class="einsum-badge" id="einsumInner"></div>
     </div>
+    <div class="einsum-badge" id="einsumInner"></div>
     <div class="preset-desc" id="innerDesc">
       <strong>Inner (Dot) Product: a &middot; b</strong> &mdash; Multiply corresponding elements and sum to a <strong>scalar</strong>.
       In einsum: <code>i,i&rarr;</code> &mdash; the shared index <em>i</em> is contracted, leaving no free indices.
@@ -1159,8 +1163,8 @@ input[type=range] { width: 88px; accent-color: #333; }
         <input type="range" id="spIntro" min="200" max="1200" value="200" step="50">
         <span>fast</span>
       </div>
-      <div class="einsum-badge" id="einsumIntro"></div>
     </div>
+    <div class="einsum-badge" id="einsumIntro"></div>
     <div class="preset-desc" id="introDesc">
       <strong>Outer Product: a &otimes; b</strong> &mdash; Every pair (a[i], b[k]) multiplied &rarr; a <strong>matrix</strong>.
       In einsum: <code>i,k&rarr;ik</code> &mdash; both indices are free, so the result is 2D.
@@ -1206,7 +1210,6 @@ input[type=range] { width: 88px; accent-color: #333; }
       <input type="checkbox" id="chkDetail" onchange="mmToggleDetail()">
       <span id="chkDetailLabel">Element by element</span>
     </label>
-    <div class="einsum-badge" id="einsumMatmul"></div>
   </div>
   <div class="preset-desc hidden" id="presetDesc"></div>
   <div class="mm-row">
@@ -1229,7 +1232,10 @@ input[type=range] { width: 88px; accent-color: #333; }
     </div>
     <div class="mm-sym">=</div>
     <div class="mm-cube-area">
-      <div class="canvas-title" id="canvasTitle">Result — building cube slices</div>
+      <div class="canvas-title-row">
+        <div class="canvas-title" id="canvasTitle">Result — building cube slices</div>
+        <div class="einsum-badge" id="einsumMatmul"></div>
+      </div>
       <div id="mmCanvasHost">
         <canvas id="mainCanvas" width="420" height="380"></canvas>
       </div>
@@ -1283,8 +1289,8 @@ input[type=range] { width: 88px; accent-color: #333; }
         <input type="checkbox" id="chkEfDetail" checked onchange="efToggleDetail()">
         <span id="chkEfDetailLabel">Element by element</span>
       </label>
-      <div class="einsum-badge" id="einsumEmbedFwd"></div>
     </div>
+    <div class="einsum-badge" id="einsumEmbedFwd"></div>
     <div class="preset-desc" id="efDesc">
       <strong>Embedding Forward: Y = X @ W</strong> &mdash; Each token is a one-hot vector.
       Multiplying by the embedding table W selects a row &mdash; embedding lookup <em>is</em> matrix multiplication.
@@ -1314,8 +1320,8 @@ input[type=range] { width: 88px; accent-color: #333; }
         <input type="range" id="spEB" min="200" max="1200" value="200" step="50">
         <span>fast</span>
       </div>
-      <div class="einsum-badge" id="einsumEmbedBwd"></div>
     </div>
+    <div class="einsum-badge" id="einsumEmbedBwd"></div>
     <div class="preset-desc" id="ebDesc">
       <strong>Embedding Backward: dW = X&#7488; @ G</strong> &mdash; The weight gradient accumulates upstream gradients.
       Each position scatters its gradient to the row of its token &mdash; the reverse of forward's row selection.

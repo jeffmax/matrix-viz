@@ -22,7 +22,8 @@ import { PRESETS, loadPreset, clearPreset, fullClearPreset, activePreset } from 
 import { ipInit, ipRender, ipPause, ipReset, ipToggle, ipFwd, ipBack,
          ipEditCell, ipResize } from './tab-inner.js';
 import { EINSUM_INFO, renderEinsumBadge, einsumToggleLoops, einsumToggleInfo,
-         einsumCopyLoops, einsumIndexHover, einsumIndexClear } from './einsum-info.js';
+         einsumToggleTorch, einsumCopyTorch, einsumCopyLoops,
+         einsumIndexHover, einsumIndexClear, setTorchCodeGenerator } from './einsum-info.js';
 
 // ══════════════════════════════════════════════════
 // TIER STATE
@@ -272,7 +273,7 @@ function rebuild(rnd) {
 // ══════════════════════════════════════════════════
 // COPY PYTORCH CODE
 // ══════════════════════════════════════════════════
-export function copyTorchCode(tab) {
+export function getTorchCode(tab) {
   let code = 'import torch\n';
   if (tab === 'inner') {
     code += `a = torch.tensor([1., 2., 3.])\n`;
@@ -325,14 +326,11 @@ export function copyTorchCode(tab) {
     code += `B = torch.tensor([${bRows.join(', ')}])\n`;
     code += `result = A @ B  # or torch.einsum('ij,jk->ik', A, B)\n`;
   }
-  navigator.clipboard.writeText(code).then(() => {
-    const btn = document.querySelector('.copy-torch-btn.active-tab');
-    if (btn) {
-      btn.textContent = 'Copied!';
-      setTimeout(() => { btn.textContent = '📋 torch'; }, 1200);
-    }
-  });
+  return code;
 }
+
+// Register the torch code generator for the einsum badge panels
+setTorchCodeGenerator(getTorchCode);
 
 // ── renderEinsumBadge, einsumToggleLoops, einsumCopyLoops,
 // ── einsumIndexHover, einsumIndexClear → imported from einsum-info.js
@@ -482,9 +480,9 @@ window.ebChangeDim = ebChangeDim;
 // Snap-back
 window.snapToDefault = snapToDefault;
 window.toggleAxisLabels = toggleAxisLabels;
-// Copy torch code
-window.copyTorchCode = copyTorchCode;
 // Einsum info
+window.einsumToggleTorch = einsumToggleTorch;
+window.einsumCopyTorch = einsumCopyTorch;
 window.einsumToggleLoops = einsumToggleLoops;
 window.einsumToggleInfo = einsumToggleInfo;
 window.einsumCopyLoops = einsumCopyLoops;

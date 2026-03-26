@@ -319,25 +319,25 @@ test('preset desc spans full toolbar width', async ({ page }) => {
   expect(widths.desc).toBeGreaterThanOrEqual(widths.toolbar - 20);
 });
 
-test('toolbar einsum badge stays on same row as controls', async ({ page }) => {
+test('einsum badge sits next to canvas title, not in toolbar', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 600 });
   await page.goto(URL);
   await page.locator('#tier1-matmul').click();
   await expect(page.locator('#ctrl-matmul')).not.toHaveClass(/hidden/);
 
   const info = await page.evaluate(() => {
-    const toolbar = document.querySelector('#ctrl-matmul .mm-toolbar');
     const badge = document.getElementById('einsumMatmul');
-    const firstChild = toolbar?.firstElementChild;
-    if (!toolbar || !badge || !firstChild) return { sameRow: false, tbHeight: 999 };
+    const title = document.getElementById('canvasTitle');
+    const toolbar = document.querySelector('#ctrl-matmul .mm-toolbar');
+    if (!badge || !title || !toolbar) return { sameRowAsTitle: false, outsideToolbar: false };
     const badgeRect = badge.getBoundingClientRect();
-    const firstRect = firstChild.getBoundingClientRect();
-    const sameRow = Math.abs(badgeRect.top - firstRect.top) < 10;
-    return { sameRow, tbHeight: toolbar.offsetHeight };
+    const titleRect = title.getBoundingClientRect();
+    const sameRowAsTitle = Math.abs(badgeRect.top - titleRect.top) < 15;
+    const outsideToolbar = !toolbar.contains(badge);
+    return { sameRowAsTitle, outsideToolbar };
   });
-  // Badge on same row, toolbar should be a single row (under 50px)
-  expect(info.sameRow).toBe(true);
-  expect(info.tbHeight).toBeLessThan(50);
+  expect(info.outsideToolbar).toBe(true);
+  expect(info.sameRowAsTitle).toBe(true);
 });
 
 test('OP build delays cube slice reveal until animation completes', async ({ page }) => {

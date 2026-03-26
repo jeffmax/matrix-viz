@@ -187,6 +187,10 @@ function escapeHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// Callback to generate torch code — set by app.js via setTorchCodeGenerator
+let torchCodeGenerator = null;
+export function setTorchCodeGenerator(fn) { torchCodeGenerator = fn; }
+
 /* @testable */
 export function renderEinsumBadge(containerId, tab) {
   const el = document.getElementById(containerId);
@@ -196,9 +200,17 @@ export function renderEinsumBadge(containerId, tab) {
 
   // Build badge row: signature + buttons
   let html = `<span class="ei-sig">${sig}</span>`;
-  html += ` <button class="copy-torch-btn active-tab" onclick="copyTorchCode('${tab}')">📋 torch</button>`;
+  html += ` <button class="ei-torch-btn" onclick="einsumToggleTorch('${containerId}', '${tab}')">🔥 torch</button>`;
   html += ` <button class="ei-loops-btn" onclick="einsumToggleLoops('${containerId}')">{ } loops</button>`;
   html += ` <button class="ei-info-btn" onclick="einsumToggleInfo('${containerId}')">? info</button>`;
+
+  // Torch overlay (hidden by default) — populated dynamically
+  html += `<div class="ei-loops-panel" id="${containerId}Torch">`;
+  html += `<div class="ei-loops-header"><span>PyTorch equivalent</span>`;
+  html += `<button class="ei-loops-copy" onclick="einsumCopyTorch('${containerId}', this)">📋 copy</button>`;
+  html += `<button class="ei-loops-close" onclick="einsumToggleTorch('${containerId}', '${tab}')">✕</button></div>`;
+  html += `<pre class="ei-loops-code" id="${containerId}TorchCode"></pre>`;
+  html += `</div>`;
 
   // Info overlay (hidden by default) — English + shape
   if (info) {
@@ -223,11 +235,6 @@ export function renderEinsumBadge(containerId, tab) {
 
   el.innerHTML = html;
 
-  // Clear old active-tab buttons from other badges
-  document.querySelectorAll('.copy-torch-btn.active-tab').forEach(b => {
-    if (!el.contains(b)) b.classList.remove('active-tab');
-  });
-
   // Wire up hover on index spans — operand-aware
   el.querySelectorAll('.ei-idx').forEach(span => {
     span.addEventListener('mouseenter', () => einsumIndexHover(tab, span.dataset.op, span.dataset.idx));
@@ -235,14 +242,50 @@ export function renderEinsumBadge(containerId, tab) {
   });
 }
 
+// Close all panels in a badge container except the one with the given suffix
+function closeOtherPanels(containerId, exceptSuffix) {
+  const suffixes = ['Torch', 'Loops', 'Info'];
+  for (const s of suffixes) {
+    if (s === exceptSuffix) continue;
+    const p = document.getElementById(containerId + s);
+    if (p) p.classList.remove('open');
+  }
+}
+
+/* @testable */
+export function einsumToggleTorch(containerId, tab) {
+  closeOtherPanels(containerId, 'Torch');
+  const panel = document.getElementById(containerId + 'Torch');
+  if (!panel) return;
+  // Populate code fresh each time we open
+  if (!panel.classList.contains('open') && torchCodeGenerator) {
+    const codeEl = document.getElementById(containerId + 'TorchCode');
+    if (codeEl) codeEl.textContent = torchCodeGenerator(tab);
+  }
+  panel.classList.toggle('open');
+}
+
+/* @testable */
+export function einsumCopyTorch(containerId, btn) {
+  const codeEl = document.getElementById(containerId + 'TorchCode');
+  if (!codeEl) return;
+  navigator.clipboard.writeText(codeEl.textContent).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ copied';
+    setTimeout(() => btn.textContent = orig, 1500);
+  });
+}
+
 /* @testable */
 export function einsumToggleLoops(containerId) {
+  closeOtherPanels(containerId, 'Loops');
   const panel = document.getElementById(containerId + 'Loops');
   if (panel) panel.classList.toggle('open');
 }
 
 /* @testable */
 export function einsumToggleInfo(containerId) {
+  closeOtherPanels(containerId, 'Info');
   const panel = document.getElementById(containerId + 'Info');
   if (panel) panel.classList.toggle('open');
 }
