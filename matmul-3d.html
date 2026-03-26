@@ -353,7 +353,6 @@ input[type=range] { width: 88px; accent-color: #333; }
   text-align: center; width: fit-content; position: relative;
   margin: 6px auto 0;
 }
-.tab-inner > .einsum-badge { margin: 6px auto 0; }
 .einsum-badge .ei-sig { white-space: nowrap; }
 .einsum-badge .ei-free { color: #555; }
 .einsum-badge .ei-contract { color: #d04040; font-weight: 700; }
@@ -378,9 +377,6 @@ input[type=range] { width: 88px; accent-color: #333; }
   transition: background .12s, color .12s;
 }
 .ei-loops-btn:hover, .ei-info-btn:hover { background: #e8e8e8; color: #555; }
-.canvas-title-row { display: flex; align-items: center; gap: 8px; justify-content: center; }
-.canvas-title-row .einsum-badge { margin-top: 12px; }
-.canvas-title-row .canvas-title { flex-shrink: 0; }
 
 /* ── Info overlay panel (English + shape) ── */
 .ei-info-panel {
@@ -1134,11 +1130,11 @@ input[type=range] { width: 88px; accent-color: #333; }
         <span>fast</span>
       </div>
     </div>
-    <div class="einsum-badge" id="einsumInner"></div>
     <div class="preset-desc" id="innerDesc">
       <strong>Inner (Dot) Product: a &middot; b</strong> &mdash; Multiply corresponding elements and sum to a <strong>scalar</strong>.
       In einsum: <code>i,i&rarr;</code> &mdash; the shared index <em>i</em> is contracted, leaving no free indices.
     </div>
+    <div class="einsum-badge" id="einsumInner"></div>
     <div id="innerDisplay" class="intro-wrap"></div>
     <div class="formula-bar">
       <div class="formula-text" id="fInner"></div>
@@ -1164,12 +1160,12 @@ input[type=range] { width: 88px; accent-color: #333; }
         <span>fast</span>
       </div>
     </div>
-    <div class="einsum-badge" id="einsumIntro"></div>
     <div class="preset-desc" id="introDesc">
       <strong>Outer Product: a &otimes; b</strong> &mdash; Every pair (a[i], b[k]) multiplied &rarr; a <strong>matrix</strong>.
       In einsum: <code>i,k&rarr;ik</code> &mdash; both indices are free, so the result is 2D.
       <em>Broadcasting view:</em> reshape a to a column via <code>a[:, None]</code>, b to a row via <code>b[None, :]</code>, then broadcast-multiply.
     </div>
+    <div class="einsum-badge" id="einsumIntro"></div>
     <div id="introDisplay" class="intro-wrap"></div>
     <div class="formula-bar">
       <div class="formula-text" id="fIntro"></div>
@@ -1212,6 +1208,7 @@ input[type=range] { width: 88px; accent-color: #333; }
     </label>
   </div>
   <div class="preset-desc hidden" id="presetDesc"></div>
+  <div class="einsum-badge" id="einsumMatmul"></div>
   <div class="mm-row">
     <div class="mm-mat-area" id="mmPanelA">
       <div class="mat-title" id="mmTitleA">A</div>
@@ -1232,10 +1229,7 @@ input[type=range] { width: 88px; accent-color: #333; }
     </div>
     <div class="mm-sym">=</div>
     <div class="mm-cube-area">
-      <div class="canvas-title-row">
-        <div class="canvas-title" id="canvasTitle">Result — building cube slices</div>
-        <div class="einsum-badge" id="einsumMatmul"></div>
-      </div>
+      <div class="canvas-title" id="canvasTitle">Result — building cube slices</div>
       <div id="mmCanvasHost">
         <canvas id="mainCanvas" width="420" height="380"></canvas>
       </div>
@@ -1290,12 +1284,12 @@ input[type=range] { width: 88px; accent-color: #333; }
         <span id="chkEfDetailLabel">Element by element</span>
       </label>
     </div>
-    <div class="einsum-badge" id="einsumEmbedFwd"></div>
     <div class="preset-desc" id="efDesc">
       <strong>Embedding Forward: Y = X @ W</strong> &mdash; Each token is a one-hot vector.
       Multiplying by the embedding table W selects a row &mdash; embedding lookup <em>is</em> matrix multiplication.
       See this as plain matrix math in the <a href="javascript:void(0)" onclick="selectPreset('row-select')" style="color:#69c">Row Selection preset</a>.
     </div>
+    <div class="einsum-badge" id="einsumEmbedFwd"></div>
     <div id="efDisplay" class="ef-wrap"></div>
     <div class="formula-bar">
       <div class="formula-text" id="fEF"></div>
@@ -1321,11 +1315,11 @@ input[type=range] { width: 88px; accent-color: #333; }
         <span>fast</span>
       </div>
     </div>
-    <div class="einsum-badge" id="einsumEmbedBwd"></div>
     <div class="preset-desc" id="ebDesc">
       <strong>Embedding Backward: dW = X&#7488; @ G</strong> &mdash; The weight gradient accumulates upstream gradients.
       Each position scatters its gradient to the row of its token &mdash; the reverse of forward's row selection.
     </div>
+    <div class="einsum-badge" id="einsumEmbedBwd"></div>
     <div id="ebDisplay" class="eb-wrap"></div>
     <div class="formula-bar">
       <div class="formula-text" id="fEB"></div>

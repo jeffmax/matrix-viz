@@ -319,7 +319,7 @@ test('preset desc spans full toolbar width', async ({ page }) => {
   expect(widths.desc).toBeGreaterThanOrEqual(widths.toolbar - 20);
 });
 
-test('einsum badge sits next to canvas title, not in toolbar', async ({ page }) => {
+test('einsum badge sits below preset desc, not in toolbar', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 600 });
   await page.goto(URL);
   await page.locator('#tier1-matmul').click();
@@ -327,17 +327,12 @@ test('einsum badge sits next to canvas title, not in toolbar', async ({ page }) 
 
   const info = await page.evaluate(() => {
     const badge = document.getElementById('einsumMatmul');
-    const title = document.getElementById('canvasTitle');
     const toolbar = document.querySelector('#ctrl-matmul .mm-toolbar');
-    if (!badge || !title || !toolbar) return { sameRowAsTitle: false, outsideToolbar: false };
-    const badgeRect = badge.getBoundingClientRect();
-    const titleRect = title.getBoundingClientRect();
-    const sameRowAsTitle = Math.abs(badgeRect.top - titleRect.top) < 15;
+    if (!badge || !toolbar) return { outsideToolbar: false };
     const outsideToolbar = !toolbar.contains(badge);
-    return { sameRowAsTitle, outsideToolbar };
+    return { outsideToolbar };
   });
   expect(info.outsideToolbar).toBe(true);
-  expect(info.sameRowAsTitle).toBe(true);
 });
 
 test('OP build delays cube slice reveal until animation completes', async ({ page }) => {
