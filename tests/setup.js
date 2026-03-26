@@ -7,9 +7,11 @@ import { beforeEach } from 'vitest';
 HTMLCanvasElement.prototype.getContext = function (type) {
   if (type === '2d') {
     return {
-      fillStyle: '', font: '', textAlign: '', textBaseline: '',
+      fillStyle: '', strokeStyle: '', font: '', textAlign: '', textBaseline: '',
+      lineWidth: 1, lineCap: 'butt',
       fillText() {}, fillRect() {}, clearRect() {},
-      beginPath() {}, arc() {}, fill() {},
+      beginPath() {}, arc() {}, fill() {}, stroke() {},
+      moveTo() {}, lineTo() {},
       measureText() { return { width: 0 }; },
     };
   }
@@ -151,6 +153,7 @@ function buildDOM() {
       <input type="checkbox" id="chkDetail">
       <span id="chkDetailLabel">Element by element</span>
       <input type="range" id="spCollapse" min="0" max="1000" value="0" disabled>
+      <input type="checkbox" id="chkAxes" checked>
       <div id="mmCanvasHost"><canvas id="mainCanvas" width="420" height="380"></canvas></div>
       <div id="canvasTitle"></div>
       <div id="mmTitleA">A</div>

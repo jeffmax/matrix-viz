@@ -8,48 +8,100 @@ const THREE = window.THREE;
 
 export let boxes = [];
 export let plusPlanes = [];
-let axisLabels = [];
+let axisLabels = [];   // sprites + lines
+let axisLabelsBuilt = false;  // true once addAxisLabels has run for current boxes
+let axisLabelsVisible = false;
 
-function makeAxisTex(letter, color) {
+// Draw letter + arrow on a canvas sprite texture
+// dir: 'right' | 'up' | 'down-z' controls arrow direction
+function makeAxisTex(letter, color, dir) {
   const S = 128, cv = document.createElement('canvas'); cv.width = S; cv.height = S;
   const ctx = cv.getContext('2d');
-  ctx.font = `bold ${Math.round(S * 0.55)}px 'SF Mono', Menlo, Consolas, monospace`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = color;
-  ctx.fillText(letter, S / 2, S / 2);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  // Letter
+  ctx.font = `bold ${Math.round(S * 0.38)}px 'SF Mono', Menlo, Consolas, monospace`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (dir === 'right') {
+    ctx.fillText(letter, S * 0.28, S * 0.5);
+    // Arrow →
+    const ax = S * 0.52, ay = S * 0.5, aw = S * 0.32;
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax + aw, ay); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ax + aw - 6, ay - 5); ctx.lineTo(ax + aw, ay); ctx.lineTo(ax + aw - 6, ay + 5); ctx.stroke();
+  } else if (dir === 'up') {
+    ctx.fillText(letter, S * 0.5, S * 0.72);
+    // Arrow ↑
+    const ax = S * 0.5, ay = S * 0.48, ah = S * 0.32;
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax, ay - ah); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ax - 5, ay - ah + 6); ctx.lineTo(ax, ay - ah); ctx.lineTo(ax + 5, ay - ah + 6); ctx.stroke();
+  } else { // 'down-z' — arrow pointing toward viewer (down-right in screen space)
+    ctx.fillText(letter, S * 0.28, S * 0.35);
+    const ax = S * 0.50, ay = S * 0.45, al = S * 0.30;
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax + al * 0.6, ay + al * 0.8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ax + al * 0.6 - 7, ay + al * 0.8 - 2); ctx.lineTo(ax + al * 0.6, ay + al * 0.8); ctx.lineTo(ax + al * 0.6 - 1, ay + al * 0.8 - 7); ctx.stroke();
+  }
   const t = new THREE.CanvasTexture(cv); t.needsUpdate = true; return t;
 }
 
 function addAxisLabels() {
   removeAxisLabels();
-  const pad = STEP * 0.75;
+  if (!sc) return;
+  const pad = STEP * 0.45;
   // Cube extents (centered at origin)
-  const xMin = -(K - 1) * STEP / 2 - CELL / 2;
   const xMax =  (K - 1) * STEP / 2 + CELL / 2;
   const yMin = packedY(J - 1) - CELL / 2;
   const yMax = packedY(0) + CELL / 2;
-  const zMin = -(I - 1) * STEP / 2 - CELL / 2;
   const zMax =  (I - 1) * STEP / 2 + CELL / 2;
-  // k along X axis — bottom-front edge, label at right end
-  const kSpr = new THREE.Sprite(new THREE.SpriteMaterial({map: makeAxisTex('k', '#5588cc'), depthTest: false, transparent: true}));
-  kSpr.scale.set(CELL * 0.7, CELL * 0.7, 1);
-  kSpr.position.set(xMax + pad, yMin - pad * 0.3, zMax + pad * 0.3);
+  const sz = CELL * 0.48;
+  // k along X axis — bottom-front edge, right end
+  const kSpr = new THREE.Sprite(new THREE.SpriteMaterial({map: makeAxisTex('k', '#5588cc', 'right'), depthTest: false, transparent: true}));
+  kSpr.scale.set(sz, sz, 1);
+  kSpr.position.set(xMax + pad, yMin - pad * 0.15, zMax + pad * 0.15);
   sc.scene.add(kSpr); axisLabels.push(kSpr);
-  // j along Y axis — right-front edge, label at top (contracted = red)
-  const jSpr = new THREE.Sprite(new THREE.SpriteMaterial({map: makeAxisTex('j', '#d04040'), depthTest: false, transparent: true}));
-  jSpr.scale.set(CELL * 0.7, CELL * 0.7, 1);
-  jSpr.position.set(xMax + pad * 0.3, yMax + pad, zMax + pad * 0.3);
+  // j along Y axis — right-front edge, top (contracted = red)
+  const jSpr = new THREE.Sprite(new THREE.SpriteMaterial({map: makeAxisTex('j', '#d04040', 'up'), depthTest: false, transparent: true}));
+  jSpr.scale.set(sz, sz, 1);
+  jSpr.position.set(xMax + pad * 0.15, yMax + pad, zMax + pad * 0.15);
   sc.scene.add(jSpr); axisLabels.push(jSpr);
-  // i along Z axis — bottom-right edge, label at front
-  const iSpr = new THREE.Sprite(new THREE.SpriteMaterial({map: makeAxisTex('i', '#5588cc'), depthTest: false, transparent: true}));
-  iSpr.scale.set(CELL * 0.7, CELL * 0.7, 1);
-  iSpr.position.set(xMax + pad * 0.3, yMin - pad * 0.3, zMax + pad);
+  // i along Z axis — bottom-right edge, front
+  const iSpr = new THREE.Sprite(new THREE.SpriteMaterial({map: makeAxisTex('i', '#5588cc', 'down-z'), depthTest: false, transparent: true}));
+  iSpr.scale.set(sz, sz, 1);
+  iSpr.position.set(xMax + pad * 0.15, yMin - pad * 0.15, zMax + pad);
   sc.scene.add(iSpr); axisLabels.push(iSpr);
+  axisLabelsBuilt = true;
+  // Respect current visibility (hidden until first box populated + checkbox on)
+  setAxisLabelsVisible(axisLabelsVisible);
 }
 
 function removeAxisLabels() {
   if (sc) axisLabels.forEach(s => sc.scene.remove(s));
   axisLabels = [];
+  axisLabelsBuilt = false;
+}
+
+function setAxisLabelsVisible(v) {
+  axisLabelsVisible = v;
+  axisLabels.forEach(s => { s.visible = v; });
+}
+
+/* @testable */ export function showAxisLabels() {
+  if (!axisLabelsBuilt) return;
+  const chk = document.getElementById('chkAxes');
+  if (chk && !chk.checked) return;
+  setAxisLabelsVisible(true);
+}
+
+/* @testable */ export function hideAxisLabels() {
+  setAxisLabelsVisible(false);
+}
+
+/* @testable */ export function toggleAxisLabels() {
+  const chk = document.getElementById('chkAxes');
+  if (!chk) return;
+  if (chk.checked) showAxisLabels();
+  else hideAxisLabels();
 }
 
 export function rebuildBoxes() {
@@ -82,7 +134,7 @@ export function rebuildBoxes() {
     boxes.push(layer);
   }
   orb.theta = FIXED_THETA; orb.phi = FIXED_PHI;
-  addAxisLabels();
+  addAxisLabels(); // built but hidden until first box is populated
 }
 
 export function paintBox(i, j, k, col, opacity, emissive, val, textColor) {
@@ -101,6 +153,7 @@ export function paintSlice(j, state) {
     else if (state === 'building') paintBox(i, j, k, 0x2ab0a0, 0.40, 0, null);
     else paintBox(i, j, k, 0x50c878, 0.78, 0, Cube[i][j][k]);
   }
+  if (state !== 'empty') showAxisLabels();
 }
 
 export function ensureAllGreen() { for (let j = 0; j < J; j++) paintSlice(j, 'done'); }

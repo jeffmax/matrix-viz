@@ -5,7 +5,7 @@ import { I, J, K, A, B, currentMode, setCurrentMode, computeData, changeDim,
          registerCallbacks, toggleInfo, recomputeFromMatrices, resetLabels,
          setData, infoOpen, setOnShelfOpen, setBuildComplete } from './shared.js';
 import { sc, initScene, moveCanvasTo, snapToDefault } from './scene.js';
-import { boxes, rebuildBoxes, addPlusPlanes, removePlusPlanes, ensureAllGreen, clearBoxes } from './cube-manager.js';
+import { boxes, rebuildBoxes, addPlusPlanes, removePlusPlanes, ensureAllGreen, clearBoxes, toggleAxisLabels } from './cube-manager.js';
 import { initIntroVecs, renderIntro, pauseIntro, resetIntroStep,
          resizeIntroVecs, stepFwdIntro, stepBackIntro, togglePlayIntro, resetIntro,
          introEditCell, introHover, introClearHover } from './tab-intro.js';
@@ -481,6 +481,7 @@ window.ebTraceBack = ebTraceBack;
 window.ebChangeDim = ebChangeDim;
 // Snap-back
 window.snapToDefault = snapToDefault;
+window.toggleAxisLabels = toggleAxisLabels;
 // Copy torch code
 window.copyTorchCode = copyTorchCode;
 // Einsum info

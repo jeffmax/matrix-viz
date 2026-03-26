@@ -1233,7 +1233,7 @@ input[type=range] { width: 88px; accent-color: #333; }
       <div id="mmCanvasHost">
         <canvas id="mainCanvas" width="420" height="380"></canvas>
       </div>
-      <div class="canvas-hint">Drag to rotate · <button class="ctrl-btn" style="font-size:0.62rem;height:22px;padding:0 8px" onclick="snapToDefault()">Reset view</button></div>
+      <div class="canvas-hint">Drag to rotate · <button class="ctrl-btn" style="font-size:0.62rem;height:22px;padding:0 8px" onclick="snapToDefault()">Reset view</button> · <label style="font-size:0.62rem;color:#999;cursor:pointer;user-select:none"><input type="checkbox" id="chkAxes" onchange="toggleAxisLabels()" checked style="accent-color:#999;width:11px;height:11px;cursor:pointer;vertical-align:-1px;margin-right:2px">axes</label></div>
       <div class="slider-wrap" id="collapseSliderWrap" style="margin-top:6px">
         <span>stacked</span>
         <input type="range" id="spCollapse" min="0" max="1000" value="0" step="1"
