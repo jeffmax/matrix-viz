@@ -11,6 +11,12 @@ export let plusPlanes = [];
 let axisLabels = [];   // arrows + label sprites
 let axisLabelsBuilt = false;  // true once addAxisLabels has run for current boxes
 let axisLabelsVisible = false;
+let jAxisArrow = null;  // j-axis arrow (separate ref for collapse animation)
+let jAxisLabel = null;  // j-axis label sprite
+let jAxisFullLen = 0;   // full length of j arrow at t=0
+let jAxisHeadLen = 0;   // arrow head length
+let jAxisHeadW = 0;     // arrow head width
+let jAxisOriginY = 0;   // top of j arrow (yMax)
 
 function makeLabelTex(letter, color) {
   const S = 128, cv = document.createElement('canvas'); cv.width = S; cv.height = S;
@@ -53,17 +59,20 @@ function addAxisLabels() {
 
   // j → Y axis: arrow along right-front edge, pointing down (-Y, j increases downward)
   const jX = xMax + off, jZ = zMax + off;
+  jAxisFullLen = ySpan; jAxisHeadLen = ySpan * headFrac; jAxisHeadW = headW; jAxisOriginY = yMax;
   const jArrow = new THREE.ArrowHelper(
     new THREE.Vector3(0, -1, 0), new THREE.Vector3(jX, yMax, jZ),
-    ySpan, 0xd04040, ySpan * headFrac, headW
+    ySpan, 0xd04040, jAxisHeadLen, headW
   );
   jArrow.line.material.transparent = true; jArrow.line.material.opacity = 0.6;
   jArrow.cone.material.transparent = true; jArrow.cone.material.opacity = 0.6;
   sc.scene.add(jArrow); axisLabels.push(jArrow);
+  jAxisArrow = jArrow;
   const jLbl = new THREE.Sprite(new THREE.SpriteMaterial({map: makeLabelTex('j', '#d04040'), depthTest: false, transparent: true}));
   jLbl.scale.set(labelSz, labelSz, 1);
   jLbl.position.set(jX, yMin - off * 0.5, jZ);
   sc.scene.add(jLbl); axisLabels.push(jLbl);
+  jAxisLabel = jLbl;
 
   // i → Z axis: arrow along bottom-right edge, pointing forward (+Z toward viewer)
   const iX = xMax + off, iY = yMin - off;
@@ -87,6 +96,7 @@ function removeAxisLabels() {
   if (sc) axisLabels.forEach(obj => sc.scene.remove(obj));
   axisLabels = [];
   axisLabelsBuilt = false;
+  jAxisArrow = null; jAxisLabel = null;
 }
 
 function setAxisLabelsVisible(v) {
@@ -110,6 +120,26 @@ function setAxisLabelsVisible(v) {
   if (!chk) return;
   if (chk.checked) showAxisLabels();
   else hideAxisLabels();
+}
+
+/* @testable */ export function updateJAxisCollapse(t) {
+  if (!jAxisArrow || !jAxisLabel) return;
+  // e is the eased collapse value matching applyCollapse's easing
+  const e = -(Math.cos(Math.PI * t) - 1) / 2;
+  const opacity = Math.max(0, 0.6 * (1 - e));
+  // Shrink arrow length toward zero
+  const len = Math.max(0.001, jAxisFullLen * (1 - e));  // min 0.001 to avoid ArrowHelper issues
+  jAxisArrow.setLength(len, Math.min(jAxisHeadLen, len * 0.5), jAxisHeadW);
+  jAxisArrow.line.material.opacity = opacity;
+  jAxisArrow.cone.material.opacity = opacity;
+  // Move label up toward the arrow origin as it shrinks, and fade
+  const off = STEP * 0.35;
+  const labelY = jAxisOriginY - len - off * 0.5;
+  jAxisLabel.position.y = labelY;
+  jAxisLabel.material.opacity = 1 - e;
+  // Hide completely when fully collapsed
+  if (t >= 1) { jAxisArrow.visible = false; jAxisLabel.visible = false; }
+  else { jAxisArrow.visible = axisLabelsVisible; jAxisLabel.visible = axisLabelsVisible; }
 }
 
 export function rebuildBoxes() {

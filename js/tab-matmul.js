@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════
 import { I, J, K, A, B, Cube, Res, labelA, labelB, editCellInline, recomputeFromMatrices, dimBtnsH, dimBtnsV, setBuildComplete, buildComplete } from './shared.js';
 import { makeTex } from './scene.js';
-import { boxes, plusPlanes, paintBox, paintSlice, ensureAllGreen, packedY, addPlusPlanes, removePlusPlanes } from './cube-manager.js';
+import { boxes, plusPlanes, paintBox, paintSlice, ensureAllGreen, packedY, addPlusPlanes, removePlusPlanes, updateJAxisCollapse } from './cube-manager.js';
 
 const THREE = window.THREE;
 
@@ -882,6 +882,8 @@ export function applyCollapse(t) {
       spr.visible = opacity > 0.01;
     });
   }
+
+  updateJAxisCollapse(t);
 
   const colSlider = document.getElementById('spCollapse');
   if (colSlider) colSlider.value = Math.round(t * 1000);
