@@ -18,6 +18,7 @@ import { efInit, efRender, efFwd, efBack, efToggle, efReset, efPause,
          efJumpToPos, efTraceBack, efChangeDim, efToggleDetail, getEfState } from './tab-embed-fwd.js';
 import { ebInit, ebRender, ebFwd, ebBack, ebToggle, ebReset, ebPause,
          ebJumpToPos, ebTraceBack, ebChangeDim } from './tab-embed-bwd.js';
+import { qInit, qRender, qReset, qApply, qPause, getQState } from './tab-quantum.js';
 import { PRESETS, loadPreset, clearPreset, fullClearPreset, activePreset } from './presets.js';
 import { ipInit, ipRender, ipPause, ipReset, ipToggle, ipFwd, ipBack,
          ipEditCell, ipResize } from './tab-inner.js';
@@ -74,9 +75,11 @@ function setTier(tier) {
   document.getElementById('tier1-blocks').classList.toggle('active', tier === 'blocks');
   document.getElementById('tier1-matmul').classList.toggle('active', tier === 'matmul');
   document.getElementById('tier1-embed').classList.toggle('active', tier === 'embed');
+  document.getElementById('tier1-quantum').classList.toggle('active', tier === 'quantum');
   document.getElementById('tier2-blocks').classList.toggle('hidden', tier !== 'blocks');
   document.getElementById('tier2-matmul').classList.add('hidden'); // single tab, always hidden
   document.getElementById('tier2-embed').classList.toggle('hidden', tier !== 'embed');
+  document.getElementById('tier2-quantum').classList.add('hidden'); // single tab, always hidden
   const descEl = document.getElementById('presetDesc');
   if (tier !== 'matmul') descEl.classList.add('hidden');
   else if (activePreset) descEl.classList.remove('hidden');
@@ -85,6 +88,8 @@ function setTier(tier) {
     setMode(lastBlocksMode);
   } else if (tier === 'matmul') {
     setMode('matmul');
+  } else if (tier === 'quantum') {
+    setMode('quantum');
   } else {
     setMode(lastEmbedMode);
   }
@@ -105,8 +110,9 @@ function setMode(m) {
   if (prev === 'matmul') mmPauseAll();
   if (prev === 'embed-fwd') efPause();
   if (prev === 'embed-bwd') ebPause();
+  if (prev === 'quantum') qPause();
 
-  const allTabs = ['inner', 'intro', 'matmul', 'embed-fwd', 'embed-bwd'];
+  const allTabs = ['inner', 'intro', 'matmul', 'embed-fwd', 'embed-bwd', 'quantum'];
   for (const t of allTabs) {
     const tabBtn = document.getElementById('tab-' + t);
     const navBtn = document.getElementById('tab-' + t + '-nav');
@@ -122,27 +128,44 @@ function setMode(m) {
     document.getElementById('tier1-blocks').classList.add('active');
     document.getElementById('tier1-matmul').classList.remove('active');
     document.getElementById('tier1-embed').classList.remove('active');
+    document.getElementById('tier1-quantum').classList.remove('active');
     document.getElementById('tier2-blocks').classList.remove('hidden');
     document.getElementById('tier2-matmul').classList.add('hidden');
     document.getElementById('tier2-embed').classList.add('hidden');
+    document.getElementById('tier2-quantum').classList.add('hidden');
     document.getElementById('presetDesc').classList.add('hidden');
   } else if (m === 'matmul' && currentTier !== 'matmul') {
     currentTier = 'matmul';
     document.getElementById('tier1-matmul').classList.add('active');
     document.getElementById('tier1-blocks').classList.remove('active');
     document.getElementById('tier1-embed').classList.remove('active');
+    document.getElementById('tier1-quantum').classList.remove('active');
     document.getElementById('tier2-matmul').classList.add('hidden'); // single tab, always hidden
     document.getElementById('tier2-blocks').classList.add('hidden');
     document.getElementById('tier2-embed').classList.add('hidden');
+    document.getElementById('tier2-quantum').classList.add('hidden');
     if (activePreset) document.getElementById('presetDesc').classList.remove('hidden');
   } else if ((m === 'embed-fwd' || m === 'embed-bwd') && currentTier !== 'embed') {
     currentTier = 'embed';
     document.getElementById('tier1-embed').classList.add('active');
     document.getElementById('tier1-blocks').classList.remove('active');
     document.getElementById('tier1-matmul').classList.remove('active');
+    document.getElementById('tier1-quantum').classList.remove('active');
     document.getElementById('tier2-embed').classList.remove('hidden');
     document.getElementById('tier2-blocks').classList.add('hidden');
     document.getElementById('tier2-matmul').classList.add('hidden');
+    document.getElementById('tier2-quantum').classList.add('hidden');
+    document.getElementById('presetDesc').classList.add('hidden');
+  } else if (m === 'quantum' && currentTier !== 'quantum') {
+    currentTier = 'quantum';
+    document.getElementById('tier1-quantum').classList.add('active');
+    document.getElementById('tier1-blocks').classList.remove('active');
+    document.getElementById('tier1-matmul').classList.remove('active');
+    document.getElementById('tier1-embed').classList.remove('active');
+    document.getElementById('tier2-blocks').classList.add('hidden');
+    document.getElementById('tier2-matmul').classList.add('hidden');
+    document.getElementById('tier2-embed').classList.add('hidden');
+    document.getElementById('tier2-quantum').classList.add('hidden'); // single tab, always hidden
     document.getElementById('presetDesc').classList.add('hidden');
   }
 
@@ -167,6 +190,10 @@ function setMode(m) {
   if (m === 'embed-bwd') {
     ebRender();
     renderEinsumBadge('einsumEmbedBwd', 'embed-bwd');
+  }
+  if (m === 'quantum') {
+    qRender();
+    renderEinsumBadge('einsumQuantum', 'quantum');
   }
   if (infoOpen) updateShelfContent();
 }
@@ -249,6 +276,7 @@ function rebuild(rnd) {
   initIntroVecs(rnd);
   efInit(rnd);
   ebInit(rnd);
+  qInit();
 
   if (currentMode === 'matmul') {
     rebuildBoxes();
@@ -268,6 +296,7 @@ function rebuild(rnd) {
   if (currentMode === 'matmul') { renderEinsumBadge('einsumMatmul', 'matmul'); }
   if (currentMode === 'embed-fwd') { efRender(); renderEinsumBadge('einsumEmbedFwd', 'embed-fwd'); }
   if (currentMode === 'embed-bwd') { ebRender(); renderEinsumBadge('einsumEmbedBwd', 'embed-bwd'); }
+  if (currentMode === 'quantum') { qRender(); renderEinsumBadge('einsumQuantum', 'quantum'); }
 }
 
 // ══════════════════════════════════════════════════
@@ -309,6 +338,21 @@ export function getTorchCode(tab) {
     code += `dW2 = torch.zeros(V, C)\n`;
     code += `dW2.index_add_(0, tokens.reshape(-1), G.reshape(-1, C))\n`;
     code += `assert torch.allclose(dW, dW2)\n`;
+  } else if (tab === 'quantum') {
+    code += `# Single-qubit classical gates in Dirac notation\n`;
+    code += `# |ψ⟩ = α|0⟩ + β|1⟩ as a column vector [α, β]\n\n`;
+    code += `ket0 = torch.tensor([1., 0.])  # |0⟩\n`;
+    code += `ket1 = torch.tensor([0., 1.])  # |1⟩\n\n`;
+    code += `I = torch.tensor([[1., 0.], [0., 1.]])   # Identity\n`;
+    code += `X = torch.tensor([[0., 1.], [1., 0.]])   # NOT / Pauli-X\n`;
+    code += `Z = torch.tensor([[1., 0.], [0.,-1.]])   # Phase flip / Pauli-Z\n\n`;
+    code += `# Apply a gate: U|ψ⟩ is matrix-vector multiplication\n`;
+    code += `psi = X @ ket0                              # X|0⟩ = |1⟩\n`;
+    code += `psi_einsum = torch.einsum('ij,j->i', X, ket0)  # equivalent\n`;
+    code += `assert torch.allclose(psi, ket1)\n\n`;
+    code += `# Inner product ⟨φ|ψ⟩ is the dot product:\n`;
+    code += `print(torch.dot(ket0, ket1))  # 0 — orthogonal\n`;
+    code += `print(torch.dot(ket0, ket0))  # 1 — normalized\n`;
   } else {
     const aRows = [];
     for (let i = 0; i < I; i++) {
@@ -392,6 +436,15 @@ function updateShelfContent() {
       + `<p style="margin-top:6px"><code>dW[v,:] = Σ G[b,t,:] for all (b,t) where token==v</code></p>`
       + `<p style="margin-top:6px">This is the reverse of forward's "gather" — forward selects rows, backward <em>scatters</em> gradients back. Rare tokens get smaller updates (fewer terms in the sum).</p>`
       + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic">Each position contributes a rank-1 outer product X[b,t,:]⊗G[b,t,:]. The weight update is a sum of these rank-1 terms — the same structure as the Outer Product View.</p>`
+      + `</div>`;
+  } else if (currentMode === 'quantum') {
+    el.innerHTML =
+      `<div class="broadcast-rules">`
+      + `<strong>Quantum Gates — Dirac notation</strong>`
+      + `<p style="margin-top:6px">A single qubit is a 2-dim column vector <code>|ψ⟩ = α|0⟩ + β|1⟩</code>. A gate <strong>U</strong> is a 2&times;2 matrix; applying it is matrix-vector multiplication: <code>U|ψ⟩ = α·U|0⟩ + β·U|1⟩</code>.</p>`
+      + `<p style="margin-top:6px"><strong>I</strong> = identity. <strong>X</strong> = NOT (swap |0⟩ ↔ |1⟩). <strong>Z</strong> = sign flip on |1⟩.</p>`
+      + `<p style="margin-top:6px">Classical reversible computing lives entirely on the two basis states <code>|0⟩</code> and <code>|1⟩</code>. X is the classical NOT gate. Z is where it stops being classical — the negative amplitude has no probability interpretation.</p>`
+      + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic">Connections: ⟨φ|ψ⟩ is the inner product (dot product tab). |ψ⟩⟨φ| is the outer product tab. <code>U|ψ⟩</code> is einsum <code>ij,j→i</code> — matrix-vector multiplication, the K=1 case of matmul.</p>`
       + `</div>`;
   }
 }
@@ -477,6 +530,9 @@ window.ebReset = ebReset;
 window.ebJumpToPos = ebJumpToPos;
 window.ebTraceBack = ebTraceBack;
 window.ebChangeDim = ebChangeDim;
+// Quantum Gates
+window.qApply = qApply;
+window.qReset = qReset;
 // Snap-back
 window.snapToDefault = snapToDefault;
 window.toggleAxisLabels = toggleAxisLabels;
@@ -493,7 +549,7 @@ rebuild(true);
 
 // ── URL query parameter deep linking ──
 // Supports: ?tab=matmul&preset=identity&mode=dot
-// tab: inner, intro, matmul, embed-fwd, embed-bwd
+// tab: inner, intro, matmul, embed-fwd, embed-bwd, quantum
 // preset: any preset id (basic, identity, row-select, etc.)
 // mode: outer, dot (build mode for matmul tab)
 function applyUrlParams() {

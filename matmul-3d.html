@@ -476,6 +476,55 @@ input[type=range] { width: 88px; accent-color: #333; }
 #ctrl-embed-bwd.ei-hl-op1 #ebDisplay .eb-tokens { background: #e8f0ff; border-radius: 4px; }
 #ctrl-embed-bwd.ei-hl-opout #ebDisplay .eb-accum { background: #e8f5e8; border-radius: 4px; }
 
+/* ── Quantum tab ── */
+.q-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 18px;
+  padding: 10px 0; max-width: 900px; margin: 0 auto; width: 100%;
+}
+.q-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px; flex-wrap: wrap;
+}
+.q-ket-wrap { display: inline-flex; align-items: stretch; }
+.q-bracket {
+  display: flex; align-items: center;
+  font-size: 2.4rem; font-weight: 200; color: #888;
+  font-family: 'Times New Roman', Times, serif; line-height: 1;
+  padding: 0 1px;
+}
+.q-ket { display: grid; grid-auto-flow: row; gap: 3px; }
+.q-ket .mat-cell { width: 42px; height: 42px; }
+.q-gate-mat { display: grid; grid-template-columns: repeat(2, 42px); gap: 3px; }
+.mat-cell.u {
+  background: #efe9ff; color: #5a4fcf; border-color: #c9bff3;
+}
+.mat-cell.neg { color: #d04080; }
+.q-gate-btn {
+  padding: 8px 22px; font-size: 1.1rem; font-weight: 700;
+  border: 2px solid #c9bff3; background: #efe9ff; color: #5a4fcf;
+  border-radius: 6px; cursor: pointer;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  transition: all .12s;
+}
+.q-gate-btn:hover { background: #ddd0ff; border-color: #5a4fcf; transform: translateY(-1px); }
+.q-gate-btn:active { transform: translateY(0); }
+.q-gate-btn.q-reset { background: #fff; color: #666; border-color: #ccc; font-size: 0.78rem; font-weight: 500; padding: 6px 14px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+.q-gate-btn.q-reset:hover { background: #f5f5f5; border-color: #999; color: #333; }
+.q-panel {
+  background: #fafafa; border: 1px solid #e8e8e8; border-radius: 8px;
+  padding: 12px 16px; max-width: 860px; width: 100%;
+}
+.q-panel-title { font-size: 0.70rem; color: #777; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em; }
+.q-sym { font-size: 1.3rem; color: #bbb; font-weight: 300; padding: 0 2px; }
+.q-coef { font-size: 1rem; font-weight: 700; color: #1a60b0; padding: 0 2px; }
+.q-history { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; font-size: 0.82rem; color: #555; font-family: 'SF Mono', Menlo, Consolas, monospace; }
+.q-history-gate { padding: 2px 8px; background: #efe9ff; border: 1px solid #c9bff3; border-radius: 4px; color: #5a4fcf; font-weight: 700; font-size: 0.78rem; }
+.q-history-arrow { color: #ccc; }
+.q-ref-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 28px; font-size: 0.76rem; color: #555; font-family: 'SF Mono', Menlo, Consolas, monospace; line-height: 1.7; }
+.q-ref-grid .q-ref-note { grid-column: span 2; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #777; font-size: 0.72rem; font-style: italic; line-height: 1.5; }
+.q-gate-info { font-size: 0.72rem; color: #777; text-align: center; margin-top: 6px; line-height: 1.5; }
+.q-gate-info b { color: #5a4fcf; }
+
 /* Einsum badge below toolbar: centered */
 
 /* ── Compact toolbar ── */
@@ -1089,6 +1138,7 @@ input[type=range] { width: 88px; accent-color: #333; }
     <button class="tier1-tab active" id="tier1-blocks" onclick="setTier('blocks')">Vector Operations</button>
     <button class="tier1-tab"        id="tier1-matmul" onclick="setTier('matmul')">Matrix Multiply</button>
     <button class="tier1-tab"        id="tier1-embed" onclick="setTier('embed')">Embeddings</button>
+    <button class="tier1-tab"        id="tier1-quantum" onclick="setTier('quantum')">Quantum</button>
   </div>
   <!-- Tier 2a: Building Blocks sub-tabs -->
   <div class="tier2-row" id="tier2-blocks">
@@ -1103,6 +1153,10 @@ input[type=range] { width: 88px; accent-color: #333; }
   <div class="tier2-row hidden" id="tier2-embed">
     <button class="tier2-tab active" id="tab-embed-fwd-nav" onclick="setMode('embed-fwd')">Forward</button>
     <button class="tier2-tab hidden"  id="tab-embed-bwd-nav" onclick="setMode('embed-bwd')">Backward</button>
+  </div>
+  <!-- Tier 2d: Quantum (single tab, no sub-tabs) -->
+  <div class="tier2-row hidden" id="tier2-quantum">
+    <button class="tier2-tab active" id="tab-quantum" onclick="setMode('quantum')">Gates</button>
   </div>
 </div>
 
@@ -1325,6 +1379,24 @@ input[type=range] { width: 88px; accent-color: #333; }
       <div class="formula-text" id="fEB"></div>
     </div>
     <div class="step-dots" id="dEB"></div>
+  </div>
+</div>
+
+<!-- TAB — Quantum Gates: single-qubit classical gates in Dirac notation -->
+<div id="ctrl-quantum" class="hidden tab-container">
+  <div class="tab-inner">
+    <div class="mm-toolbar">
+      <button class="ctrl-btn" onclick="qReset()" title="Reset state to |0⟩">↺ Reset to |0⟩</button>
+    </div>
+    <div class="preset-desc" id="qDesc">
+      <strong>Quantum Gates &mdash; Dirac notation</strong> &mdash; A single qubit lives in 2D: a state
+      <span style="font-family:monospace">|&psi;&rang; = &alpha;|0&rang; + &beta;|1&rang;</span> is a column vector
+      <span style="font-family:monospace">[&alpha;, &beta;]<sup>T</sup></span>. A gate <em>U</em> is a 2&times;2 matrix;
+      applying it is matrix&ndash;vector multiplication &mdash; <em>U</em>|&psi;&rang; mixes the columns of <em>U</em>.
+      Click <b>I</b>, <b>X</b>, <b>Z</b> below to evolve the state.
+    </div>
+    <div class="einsum-badge" id="einsumQuantum"></div>
+    <div id="qDisplay" class="q-wrap"></div>
   </div>
 </div>
 

@@ -116,6 +116,31 @@ for b in range(B):        # free → batch
     ],
   },
 
+  quantum: {
+    english:
+      'For each row <b>i</b>: multiply U[i,j] × ψ[j] along <b class="ei-contract">j</b>, then <b class="ei-contract">sum over j</b>. Matrix&ndash;vector multiplication = column mixing.',
+    shape:
+      'Intermediate: 2D [i, j] → sum out <b class="ei-contract">j</b> → 1D result [i]',
+    loops: `import numpy as np
+
+# ij,j→i  (matrix-vector = gate on qubit)
+I, J = 2, 2       # 2-dim qubit space
+U = np.array([[0, 1], [1, 0]])  # Pauli-X (NOT)
+psi = np.array([1, 0])          # |0⟩
+
+result = np.zeros(I)
+for i in range(I):        # free → row of result
+    for j in range(J):    # contracted → summed out
+        result[i] += U[i, j] * psi[j]
+
+# Equivalent: result = U @ psi   (gives |1⟩)
+# verify: np.einsum('ij,j->i', U, psi)`,
+    indices: [
+      { ch: 'i', role: 'free', label: 'row of U / output component' },
+      { ch: 'j', role: 'contracted', label: 'shared dim (input basis, summed out)' },
+    ],
+  },
+
   'embed-bwd': {
     english:
       'For each vocab row <b>v</b>, channel <b>c</b>: multiply across all positions, then <b class="ei-contract">sum over b,t</b>. Each position contributes a rank-1 outer product to the gradient.',
@@ -174,11 +199,13 @@ const BADGE_SIG = {
   matmul: `einsum('<span class="ei-free ei-idx" data-idx="i" data-op="0">i</span><span class="ei-contract ei-idx" data-idx="j" data-op="0">j</span>, <span class="ei-contract ei-idx" data-idx="j" data-op="1">j</span><span class="ei-free ei-idx" data-idx="k" data-op="1">k</span> → <span class="ei-free ei-idx" data-op="out">ik</span>', A, B)`,
   'embed-fwd': `einsum('<span class="ei-free ei-idx" data-idx="b" data-op="0">b</span><span class="ei-free ei-idx" data-idx="t" data-op="0">t</span><span class="ei-contract ei-idx" data-idx="v" data-op="0">v</span>, <span class="ei-contract ei-idx" data-idx="v" data-op="1">v</span><span class="ei-free ei-idx" data-idx="c" data-op="1">c</span> → <span class="ei-free ei-idx" data-op="out">btc</span>', X, W)`,
   'embed-bwd': `einsum('<span class="ei-contract ei-idx" data-idx="b" data-op="0">b</span><span class="ei-contract ei-idx" data-idx="t" data-op="0">t</span><span class="ei-free ei-idx" data-idx="v" data-op="0">v</span>, <span class="ei-contract ei-idx" data-idx="b" data-op="1">b</span><span class="ei-contract ei-idx" data-idx="t" data-op="1">t</span><span class="ei-free ei-idx" data-idx="c" data-op="1">c</span> → <span class="ei-free ei-idx" data-op="out">vc</span>', X, G)`,
+  quantum: `einsum('<span class="ei-free ei-idx" data-idx="i" data-op="0">i</span><span class="ei-contract ei-idx" data-idx="j" data-op="0">j</span>, <span class="ei-contract ei-idx" data-idx="j" data-op="1">j</span> → <span class="ei-free ei-idx" data-op="out">i</span>', U, ψ)`,
 };
 
 const TAB_CONTAINER = {
   inner: 'ctrl-inner', intro: 'ctrl-intro', matmul: 'ctrl-matmul',
   'embed-fwd': 'ctrl-embed-fwd', 'embed-bwd': 'ctrl-embed-bwd',
+  quantum: 'ctrl-quantum',
 };
 
 let activeEinsumHover = null; // { op, idx } or null

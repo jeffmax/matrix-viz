@@ -110,9 +110,11 @@ function buildDOM() {
     <button id="tier1-blocks" class="tier1-tab active"></button>
     <button id="tier1-matmul" class="tier1-tab"></button>
     <button id="tier1-embed" class="tier1-tab"></button>
+    <button id="tier1-quantum" class="tier1-tab"></button>
     <div id="tier2-blocks"><button id="tab-inner" class="tier2-tab active"></button><button id="tab-intro" class="tier2-tab"></button></div>
     <div id="tier2-matmul" class="hidden"><button id="tab-matmul" class="tier2-tab active"></button></div>
     <div id="tier2-embed" class="hidden"><button id="tab-embed-fwd-nav" class="tier2-tab active"></button><button id="tab-embed-bwd-nav" class="tier2-tab"></button></div>
+    <div id="tier2-quantum" class="hidden"><button id="tab-quantum" class="tier2-tab active"></button></div>
     <div id="presetDesc" class="hidden"></div>
 
     <!-- Info shelf -->
@@ -196,6 +198,12 @@ function buildDOM() {
       <div id="fEB"></div>
       <div id="dEB"></div>
       <div id="einsumEmbedBwd"></div>
+    </div>
+
+    <!-- Tab — Quantum Gates -->
+    <div id="ctrl-quantum" class="hidden">
+      <div id="qDisplay"></div>
+      <div id="einsumQuantum"></div>
     </div>
   `;
 }

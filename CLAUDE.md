@@ -187,13 +187,14 @@ A shared Obsidian vault at `~/obsidian-vault/` serves as the knowledge base betw
 
 ## Architecture
 
-### Three-tier navigation
+### Four-tier navigation
 
 ```
-Tier 1:  [Vector Operations]  [Matrix Multiply]  [Embeddings]
+Tier 1:  [Vector Operations]  [Matrix Multiply]  [Embeddings]  [Quantum]
 Tier 2a: [Inner Product]  [Outer Product]              ← when Vector Operations active
 Tier 2b: (no sub-tabs — preset bar + build-mode toggle) ← when Matrix Multiply active
 Tier 2c: [Forward]  [Backward]                          ← when Embeddings active
+Tier 2d: [Gates]                                        ← when Quantum active
 ```
 
 Build mode toggle (radio buttons within the matmul tab):
@@ -221,6 +222,7 @@ Build mode toggle (radio buttons within the matmul tab):
 - **Matrix Multiply** (3D): unified tab with build-mode toggle (outer product / dot product), shared exploration mode, collapse slider. Einsum: `ij,jk→ik`
 - **Embed Forward** (2D, Embeddings): `Y = X @ W` where X is one-hot encoded tokens, with detail mode checkbox. Einsum: `btv,vc→btc`
 - **Embed Backward** (2D, Embeddings): `dW = Xᵀ @ G` gradient accumulation, shows outer-product contributions per position. Einsum: `btv,btc→vc`
+- **Quantum Gates** (2D, Quantum): single-qubit state evolution under I/X/Z gates. Matrix-vector view shows column mixing `U|ψ⟩ = α·U[:,0] + β·U[:,1]`. Circuit history + Dirac reference panel. Einsum: `ij,j→i`
 
 ### 3D
 
@@ -317,7 +319,7 @@ Good for: the bridge from matmul to attention.
 Score (Q·Kᵀ) → softmax → weighted sum of V.
 Matmul appears at every step. Shows why the outer product structure of OV circuit matters.
 
-## Current tab layout (three-tier)
+## Current tab layout (four-tier)
 
 ```
 Vector Operations:
@@ -334,15 +336,18 @@ Embeddings:
   Forward — btv,vc→btc               (DONE — 2D one-hot row selection, detail mode)
   Backward — btv,btc→vc              (DONE — 2D gradient accumulation)
 
+Quantum:
+  Gates — U|ψ⟩ for I, X, Z           (DONE — 2D matrix-vector column mixing, Dirac reference)
+
 Future tabs (not yet in nav):
   Matrix-vector: y = A @ x           (column mixing, sliders)
   Rank-1 sum: accumulating outer products   (2D heatmap panels)
   Bilinear scores → attention              (stretch goal)
 ```
 
-The narrative arc: *what a dot product is → what an outer product is → how matmul builds and collapses a cube of them → the standard algorithm → presets show real operations → embeddings show real deep learning use.*
+The narrative arc: *what a dot product is → what an outer product is → how matmul builds and collapses a cube of them → the standard algorithm → presets show real operations → embeddings show real deep learning use → quantum gates as column mixing.*
 
-Note: Inner Product, Outer Product, Embeddings are pure 2D (no Three.js). 3D is isolated to the Matrix Multiply tier.
+Note: Inner Product, Outer Product, Embeddings, Quantum are pure 2D (no Three.js). 3D is isolated to the Matrix Multiply tier.
 
 ## Middle ground with matrixmultiplication.xyz
 
@@ -365,3 +370,6 @@ That site is excellent for the dot-product view but hides all structure. The ins
 - `setBuildMode()` triggers full `mmReset()` — no mid-build mode switching
 - Single `collapseT` — no separate DP collapse state. One slider, one state variable.
 - `detailMode()` reads `#chkDetail` checkbox; label updates per build mode ("Element by element" / "Term by term")
+
+## TODO
+
