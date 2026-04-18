@@ -8,7 +8,7 @@ import { sc, initScene, moveCanvasTo, snapToDefault } from './scene.js';
 import { boxes, rebuildBoxes, addPlusPlanes, removePlusPlanes, ensureAllGreen, clearBoxes, toggleAxisLabels } from './cube-manager.js';
 import { initIntroVecs, renderIntro, pauseIntro, resetIntroStep,
          resizeIntroVecs, stepFwdIntro, stepBackIntro, togglePlayIntro, resetIntro,
-         introEditCell, introHover, introClearHover } from './tab-intro.js';
+         introEditCell, introHover, introClearHover, introToggleDirac } from './tab-intro.js';
 import { mmPauseAll, mmReset, mmToggle, mmFwd, mmBack, mmScrubCollapse,
          resetMmBuildState, applyS1, applyStep, renderA, renderB,
          mmUpdateCanvasTitle, collapseT, mmPhase, applyCollapse, mmRestoreView,
@@ -18,10 +18,11 @@ import { efInit, efRender, efFwd, efBack, efToggle, efReset, efPause,
          efJumpToPos, efTraceBack, efChangeDim, efToggleDetail, getEfState } from './tab-embed-fwd.js';
 import { ebInit, ebRender, ebFwd, ebBack, ebToggle, ebReset, ebPause,
          ebJumpToPos, ebTraceBack, ebChangeDim } from './tab-embed-bwd.js';
-import { qInit, qRender, qReset, qApply, qPause, getQState } from './tab-quantum.js';
+import { qInit, qRender, qReset, qApply, qPause, getQState,
+         qSelectFn, qApplyClassical } from './tab-quantum.js';
 import { PRESETS, loadPreset, clearPreset, fullClearPreset, activePreset } from './presets.js';
 import { ipInit, ipRender, ipPause, ipReset, ipToggle, ipFwd, ipBack,
-         ipEditCell, ipResize } from './tab-inner.js';
+         ipEditCell, ipResize, ipToggleDirac } from './tab-inner.js';
 import { EINSUM_INFO, renderEinsumBadge, einsumToggleLoops, einsumToggleInfo,
          einsumToggleTorch, einsumCopyTorch, einsumCopyLoops,
          einsumIndexHover, einsumIndexClear, setTorchCodeGenerator } from './einsum-info.js';
@@ -440,11 +441,13 @@ function updateShelfContent() {
   } else if (currentMode === 'quantum') {
     el.innerHTML =
       `<div class="broadcast-rules">`
-      + `<strong>Quantum Gates — Dirac notation</strong>`
-      + `<p style="margin-top:6px">A single qubit is a 2-dim column vector <code>|ψ⟩ = α|0⟩ + β|1⟩</code>. A gate <strong>U</strong> is a 2&times;2 matrix; applying it is matrix-vector multiplication: <code>U|ψ⟩ = α·U|0⟩ + β·U|1⟩</code>.</p>`
-      + `<p style="margin-top:6px"><strong>I</strong> = identity. <strong>X</strong> = NOT (swap |0⟩ ↔ |1⟩). <strong>Z</strong> = sign flip on |1⟩.</p>`
-      + `<p style="margin-top:6px">Classical reversible computing lives entirely on the two basis states <code>|0⟩</code> and <code>|1⟩</code>. X is the classical NOT gate. Z is where it stops being classical — the negative amplitude has no probability interpretation.</p>`
-      + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic">Connections: ⟨φ|ψ⟩ is the inner product (dot product tab). |ψ⟩⟨φ| is the outer product tab. <code>U|ψ⟩</code> is einsum <code>ij,j→i</code> — matrix-vector multiplication, the K=1 case of matmul.</p>`
+      + `<strong>Dirac notation — classical → quantum</strong>`
+      + `<p style="margin-top:6px"><strong>Kets &amp; bras:</strong> <code>|x⟩</code> is a column vector, <code>⟨x|</code> is its row-vector transpose. The basis <code>|0⟩</code>, <code>|1⟩</code> encodes one bit.</p>`
+      + `<p style="margin-top:6px"><strong>Inner product:</strong> <code>⟨a|b⟩ = δ<sub>ab</sub></code> (1 when equal, else 0). Acts as an indicator / dot product.</p>`
+      + `<p style="margin-top:6px"><strong>Outer product:</strong> <code>|a⟩⟨b|</code> is a matrix with a single 1 at (a, b).</p>`
+      + `<p style="margin-top:6px"><strong>Deterministic ops:</strong> any function <code>f: Σ→Σ</code> becomes a matrix <code>M = Σ<sub>b</sub> |f(b)⟩⟨b|</code>. Then <code>M|a⟩ = |f(a)⟩</code> because <code>⟨b|a⟩</code> selects b = a.</p>`
+      + `<p style="margin-top:6px"><strong>Quantum gates:</strong> same outer-product form but coefficients can be negative. <code>Z = |0⟩⟨0| − |1⟩⟨1|</code> — the −1 is where classical ends.</p>`
+      + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic">Einsum: <code>U|ψ⟩ = ij,j→i</code>. The Inner and Outer tabs have a "Dirac" toggle for the same operations in bra-ket notation.</p>`
       + `</div>`;
   }
 }
@@ -488,6 +491,7 @@ window.ipToggle = ipToggle;
 window.ipReset = ipReset;
 window.ipEditCell = ipEditCell;
 window.ipResize = ipResize;
+window.ipToggleDirac = ipToggleDirac;
 // Building Blocks — Outer Product
 window.stepFwdIntro = stepFwdIntro;
 window.stepBackIntro = stepBackIntro;
@@ -496,6 +500,7 @@ window.resetIntro = resetIntro;
 window.introEditCell = introEditCell;
 window.introHover = introHover;
 window.introClearHover = introClearHover;
+window.introToggleDirac = introToggleDirac;
 // Matrix Multiply
 window.mmBack = mmBack;
 window.mmFwd = mmFwd;
@@ -530,9 +535,11 @@ window.ebReset = ebReset;
 window.ebJumpToPos = ebJumpToPos;
 window.ebTraceBack = ebTraceBack;
 window.ebChangeDim = ebChangeDim;
-// Quantum Gates
+// Quantum Gates + classical deterministic ops (Dirac tab)
 window.qApply = qApply;
 window.qReset = qReset;
+window.qSelectFn = qSelectFn;
+window.qApplyClassical = qApplyClassical;
 // Snap-back
 window.snapToDefault = snapToDefault;
 window.toggleAxisLabels = toggleAxisLabels;

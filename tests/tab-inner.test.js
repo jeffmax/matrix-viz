@@ -3,7 +3,7 @@
 // ══════════════════════════════════════════════════
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ipInit, ipRender, ipFwd, ipBack, ipReset, ipPause,
-         ipResize, getIpState } from '../js/tab-inner.js';
+         ipResize, getIpState, ipToggleDirac } from '../js/tab-inner.js';
 
 describe('Inner Product tab', () => {
   beforeEach(() => {
@@ -93,5 +93,31 @@ describe('Inner Product tab', () => {
     const display = document.getElementById('innerDisplay');
     // With all 1s, each product is 1 and sum is 3
     expect(display.innerHTML).toContain('3');
+  });
+
+  describe('Dirac toggle', () => {
+    it('default is off', () => {
+      expect(getIpState().ipDirac).toBe(false);
+    });
+
+    it('checkbox flips ipDirac and re-renders with bra-ket labels', () => {
+      document.getElementById('chkInnerDirac').checked = true;
+      ipToggleDirac();
+      expect(getIpState().ipDirac).toBe(true);
+      const display = document.getElementById('innerDisplay');
+      expect(display.innerHTML).toContain('⟨a|');
+      expect(display.innerHTML).toContain('|b⟩');
+      expect(display.innerHTML).toContain('⟨a|b⟩');
+    });
+
+    it('classical labels return when toggled off', () => {
+      document.getElementById('chkInnerDirac').checked = true;
+      ipToggleDirac();
+      document.getElementById('chkInnerDirac').checked = false;
+      ipToggleDirac();
+      expect(getIpState().ipDirac).toBe(false);
+      const display = document.getElementById('innerDisplay');
+      expect(display.innerHTML).toContain('a · b');
+    });
   });
 });

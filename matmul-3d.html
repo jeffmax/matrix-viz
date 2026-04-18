@@ -524,6 +524,52 @@ input[type=range] { width: 88px; accent-color: #333; }
 .q-ref-grid .q-ref-note { grid-column: span 2; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #777; font-size: 0.72rem; font-style: italic; line-height: 1.5; }
 .q-gate-info { font-size: 0.72rem; color: #777; text-align: center; margin-top: 6px; line-height: 1.5; }
 .q-gate-info b { color: #5a4fcf; }
+/* Section headers inside the Dirac tab */
+.q-section-header {
+  font-size: 0.78rem; text-transform: uppercase; letter-spacing: .08em;
+  color: #5a4fcf; font-weight: 700; margin: 8px 0 2px;
+  border-bottom: 1px solid #e2ddf4; padding-bottom: 4px; width: 100%; max-width: 860px;
+}
+.q-section-lede { font-size: 0.80rem; color: #555; line-height: 1.55; max-width: 860px; margin: 0 auto 2px; text-align: center; }
+.q-section-lede code { background: #f3effb; color: #5a4fcf; padding: 1px 5px; border-radius: 3px; font-size: 0.78rem; }
+.q-kv { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; font-size: 0.92rem; }
+.q-kv .q-label { color: #5a4fcf; font-weight: 700; font-family: 'SF Mono', Menlo, Consolas, monospace; min-width: 56px; text-align: right; }
+.q-inline-ket { display: inline-flex; align-items: stretch; vertical-align: middle; }
+.q-bra { display: flex; gap: 3px; }
+.q-outer { display: grid; grid-template-columns: repeat(2, 42px); gap: 3px; }
+.q-ind { color: #1a9a40; font-weight: 700; font-family: 'SF Mono', Menlo, Consolas, monospace; }
+/* Classical ops */
+.q-fn-picker { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.q-fn-btn {
+  padding: 6px 14px; font-size: 0.80rem; font-weight: 600;
+  border: 1.5px solid #c9bff3; background: #fff; color: #5a4fcf;
+  border-radius: 5px; cursor: pointer;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  transition: all .12s;
+}
+.q-fn-btn:hover { background: #efe9ff; }
+.q-fn-btn.active { background: #5a4fcf; color: #fff; border-color: #5a4fcf; }
+.q-fn-table { display: grid; grid-template-columns: auto auto; gap: 2px 14px; font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 0.82rem; }
+.q-fn-table .q-fn-head { font-size: 0.68rem; text-transform: uppercase; letter-spacing: .05em; color: #888; font-weight: 600; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding-bottom: 4px; border-bottom: 1px solid #e0e0e0; }
+.q-apply-btn {
+  padding: 5px 12px; font-size: 0.78rem; font-weight: 600;
+  border: 1.5px solid #1a60b0; background: #fff; color: #1a60b0;
+  border-radius: 5px; cursor: pointer; font-family: 'SF Mono', Menlo, Consolas, monospace;
+}
+.q-apply-btn:hover { background: #e7f0ff; }
+.q-sum-row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: center; font-size: 0.92rem; }
+.q-sum-term { display: inline-flex; align-items: center; gap: 2px; padding: 2px 4px; border-radius: 4px; }
+.q-sum-term.match { background: #e6f8ea; }
+.q-sum-term.zero { opacity: 0.35; }
+
+/* Dirac toggle buttons on Inner / Outer tabs */
+.check-wrap.dirac-toggle {
+  border: 1.5px solid #c9bff3; background: #fff; color: #5a4fcf;
+  border-radius: 5px; padding: 4px 10px; font-size: 0.74rem; font-weight: 600;
+  gap: 6px; cursor: pointer; font-family: 'SF Mono', Menlo, Consolas, monospace;
+}
+.check-wrap.dirac-toggle:hover { background: #efe9ff; }
+.check-wrap.dirac-toggle input[type="checkbox"] { accent-color: #5a4fcf; }
 
 /* Einsum badge below toolbar: centered */
 
@@ -1138,7 +1184,7 @@ input[type=range] { width: 88px; accent-color: #333; }
     <button class="tier1-tab active" id="tier1-blocks" onclick="setTier('blocks')">Vector Operations</button>
     <button class="tier1-tab"        id="tier1-matmul" onclick="setTier('matmul')">Matrix Multiply</button>
     <button class="tier1-tab"        id="tier1-embed" onclick="setTier('embed')">Embeddings</button>
-    <button class="tier1-tab"        id="tier1-quantum" onclick="setTier('quantum')">Quantum</button>
+    <button class="tier1-tab"        id="tier1-quantum" onclick="setTier('quantum')">Dirac</button>
   </div>
   <!-- Tier 2a: Building Blocks sub-tabs -->
   <div class="tier2-row" id="tier2-blocks">
@@ -1156,7 +1202,7 @@ input[type=range] { width: 88px; accent-color: #333; }
   </div>
   <!-- Tier 2d: Quantum (single tab, no sub-tabs) -->
   <div class="tier2-row hidden" id="tier2-quantum">
-    <button class="tier2-tab active" id="tab-quantum" onclick="setMode('quantum')">Gates</button>
+    <button class="tier2-tab active" id="tab-quantum" onclick="setMode('quantum')">Notation &amp; Gates</button>
   </div>
 </div>
 
@@ -1183,10 +1229,15 @@ input[type=range] { width: 88px; accent-color: #333; }
         <input type="range" id="spInner" min="200" max="1200" value="200" step="50">
         <span>fast</span>
       </div>
+      <label class="check-wrap dirac-toggle">
+        <input type="checkbox" id="chkInnerDirac" onchange="ipToggleDirac()">
+        <span>Dirac &lang;a|b&rang;</span>
+      </label>
     </div>
     <div class="preset-desc" id="innerDesc">
       <strong>Inner (Dot) Product: a &middot; b</strong> &mdash; Multiply corresponding elements and sum to a <strong>scalar</strong>.
       In einsum: <code>i,i&rarr;</code> &mdash; the shared index <em>i</em> is contracted, leaving no free indices.
+      Toggle <em>Dirac</em> to view the same operation as the inner product <code>&lang;a|b&rang;</code>.
     </div>
     <div class="einsum-badge" id="einsumInner"></div>
     <div id="innerDisplay" class="intro-wrap"></div>
@@ -1213,11 +1264,16 @@ input[type=range] { width: 88px; accent-color: #333; }
         <input type="range" id="spIntro" min="200" max="1200" value="200" step="50">
         <span>fast</span>
       </div>
+      <label class="check-wrap dirac-toggle">
+        <input type="checkbox" id="chkIntroDirac" onchange="introToggleDirac()">
+        <span>Dirac |a&rang;&lang;b|</span>
+      </label>
     </div>
     <div class="preset-desc" id="introDesc">
       <strong>Outer Product: a &otimes; b</strong> &mdash; Every pair (a[i], b[k]) multiplied &rarr; a <strong>matrix</strong>.
       In einsum: <code>i,k&rarr;ik</code> &mdash; both indices are free, so the result is 2D.
       <em>Broadcasting view:</em> reshape a to a column via <code>a[:, None]</code>, b to a row via <code>b[None, :]</code>, then broadcast-multiply.
+      Toggle <em>Dirac</em> to view the same operation as the outer product <code>|a&rang;&lang;b|</code>.
     </div>
     <div class="einsum-badge" id="einsumIntro"></div>
     <div id="introDisplay" class="intro-wrap"></div>
@@ -1382,18 +1438,20 @@ input[type=range] { width: 88px; accent-color: #333; }
   </div>
 </div>
 
-<!-- TAB — Quantum Gates: single-qubit classical gates in Dirac notation -->
+<!-- TAB — Dirac notation: classical bits → deterministic ops → quantum gates -->
 <div id="ctrl-quantum" class="hidden tab-container">
   <div class="tab-inner">
     <div class="mm-toolbar">
       <button class="ctrl-btn" onclick="qReset()" title="Reset state to |0⟩">↺ Reset to |0⟩</button>
     </div>
     <div class="preset-desc" id="qDesc">
-      <strong>Quantum Gates &mdash; Dirac notation</strong> &mdash; A single qubit lives in 2D: a state
-      <span style="font-family:monospace">|&psi;&rang; = &alpha;|0&rang; + &beta;|1&rang;</span> is a column vector
-      <span style="font-family:monospace">[&alpha;, &beta;]<sup>T</sup></span>. A gate <em>U</em> is a 2&times;2 matrix;
-      applying it is matrix&ndash;vector multiplication &mdash; <em>U</em>|&psi;&rang; mixes the columns of <em>U</em>.
-      Click <b>I</b>, <b>X</b>, <b>Z</b> below to evolve the state.
+      <strong>Dirac notation</strong> &mdash; A way of writing column vectors (<em>kets</em>
+      <span style="font-family:monospace">|x&rang;</span>) and row vectors
+      (<em>bras</em> <span style="font-family:monospace">&lang;x|</span>) so that
+      <span style="font-family:monospace">&lang;a|b&rang;</span> is an inner product (scalar) and
+      <span style="font-family:monospace">|a&rang;&lang;b|</span> is an outer product (matrix). We start with
+      classical bits, build any deterministic 1-bit function as a matrix, then apply the same machinery to
+      quantum gates &mdash; where amplitudes can go negative.
     </div>
     <div class="einsum-badge" id="einsumQuantum"></div>
     <div id="qDisplay" class="q-wrap"></div>

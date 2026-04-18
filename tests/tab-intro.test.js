@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { computeData, I, K } from '../js/shared.js';
 import { initIntroVecs, renderIntro, introStep, introAnimDuration,
-         resetIntroStep, stepFwdIntro } from '../js/tab-intro.js';
+         resetIntroStep, stepFwdIntro,
+         introToggleDirac, getIntroDirac } from '../js/tab-intro.js';
 
 describe('Tab 0 labels should not contain [:, None] broadcasting syntax', () => {
   beforeEach(() => {
@@ -123,5 +124,41 @@ describe('4-step progression', () => {
     const curDots = document.getElementById('dIntro').querySelectorAll('.step-dot.cur');
     expect(dots.length).toBe(4);
     expect(curDots.length).toBe(1);
+  });
+});
+
+describe('Outer Product — Dirac toggle', () => {
+  beforeEach(() => {
+    resetIntroStep();
+    computeData(true);
+    initIntroVecs(true);
+    // Ensure off by default
+    const chk = document.getElementById('chkIntroDirac');
+    if (chk) chk.checked = false;
+    if (getIntroDirac()) introToggleDirac();
+  });
+
+  it('is off by default', () => {
+    expect(getIntroDirac()).toBe(false);
+    renderIntro();
+    const wrap = document.getElementById('introDisplay');
+    expect(wrap.innerHTML).not.toContain('|a⟩⟨b|');
+  });
+
+  it('enabling shows |a⟩⟨b| labels', () => {
+    document.getElementById('chkIntroDirac').checked = true;
+    introToggleDirac();
+    expect(getIntroDirac()).toBe(true);
+    const wrap = document.getElementById('introDisplay');
+    expect(wrap.innerHTML).toContain('|a⟩');
+    expect(wrap.innerHTML).toContain('⟨b|');
+  });
+
+  it('result label on step 3 is |a⟩⟨b| in Dirac mode', () => {
+    document.getElementById('chkIntroDirac').checked = true;
+    introToggleDirac();
+    stepFwdIntro(); stepFwdIntro(); stepFwdIntro();
+    const wrap = document.getElementById('introDisplay');
+    expect(wrap.innerHTML).toContain('|a⟩⟨b|');
   });
 });

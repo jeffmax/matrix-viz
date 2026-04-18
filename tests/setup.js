@@ -131,6 +131,7 @@ function buildDOM() {
     <div id="ctrl-inner" class="hidden">
       <button id="pbInner">▶</button>
       <input type="range" id="spInner" value="600">
+      <input type="checkbox" id="chkInnerDirac">
       <div id="einsumInner"></div>
       <div id="innerDisplay"></div>
       <div id="fInner"></div>
@@ -141,6 +142,7 @@ function buildDOM() {
     <div id="ctrl-intro">
       <button id="pbIntro">▶</button>
       <input type="range" id="spIntro" value="600">
+      <input type="checkbox" id="chkIntroDirac">
       <div id="introDisplay"></div>
       <div id="fIntro"></div>
       <div id="dIntro"></div>

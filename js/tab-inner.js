@@ -10,6 +10,13 @@ let ipN = 3;
 let ipStep = -1;          // -1 = ready, 0..N-1 = highlighting term j
 let ipPlaying = false;
 let ipTm = null;
+let ipDirac = false;      // when true, render labels/result in Dirac ⟨a|b⟩ form
+
+export function ipToggleDirac() {
+  const chk = document.getElementById('chkInnerDirac');
+  ipDirac = chk ? chk.checked : !ipDirac;
+  ipRender();
+}
 
 export function ipInit(rnd) {
   ipA = Array.from({length: ipN}, () => rnd ? rand() : 1);
@@ -41,8 +48,11 @@ export function ipRender() {
   html += '<div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap;justify-content:center">';
 
   // Vector a
+  const aLabel = ipDirac
+    ? '<span style="color:#e06000;font-weight:700">⟨a|</span> <span style="color:#aaa;font-size:0.72rem">bra — row</span>'
+    : '<span style="color:#e06000;font-weight:700">a</span>';
   html += '<div class="intro-block">';
-  html += '<div class="intro-block-label"><span style="color:#e06000;font-weight:700">a</span></div>';
+  html += `<div class="intro-block-label">${aLabel}</div>`;
   html += `<div class="intro-grid" style="grid-template-columns:repeat(${ipN},44px)">`;
   for (let i = 0; i < ipN; i++) {
     let cls = 'mat-cell a editable';
@@ -54,13 +64,18 @@ export function ipRender() {
   html += ipDimBtns();
   html += '</div>';
 
-  // Dot symbol
-  html += '<div class="intro-sym" style="padding-top:18px">·</div>';
+  // Dot symbol (in Dirac mode, kets / bras are juxtaposed, no explicit dot)
+  const dotSym = ipDirac ? '' : '·';
+  if (dotSym) html += `<div class="intro-sym" style="padding-top:18px">${dotSym}</div>`;
 
   // Vector b
+  const bLabel = ipDirac
+    ? '<span style="color:#1a60b0;font-weight:700">|b⟩</span> <span style="color:#aaa;font-size:0.72rem">ket — column</span>'
+    : '<span style="color:#1a60b0;font-weight:700">b</span>';
   html += '<div class="intro-block">';
-  html += '<div class="intro-block-label"><span style="color:#1a60b0;font-weight:700">b</span></div>';
-  html += `<div class="intro-grid" style="grid-template-columns:repeat(${ipN},44px)">`;
+  html += `<div class="intro-block-label">${bLabel}</div>`;
+  const bGridCols = ipDirac ? '44px' : `repeat(${ipN},44px)`;
+  html += `<div class="intro-grid" style="grid-template-columns:${bGridCols}">`;
   for (let i = 0; i < ipN; i++) {
     let cls = 'mat-cell b editable';
     if (ipStep >= 0 && i === ipStep) cls += ' cur';
@@ -75,8 +90,11 @@ export function ipRender() {
   html += '<div class="intro-sym" style="padding-top:18px">=</div>';
 
   // Result scalar
+  const resLabel = ipDirac
+    ? '<span style="color:#1a9a40;font-weight:700">⟨a|b⟩</span>'
+    : '<span style="color:#1a9a40;font-weight:700">a · b</span>';
   html += '<div class="intro-block">';
-  html += '<div class="intro-block-label"><span style="color:#1a9a40;font-weight:700">a · b</span></div>';
+  html += `<div class="intro-block-label">${resLabel}</div>`;
   const showTotal = ipStep < 0 ? total : products.slice(0, ipStep + 1).reduce((s, v) => s + v, 0);
   const resultCls = ipStep < 0 || ipStep >= ipN - 1 ? 'mat-cell r done' : 'mat-cell r cur';
   html += `<div class="${resultCls}" style="width:56px;font-size:1rem">${ipStep < 0 ? total : showTotal}</div>`;
@@ -140,8 +158,11 @@ function ipRenderDots() {
 function ipRenderFormula() {
   const f = document.getElementById('fInner');
   if (!f) return;
+  const lhs = ipDirac
+    ? `<span class="fa">⟨a|</span><span class="fb">b⟩</span>`
+    : `<span class="fa">a</span> · <span class="fb">b</span>`;
   if (ipStep < 0) {
-    f.innerHTML = `<span class="fa">a</span> · <span class="fb">b</span> = Σᵢ <span class="fa">a[i]</span> × <span class="fb">b[i]</span>. Press ▶ to step through each term.`;
+    f.innerHTML = `${lhs} = Σᵢ <span class="fa">a[i]</span> × <span class="fb">b[i]</span>. Press ▶ to step through each term.`;
   } else if (ipStep >= ipN - 1) {
     const total = ipA.reduce((s, v, i) => s + v * ipB[i], 0);
     f.innerHTML = `All ${ipN} terms summed → <span class="fc" style="font-weight:700">${total}</span>. This scalar is one cell of a matrix multiply.`;
@@ -211,4 +232,4 @@ export function ipEditCell(vec, idx) {
 }
 
 /* @testable */
-export function getIpState() { return { ipStep, ipN, ipA: [...ipA], ipB: [...ipB] }; }
+export function getIpState() { return { ipStep, ipN, ipA: [...ipA], ipB: [...ipB], ipDirac }; }

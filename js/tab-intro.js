@@ -10,7 +10,35 @@ import { I, J, K, rand, editCellInline, dimBtnsH, dimBtnsV } from './shared.js';
 export let introA = [], introB = [];
 export let introStep = 0, introPlaying = false;
 let introTm = null, introHiTm = null;
+let introDirac = false;
 const INTRO_STEPS = 4;
+
+export function introToggleDirac() {
+  const chk = document.getElementById('chkIntroDirac');
+  introDirac = chk ? chk.checked : !introDirac;
+  renderIntro();
+}
+
+// Label helpers for Dirac re-skin. In Dirac mode:
+//   a → |a⟩  (ket / column)   — already a column in step 1+
+//   b → ⟨b|  (bra  / row)     — already a row
+//   a⊗b → |a⟩⟨b|             (ket · bra)
+function aLabelHtml() {
+  return introDirac
+    ? `<span style="color:#e06000;font-weight:700">|a⟩</span>`
+    : `<span style="color:#e06000;font-weight:700">a</span>`;
+}
+function bLabelHtml() {
+  return introDirac
+    ? `<span style="color:#1a60b0;font-weight:700">⟨b|</span>`
+    : `<span style="color:#1a60b0;font-weight:700">b</span>`;
+}
+function resLabelHtml() {
+  return introDirac
+    ? `<span style="color:#1a9a40;font-weight:700">|a⟩⟨b|</span>`
+    : `<span style="color:#1a9a40;font-weight:700">a ⊗ b</span>`;
+}
+function opSymHtml() { return introDirac ? '' : '⊗'; }
 
 export function initIntroVecs(rnd) {
   introA = Array.from({length: I}, () => rnd ? rand() : 1);
@@ -55,7 +83,7 @@ function renderIntroStep0(wrap) {
   let html = '<div class="intro-stage">';
   // a as horizontal row
   html += '<div class="intro-block">';
-  html += '<div class="intro-block-label"><span style="color:#e06000;font-weight:700">a</span></div>';
+  html += `<div class="intro-block-label">${aLabelHtml()}</div>`;
   html += '<div class="grid-with-row-btns">';
   html += `<div class="intro-grid" style="grid-template-columns:repeat(${I},44px)">`;
   for (let i = 0; i < I; i++) {
@@ -67,10 +95,10 @@ function renderIntroStep0(wrap) {
   html += shapeTag(`(${I},)`);
   html += vecTipA();
   html += '</div>';
-  html += '<div class="intro-sym">⊗</div>';
+  const sym0 = opSymHtml(); if (sym0) html += `<div class="intro-sym">${sym0}</div>`;
   // b as horizontal row
   html += '<div class="intro-block">';
-  html += '<div class="intro-block-label"><span style="color:#1a60b0;font-weight:700">b</span></div>';
+  html += `<div class="intro-block-label">${bLabelHtml()}</div>`;
   html += '<div class="grid-with-row-btns">';
   html += `<div class="intro-grid" style="grid-template-columns:repeat(${K},44px)">`;
   for (let k = 0; k < K; k++) {
@@ -91,7 +119,7 @@ function renderIntroStep1(wrap) {
   let html = '<div class="intro-stage">';
   // a as vertical column
   html += '<div class="intro-block">';
-  html += '<div class="intro-block-label"><span style="color:#e06000;font-weight:700">a</span> <span style="color:#aaa">column vector</span></div>';
+  html += `<div class="intro-block-label">${aLabelHtml()} <span style="color:#aaa">column vector</span></div>`;
   html += '<div class="grid-with-row-btns">';
   html += '<div class="intro-grid" style="grid-template-columns:44px">';
   for (let i = 0; i < I; i++) {
@@ -103,10 +131,10 @@ function renderIntroStep1(wrap) {
   html += shapeTag(`(${I},) → (${I}, <strong>1</strong>)`);
   html += vecTipA();
   html += '</div>';
-  html += '<div class="intro-sym">⊗</div>';
+  const sym1 = opSymHtml(); if (sym1) html += `<div class="intro-sym">${sym1}</div>`;
   // b as horizontal row
   html += '<div class="intro-block">';
-  html += '<div class="intro-block-label"><span style="color:#1a60b0;font-weight:700">b</span> <span style="color:#aaa">row vector</span></div>';
+  html += `<div class="intro-block-label">${bLabelHtml()} <span style="color:#aaa">row vector</span></div>`;
   html += `<div class="intro-grid" style="grid-template-columns:repeat(${K},44px)">`;
   for (let k = 0; k < K; k++) {
     html += `<div class="mat-cell b editable" onclick="introEditCell('b',${k})">${introB[k]}</div>`;
@@ -127,7 +155,7 @@ function renderIntroStep2(wrap) {
   let html = '<div class="intro-stage">';
 
   html += '<div class="intro-block">';
-  html += '<div class="intro-block-label"><span style="color:#e06000;font-weight:700">a</span> <span style="color:#aaa">broadcast →</span></div>';
+  html += `<div class="intro-block-label">${aLabelHtml()} <span style="color:#aaa">broadcast →</span></div>`;
   html += '<div style="display:flex;gap:3px">';
   html += '<div class="intro-orig-vec intro-orig-a">';
   html += '<div style="display:flex;flex-direction:column;gap:3px">';
@@ -146,10 +174,10 @@ function renderIntroStep2(wrap) {
   html += shapeTag(`(${I}, <strong>1</strong>) → (${I}, ${K})`);
   html += '</div>';
 
-  html += '<div class="intro-sym">⊙</div>';
+  const sym2 = introDirac ? '' : '⊙'; if (sym2) html += `<div class="intro-sym">${sym2}</div>`;
 
   html += '<div class="intro-block">';
-  html += '<div class="intro-block-label"><span style="color:#1a60b0;font-weight:700">b</span> <span style="color:#aaa">broadcast ↓</span></div>';
+  html += `<div class="intro-block-label">${bLabelHtml()} <span style="color:#aaa">broadcast ↓</span></div>`;
   html += '<div style="display:flex;flex-direction:column;gap:3px">';
   html += '<div class="intro-orig-vec intro-orig-b">';
   html += '<div style="display:flex;gap:3px">';
@@ -171,7 +199,7 @@ function renderIntroStep2(wrap) {
   html += '<div class="intro-sym">=</div>';
 
   html += '<div class="intro-block">';
-  html += '<div class="intro-block-label"><span style="color:#1a9a40;font-weight:700">a ⊗ b</span></div>';
+  html += `<div class="intro-block-label">${resLabelHtml()}</div>`;
   html += `<div class="intro-grid" style="grid-template-columns:repeat(${K},44px)">`;
   for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
     const val = introA[i] * introB[k];
@@ -225,7 +253,7 @@ function renderIntroStep3(wrap) {
   html += '</div>';
   html += '</div>';
 
-  html += '<div class="intro-sym">⊙</div>';
+  const sym3 = introDirac ? '' : '⊙'; if (sym3) html += `<div class="intro-sym">${sym3}</div>`;
 
   html += '<div class="intro-block">';
   html += `<div class="intro-block-label">(${I}, ${K})</div>`;
@@ -249,7 +277,7 @@ function renderIntroStep3(wrap) {
   html += '<div class="intro-sym">=</div>';
 
   html += '<div class="intro-block">';
-  html += '<div class="intro-block-label"><span style="color:#1a9a40;font-weight:700">a ⊗ b</span></div>';
+  html += `<div class="intro-block-label">${resLabelHtml()}</div>`;
   html += `<div class="intro-grid" style="grid-template-columns:repeat(${K},44px)">`;
   for (let i = 0; i < I; i++) for (let k = 0; k < K; k++) {
     const val = introA[i] * introB[k];
@@ -273,9 +301,11 @@ export function introHover(hi, hk) {
     el.classList.toggle('hi-res', +el.dataset.ri === hi && +el.dataset.rk === hk);
   });
   const f = document.getElementById('fIntro');
+  const aTok = introDirac ? '|a⟩' : 'a';
+  const bTok = introDirac ? '⟨b|' : 'b';
   f.innerHTML = `Cell [${hi}, ${hk}]: `
-    + `<span class="fa">a[${hi}]</span> = <span class="fa">${introA[hi]}</span> &nbsp;× &nbsp;`
-    + `<span class="fb">b[${hk}]</span> = <span class="fb">${introB[hk]}</span> &nbsp;= &nbsp;`
+    + `<span class="fa">${aTok}[${hi}]</span> = <span class="fa">${introA[hi]}</span> &nbsp;× &nbsp;`
+    + `<span class="fb">${bTok}[${hk}]</span> = <span class="fb">${introB[hk]}</span> &nbsp;= &nbsp;`
     + `<span class="fc">${introA[hi] * introB[hk]}</span>`;
 }
 
@@ -313,14 +343,17 @@ export function introEditCell(vec, idx) {
 
 function updateIntroFormula() {
   const f = document.getElementById('fIntro');
+  const aTok = introDirac ? '|a⟩' : 'a';
+  const bTok = introDirac ? '⟨b|' : 'b';
+  const resTok = introDirac ? '|a⟩⟨b|' : 'a ⊗ b';
   if (introStep === 0) {
-    f.innerHTML = `<span class="fa">a</span> is (${I},) and <span class="fb">b</span> is (${K},). Press ▶ to see the outer product.`;
+    f.innerHTML = `<span class="fa">${aTok}</span> is (${I},) and <span class="fb">${bTok}</span> is (${K},). Press ▶ to see the outer product.`;
   } else if (introStep === 1) {
-    f.innerHTML = `Reshape: <span class="fa">a</span> becomes a column (${I}, 1) and <span class="fb">b</span> becomes a row (1, ${K}). Now they can broadcast.`;
+    f.innerHTML = `Reshape: <span class="fa">${aTok}</span> becomes a column (${I}, 1) and <span class="fb">${bTok}</span> becomes a row (1, ${K}). Now they can broadcast.`;
   } else if (introStep === 2) {
-    f.innerHTML = `Broadcasting <span class="fa">a</span> across columns and <span class="fb">b</span> across rows, then multiplying element-wise, computes the outer product <span class="fc">a ⊗ b</span>.`;
+    f.innerHTML = `Broadcasting <span class="fa">${aTok}</span> across columns and <span class="fb">${bTok}</span> across rows, then multiplying element-wise, computes the outer product <span class="fc">${resTok}</span>.`;
   } else {
-    f.innerHTML = `Each cell [i,k] = <span class="fa">a[i]</span> × <span class="fb">b[k]</span>. Hover to inspect. `
+    f.innerHTML = `Each cell [i,k] = <span class="fa">${aTok}[i]</span> × <span class="fb">${bTok}[k]</span>. Hover to inspect. `
       + `<em style="color:#999">This outer product is one slice of a matrix multiply. In tab ①, we sum <span class="fc">${J}</span> such slices — one per shared dimension j — to get A @ B.</em>`;
   }
 }
@@ -334,6 +367,9 @@ function updateIntroDots() {
     el.appendChild(dot);
   }
 }
+
+/* @testable */
+export function getIntroDirac() { return introDirac; }
 
 /* @testable */
 export function introAnimDuration() {

@@ -2,7 +2,8 @@
 // Tests for Quantum Gates tab (tab-quantum.js)
 // ══════════════════════════════════════════════════
 import { describe, it, expect, beforeEach } from 'vitest';
-import { qInit, qApply, qReset, qRender, getQState, GATES } from '../js/tab-quantum.js';
+import { qInit, qApply, qReset, qRender, getQState, GATES,
+         qSelectFn, qApplyClassical, CLASSICAL_FNS, fnMatrix } from '../js/tab-quantum.js';
 
 describe('Quantum Gates tab', () => {
   beforeEach(() => {
@@ -122,10 +123,111 @@ describe('Quantum Gates tab', () => {
     expect(el.innerHTML).toContain('Circuit so far');
   });
 
-  it('qRender includes Dirac reference panel', () => {
+  it('qRender includes Dirac notation sections and connections', () => {
     qRender();
     const el = document.getElementById('qDisplay');
-    expect(el.innerHTML).toContain('Dirac notation reference');
+    // Section headers
+    expect(el.innerHTML).toContain('Basics');
+    expect(el.innerHTML).toContain('Deterministic operations');
+    expect(el.innerHTML).toContain('Quantum gates');
+    // Core Dirac symbols
     expect(el.innerHTML).toContain('⟨0|0⟩');
+    expect(el.innerHTML).toContain('|1⟩⟨0|');
+    // Connections panel
+    expect(el.innerHTML).toContain('connections across the app');
+  });
+});
+
+describe('Quantum tab — classical deterministic operations', () => {
+  beforeEach(() => { qInit(); });
+
+  it('CLASSICAL_FNS has identity, NOT, const-0, const-1', () => {
+    expect(Object.keys(CLASSICAL_FNS).sort()).toEqual(['const0', 'const1', 'id', 'not']);
+    expect(CLASSICAL_FNS.id.f).toEqual([0, 1]);
+    expect(CLASSICAL_FNS.not.f).toEqual([1, 0]);
+    expect(CLASSICAL_FNS.const0.f).toEqual([0, 0]);
+    expect(CLASSICAL_FNS.const1.f).toEqual([1, 1]);
+  });
+
+  it('fnMatrix(id) = Identity matrix', () => {
+    expect(fnMatrix(CLASSICAL_FNS.id)).toEqual([[1, 0], [0, 1]]);
+  });
+
+  it('fnMatrix(not) = Pauli-X matrix', () => {
+    expect(fnMatrix(CLASSICAL_FNS.not)).toEqual([[0, 1], [1, 0]]);
+  });
+
+  it('fnMatrix(const0) maps both inputs to |0⟩', () => {
+    expect(fnMatrix(CLASSICAL_FNS.const0)).toEqual([[1, 1], [0, 0]]);
+  });
+
+  it('fnMatrix(const1) maps both inputs to |1⟩', () => {
+    expect(fnMatrix(CLASSICAL_FNS.const1)).toEqual([[0, 0], [1, 1]]);
+  });
+
+  it('qSelectFn updates cFn and resets application state', () => {
+    qApplyClassical(1);
+    expect(getQState().cLastApplied).toBe(true);
+    qSelectFn('not');
+    const s = getQState();
+    expect(s.cFn).toBe('not');
+    expect(s.cLastApplied).toBe(false);
+  });
+
+  it('qSelectFn ignores unknown id', () => {
+    qSelectFn('bogus');
+    expect(getQState().cFn).toBe('id');
+  });
+
+  it('qApplyClassical(0) on identity gives |0⟩', () => {
+    qSelectFn('id');
+    qApplyClassical(0);
+    const s = getQState();
+    expect(s.cLastApplied).toBe(true);
+    expect(s.cInput).toBe(0);
+    expect(s.cLastResult).toEqual([1, 0]);
+  });
+
+  it('qApplyClassical(0) on NOT gives |1⟩', () => {
+    qSelectFn('not');
+    qApplyClassical(0);
+    expect(getQState().cLastResult).toEqual([0, 1]);
+  });
+
+  it('qApplyClassical(1) on const-0 gives |0⟩', () => {
+    qSelectFn('const0');
+    qApplyClassical(1);
+    expect(getQState().cLastResult).toEqual([1, 0]);
+  });
+
+  it('qApplyClassical(0) on const-1 gives |1⟩', () => {
+    qSelectFn('const1');
+    qApplyClassical(0);
+    expect(getQState().cLastResult).toEqual([0, 1]);
+  });
+
+  it('qApplyClassical rejects non-bit inputs', () => {
+    qSelectFn('id');
+    qApplyClassical(2);
+    expect(getQState().cLastApplied).toBe(false);
+  });
+
+  it('qRender shows expansion ⟨b|a⟩ selection after applying', () => {
+    qSelectFn('not');
+    qApplyClassical(0);
+    const el = document.getElementById('qDisplay');
+    // Should show the Σ_b |f(b)⟩⟨b|a⟩ breakdown
+    expect(el.innerHTML).toContain('M|0⟩');
+    expect(el.innerHTML).toContain('⟨0|0⟩');
+    expect(el.innerHTML).toContain('⟨1|0⟩');
+  });
+
+  it('qInit resets classical state', () => {
+    qSelectFn('not');
+    qApplyClassical(1);
+    qInit();
+    const s = getQState();
+    expect(s.cFn).toBe('id');
+    expect(s.cLastApplied).toBe(false);
   });
 });
