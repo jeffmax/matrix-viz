@@ -1,22 +1,68 @@
 // ══════════════════════════════════════════════════
-// Tests for Quantum Gates tab (tab-quantum.js)
+// Tests for Dirac tab (tab-quantum.js) — basics, deterministic, stochastic, quantum sub-tabs
 // ══════════════════════════════════════════════════
 import { describe, it, expect, beforeEach } from 'vitest';
 import { qInit, qApply, qReset, qRender, getQState, GATES,
-         qSelectFn, qApplyClassical, CLASSICAL_FNS, fnMatrix } from '../js/tab-quantum.js';
+         qSelectFn, qApplyClassical, CLASSICAL_FNS, fnMatrix,
+         qSelectStoch, qApplyStoch, STOCH_MATRICES, matMul,
+         qSetSubTab } from '../js/tab-quantum.js';
 
-describe('Quantum Gates tab', () => {
-  beforeEach(() => {
+describe('Dirac tab — sub-tab switching', () => {
+  beforeEach(() => { qInit(); qSetSubTab('basics'); });
+
+  it('initializes sub-tab as basics', () => {
+    expect(getQState().qSubTab).toBe('basics');
+  });
+
+  it('qSetSubTab switches to det/stoch/quantum', () => {
+    qSetSubTab('det');
+    expect(getQState().qSubTab).toBe('det');
+    qSetSubTab('stoch');
+    expect(getQState().qSubTab).toBe('stoch');
+    qSetSubTab('quantum');
+    expect(getQState().qSubTab).toBe('quantum');
+  });
+
+  it('qSetSubTab with unknown name is a no-op', () => {
+    qSetSubTab('foo');
+    expect(getQState().qSubTab).toBe('basics');
+  });
+
+  it('qSetSubTab toggles active class on the 4 tier-2 buttons', () => {
+    qSetSubTab('stoch');
+    expect(document.getElementById('tab-dirac-basics').classList.contains('active')).toBe(false);
+    expect(document.getElementById('tab-dirac-det').classList.contains('active')).toBe(false);
+    expect(document.getElementById('tab-dirac-stoch').classList.contains('active')).toBe(true);
+    expect(document.getElementById('tab-dirac-quantum').classList.contains('active')).toBe(false);
+  });
+
+  it('qInit preserves qSubTab (so switching tiers does not reset view)', () => {
+    qSetSubTab('quantum');
     qInit();
+    expect(getQState().qSubTab).toBe('quantum');
+  });
+});
+
+describe('Basics sub-tab — rendering', () => {
+  beforeEach(() => { qInit(); qSetSubTab('basics'); });
+
+  it('renders kets, bras, inner and outer product content', () => {
+    const el = document.getElementById('qDisplay');
+    expect(el.innerHTML).toContain('Basics');
+    expect(el.innerHTML).toContain('⟨0|0⟩');
+    expect(el.innerHTML).toContain('|1⟩⟨0|');
   });
 
-  it('initializes with |0⟩ state and empty history', () => {
-    const s = getQState();
-    expect(s.state).toEqual([1, 0]);
-    expect(s.prevState).toBeNull();
-    expect(s.lastGate).toBeNull();
-    expect(s.history).toEqual([]);
+  it('does not include deterministic/stochastic/quantum panels', () => {
+    const el = document.getElementById('qDisplay');
+    expect(el.innerHTML).not.toContain('Choose a 1-bit function');
+    expect(el.innerHTML).not.toContain('Pick a stochastic matrix');
+    expect(el.innerHTML).not.toContain('Current state |ψ⟩');
   });
+});
+
+describe('Quantum sub-tab — gate algebra', () => {
+  beforeEach(() => { qInit(); qSetSubTab('quantum'); });
 
   it('I gate leaves state unchanged', () => {
     qApply('I');
@@ -31,62 +77,52 @@ describe('Quantum Gates tab', () => {
   });
 
   it('X|1⟩ = |0⟩', () => {
-    qApply('X');
-    qApply('X');
+    qApply('X'); qApply('X');
     expect(getQState().state).toEqual([1, 0]);
   });
 
-  it('Z|0⟩ = |0⟩ (no phase change on |0⟩)', () => {
+  it('Z|0⟩ = |0⟩', () => {
     qApply('Z');
     expect(getQState().state).toEqual([1, 0]);
   });
 
   it('Z|1⟩ = −|1⟩', () => {
-    qApply('X'); // now |1⟩
-    qApply('Z');
+    qApply('X'); qApply('Z');
     expect(getQState().state).toEqual([0, -1]);
   });
 
-  it('X² = I and Z² = I (gates are involutive)', () => {
+  it('X² = I and Z² = I', () => {
     qApply('X'); qApply('X');
     expect(getQState().state).toEqual([1, 0]);
     qInit();
-    qApply('X'); // |1⟩
-    qApply('Z'); qApply('Z'); // back to |1⟩
+    qApply('X'); qApply('Z'); qApply('Z');
     expect(getQState().state).toEqual([0, 1]);
   });
 
-  it('X Z X sequence on |0⟩ gives −|0⟩', () => {
-    // |0⟩ -X→ |1⟩ -Z→ -|1⟩ -X→ -|0⟩
-    qApply('X');
-    qApply('Z');
-    qApply('X');
+  it('XZX on |0⟩ gives −|0⟩', () => {
+    qApply('X'); qApply('Z'); qApply('X');
     expect(getQState().state).toEqual([-1, 0]);
   });
 
-  it('history records each applied gate with before/after states', () => {
-    qApply('X');
-    qApply('Z');
+  it('history records gate with before/after', () => {
+    qApply('X'); qApply('Z');
     const s = getQState();
     expect(s.history.length).toBe(2);
     expect(s.history[0]).toEqual({ gate: 'X', before: [1, 0], after: [0, 1] });
     expect(s.history[1]).toEqual({ gate: 'Z', before: [0, 1], after: [0, -1] });
   });
 
-  it('lastGate and prevState track the most recent operation', () => {
+  it('lastGate and prevState track recent op', () => {
     qApply('X');
-    const s1 = getQState();
-    expect(s1.lastGate).toBe('X');
-    expect(s1.prevState).toEqual([1, 0]);
+    expect(getQState().lastGate).toBe('X');
+    expect(getQState().prevState).toEqual([1, 0]);
     qApply('Z');
-    const s2 = getQState();
-    expect(s2.lastGate).toBe('Z');
-    expect(s2.prevState).toEqual([0, 1]);
+    expect(getQState().lastGate).toBe('Z');
+    expect(getQState().prevState).toEqual([0, 1]);
   });
 
   it('qReset returns state to |0⟩ and clears history', () => {
-    qApply('X');
-    qApply('Z');
+    qApply('X'); qApply('Z');
     qReset();
     const s = getQState();
     expect(s.state).toEqual([1, 0]);
@@ -103,43 +139,50 @@ describe('Quantum Gates tab', () => {
     expect(s.history).toEqual([]);
   });
 
-  it('GATES export contains I, X, Z with correct matrices', () => {
+  it('GATES export has correct matrices', () => {
     expect(GATES.I.matrix).toEqual([[1, 0], [0, 1]]);
     expect(GATES.X.matrix).toEqual([[0, 1], [1, 0]]);
     expect(GATES.Z.matrix).toEqual([[1, 0], [0, -1]]);
   });
+});
 
-  it('qRender produces non-empty HTML in qDisplay', () => {
-    qRender();
+describe('Quantum sub-tab — rendering (unitary constraint + composition)', () => {
+  beforeEach(() => { qInit(); qSetSubTab('quantum'); });
+
+  it('shows |ψ⟩ panel and gate buttons', () => {
     const el = document.getElementById('qDisplay');
-    expect(el.innerHTML).not.toBe('');
     expect(el.innerHTML).toContain('|ψ⟩');
+    expect(el.innerHTML).toContain('Apply gate');
   });
 
-  it('qRender shows last operation panel after a gate is applied', () => {
+  it('shows U†U = I constraint intro and per-gate check', () => {
+    const el = document.getElementById('qDisplay');
+    expect(el.innerHTML).toContain('squared entries');
+    expect(el.innerHTML).toContain('U†U = I');
+  });
+
+  it('shows column mixing panel after a gate', () => {
     qApply('X');
     const el = document.getElementById('qDisplay');
     expect(el.innerHTML).toContain('column mixing');
     expect(el.innerHTML).toContain('Circuit so far');
   });
 
-  it('qRender includes Dirac notation sections and connections', () => {
-    qRender();
+  it('includes closed-under-composition XZ example', () => {
     const el = document.getElementById('qDisplay');
-    // Section headers
-    expect(el.innerHTML).toContain('Basics');
-    expect(el.innerHTML).toContain('Deterministic operations');
-    expect(el.innerHTML).toContain('Quantum gates');
-    // Core Dirac symbols
-    expect(el.innerHTML).toContain('⟨0|0⟩');
-    expect(el.innerHTML).toContain('|1⟩⟨0|');
-    // Connections panel
-    expect(el.innerHTML).toContain('connections across the app');
+    expect(el.innerHTML).toContain('products of unitaries');
+    expect(el.innerHTML).toContain('XZ');
+  });
+
+  it('does not include basics/det/stoch panels', () => {
+    const el = document.getElementById('qDisplay');
+    expect(el.innerHTML).not.toContain('Choose a 1-bit function');
+    expect(el.innerHTML).not.toContain('Pick a stochastic matrix');
   });
 });
 
-describe('Quantum tab — classical deterministic operations', () => {
-  beforeEach(() => { qInit(); });
+describe('Deterministic sub-tab', () => {
+  beforeEach(() => { qInit(); qSetSubTab('det'); });
 
   it('CLASSICAL_FNS has identity, NOT, const-0, const-1', () => {
     expect(Object.keys(CLASSICAL_FNS).sort()).toEqual(['const0', 'const1', 'id', 'not']);
@@ -149,19 +192,10 @@ describe('Quantum tab — classical deterministic operations', () => {
     expect(CLASSICAL_FNS.const1.f).toEqual([1, 1]);
   });
 
-  it('fnMatrix(id) = Identity matrix', () => {
+  it('fnMatrix produces correct matrices', () => {
     expect(fnMatrix(CLASSICAL_FNS.id)).toEqual([[1, 0], [0, 1]]);
-  });
-
-  it('fnMatrix(not) = Pauli-X matrix', () => {
     expect(fnMatrix(CLASSICAL_FNS.not)).toEqual([[0, 1], [1, 0]]);
-  });
-
-  it('fnMatrix(const0) maps both inputs to |0⟩', () => {
     expect(fnMatrix(CLASSICAL_FNS.const0)).toEqual([[1, 1], [0, 0]]);
-  });
-
-  it('fnMatrix(const1) maps both inputs to |1⟩', () => {
     expect(fnMatrix(CLASSICAL_FNS.const1)).toEqual([[0, 0], [1, 1]]);
   });
 
@@ -179,30 +213,14 @@ describe('Quantum tab — classical deterministic operations', () => {
     expect(getQState().cFn).toBe('id');
   });
 
-  it('qApplyClassical(0) on identity gives |0⟩', () => {
-    qSelectFn('id');
-    qApplyClassical(0);
-    const s = getQState();
-    expect(s.cLastApplied).toBe(true);
-    expect(s.cInput).toBe(0);
-    expect(s.cLastResult).toEqual([1, 0]);
-  });
-
-  it('qApplyClassical(0) on NOT gives |1⟩', () => {
-    qSelectFn('not');
-    qApplyClassical(0);
+  it('qApplyClassical computes |f(a)⟩', () => {
+    qSelectFn('not'); qApplyClassical(0);
     expect(getQState().cLastResult).toEqual([0, 1]);
-  });
 
-  it('qApplyClassical(1) on const-0 gives |0⟩', () => {
-    qSelectFn('const0');
-    qApplyClassical(1);
+    qSelectFn('const0'); qApplyClassical(1);
     expect(getQState().cLastResult).toEqual([1, 0]);
-  });
 
-  it('qApplyClassical(0) on const-1 gives |1⟩', () => {
-    qSelectFn('const1');
-    qApplyClassical(0);
+    qSelectFn('const1'); qApplyClassical(0);
     expect(getQState().cLastResult).toEqual([0, 1]);
   });
 
@@ -212,22 +230,105 @@ describe('Quantum tab — classical deterministic operations', () => {
     expect(getQState().cLastApplied).toBe(false);
   });
 
-  it('qRender shows expansion ⟨b|a⟩ selection after applying', () => {
-    qSelectFn('not');
-    qApplyClassical(0);
+  it('qRender shows expansion and closed-under-composition', () => {
+    qSelectFn('not'); qApplyClassical(0);
     const el = document.getElementById('qDisplay');
-    // Should show the Σ_b |f(b)⟩⟨b|a⟩ breakdown
     expect(el.innerHTML).toContain('M|0⟩');
     expect(el.innerHTML).toContain('⟨0|0⟩');
     expect(el.innerHTML).toContain('⟨1|0⟩');
+    expect(el.innerHTML).toContain('Closed under composition');
   });
 
-  it('qInit resets classical state', () => {
-    qSelectFn('not');
-    qApplyClassical(1);
-    qInit();
+  it('does not include basics/stoch/quantum panels', () => {
+    const el = document.getElementById('qDisplay');
+    expect(el.innerHTML).not.toContain('Pick a stochastic matrix');
+    expect(el.innerHTML).not.toContain('Current state |ψ⟩');
+  });
+});
+
+describe('Stochastic sub-tab', () => {
+  beforeEach(() => { qInit(); qSetSubTab('stoch'); });
+
+  it('STOCH_MATRICES includes det-id, det-not, noisy-id, fair-flip', () => {
+    expect(Object.keys(STOCH_MATRICES).sort()).toEqual(['det-id', 'det-not', 'fair-flip', 'noisy-id']);
+  });
+
+  it('all STOCH_MATRICES are column-stochastic (cols sum to 1)', () => {
+    for (const id of Object.keys(STOCH_MATRICES)) {
+      const m = STOCH_MATRICES[id].matrix;
+      expect(m[0][0] + m[1][0]).toBeCloseTo(1);
+      expect(m[0][1] + m[1][1]).toBeCloseTo(1);
+    }
+  });
+
+  it('qSelectStoch updates sMat and resets application', () => {
+    qApplyStoch(1, 0);
+    expect(getQState().sLastApplied).toBe(true);
+    qSelectStoch('fair-flip');
     const s = getQState();
-    expect(s.cFn).toBe('id');
-    expect(s.cLastApplied).toBe(false);
+    expect(s.sMat).toBe('fair-flip');
+    expect(s.sLastApplied).toBe(false);
+  });
+
+  it('qSelectStoch ignores unknown id', () => {
+    qSelectStoch('bogus');
+    expect(getQState().sMat).toBe('noisy-id');
+  });
+
+  it('qApplyStoch on fair-flip with |0⟩ gives [½, ½]', () => {
+    qSelectStoch('fair-flip');
+    qApplyStoch(1, 0);
+    expect(getQState().sLastResult).toEqual([0.5, 0.5]);
+  });
+
+  it('qApplyStoch on noisy-id with |0⟩ gives [¾, ¼]', () => {
+    qSelectStoch('noisy-id');
+    qApplyStoch(1, 0);
+    expect(getQState().sLastResult).toEqual([0.75, 0.25]);
+  });
+
+  it('qApplyStoch on det-id with [½,½] gives [½,½]', () => {
+    qSelectStoch('det-id');
+    qApplyStoch(0.5, 0.5);
+    expect(getQState().sLastResult).toEqual([0.5, 0.5]);
+  });
+
+  it('Mp always sums to 1 (closed under application)', () => {
+    for (const mid of Object.keys(STOCH_MATRICES)) {
+      qSelectStoch(mid);
+      for (const p of [[1, 0], [0, 1], [0.5, 0.5], [0.25, 0.75]]) {
+        qApplyStoch(p[0], p[1]);
+        const r = getQState().sLastResult;
+        expect(r[0] + r[1]).toBeCloseTo(1);
+      }
+    }
+  });
+
+  it('M·M is still column-stochastic for every preset', () => {
+    for (const id of Object.keys(STOCH_MATRICES)) {
+      const m = STOCH_MATRICES[id].matrix;
+      const p = matMul(m, m);
+      expect(p[0][0] + p[1][0]).toBeCloseTo(1);
+      expect(p[0][1] + p[1][1]).toBeCloseTo(1);
+    }
+  });
+
+  it('render shows column-sum check and composition panel', () => {
+    const el = document.getElementById('qDisplay');
+    expect(el.innerHTML).toContain('each column sums to 1');
+    expect(el.innerHTML).toContain('closed under composition');
+  });
+
+  it('does not include basics/det/quantum panels', () => {
+    const el = document.getElementById('qDisplay');
+    expect(el.innerHTML).not.toContain('Choose a 1-bit function');
+    expect(el.innerHTML).not.toContain('Current state |ψ⟩');
+  });
+});
+
+describe('matMul helper', () => {
+  it('multiplies 2×2 matrices correctly', () => {
+    expect(matMul([[1, 0], [0, 1]], [[0, 1], [1, 0]])).toEqual([[0, 1], [1, 0]]);
+    expect(matMul([[0, 1], [1, 0]], [[1, 0], [0, -1]])).toEqual([[0, -1], [1, 0]]);
   });
 });

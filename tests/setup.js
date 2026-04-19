@@ -114,7 +114,12 @@ function buildDOM() {
     <div id="tier2-blocks"><button id="tab-inner" class="tier2-tab active"></button><button id="tab-intro" class="tier2-tab"></button></div>
     <div id="tier2-matmul" class="hidden"><button id="tab-matmul" class="tier2-tab active"></button></div>
     <div id="tier2-embed" class="hidden"><button id="tab-embed-fwd-nav" class="tier2-tab active"></button><button id="tab-embed-bwd-nav" class="tier2-tab"></button></div>
-    <div id="tier2-quantum" class="hidden"><button id="tab-quantum" class="tier2-tab active"></button></div>
+    <div id="tier2-quantum" class="hidden">
+      <button id="tab-dirac-basics"  class="tier2-tab active"></button>
+      <button id="tab-dirac-det"     class="tier2-tab"></button>
+      <button id="tab-dirac-stoch"   class="tier2-tab"></button>
+      <button id="tab-dirac-quantum" class="tier2-tab"></button>
+    </div>
     <div id="presetDesc" class="hidden"></div>
 
     <!-- Info shelf -->

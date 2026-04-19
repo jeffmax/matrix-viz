@@ -562,6 +562,12 @@ input[type=range] { width: 88px; accent-color: #333; }
 .q-sum-term.match { background: #e6f8ea; }
 .q-sum-term.zero { opacity: 0.35; }
 
+/* Constraint-check rows (stochastic columns sum to 1, quantum squared-sum to 1) */
+.q-check-list { display: flex; flex-wrap: wrap; gap: 6px 18px; justify-content: center; margin-top: 8px; }
+.q-check { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 0.82rem; color: #555; }
+.q-ok { color: #1a9a40; font-weight: 700; margin-left: 4px; }
+.q-bad { color: #d04080; font-weight: 700; margin-left: 4px; }
+
 /* Dirac toggle buttons on Inner / Outer tabs */
 .check-wrap.dirac-toggle {
   border: 1.5px solid #c9bff3; background: #fff; color: #5a4fcf;
@@ -1200,9 +1206,12 @@ input[type=range] { width: 88px; accent-color: #333; }
     <button class="tier2-tab active" id="tab-embed-fwd-nav" onclick="setMode('embed-fwd')">Forward</button>
     <button class="tier2-tab hidden"  id="tab-embed-bwd-nav" onclick="setMode('embed-bwd')">Backward</button>
   </div>
-  <!-- Tier 2d: Quantum (single tab, no sub-tabs) -->
+  <!-- Tier 2d: Dirac sub-tabs -->
   <div class="tier2-row hidden" id="tier2-quantum">
-    <button class="tier2-tab active" id="tab-quantum" onclick="setMode('quantum')">Notation &amp; Gates</button>
+    <button class="tier2-tab active" id="tab-dirac-basics"  onclick="qSetSubTab('basics')">Basics</button>
+    <button class="tier2-tab"        id="tab-dirac-det"     onclick="qSetSubTab('det')">Deterministic</button>
+    <button class="tier2-tab"        id="tab-dirac-stoch"   onclick="qSetSubTab('stoch')">Stochastic</button>
+    <button class="tier2-tab"        id="tab-dirac-quantum" onclick="qSetSubTab('quantum')">Quantum</button>
   </div>
 </div>
 
@@ -1447,11 +1456,10 @@ input[type=range] { width: 88px; accent-color: #333; }
     <div class="preset-desc" id="qDesc">
       <strong>Dirac notation</strong> &mdash; A way of writing column vectors (<em>kets</em>
       <span style="font-family:monospace">|x&rang;</span>) and row vectors
-      (<em>bras</em> <span style="font-family:monospace">&lang;x|</span>) so that
-      <span style="font-family:monospace">&lang;a|b&rang;</span> is an inner product (scalar) and
-      <span style="font-family:monospace">|a&rang;&lang;b|</span> is an outer product (matrix). We start with
-      classical bits, build any deterministic 1-bit function as a matrix, then apply the same machinery to
-      quantum gates &mdash; where amplitudes can go negative.
+      (<em>bras</em> <span style="font-family:monospace">&lang;x|</span>). The sub-tabs walk through four layers
+      of 1-bit operations, each generalizing the previous: <em>Basics</em> (notation),
+      <em>Deterministic</em> (columns are basis kets), <em>Stochastic</em> (columns are probability distributions),
+      <em>Quantum</em> (columns are orthonormal under squared-sum).
     </div>
     <div class="einsum-badge" id="einsumQuantum"></div>
     <div id="qDisplay" class="q-wrap"></div>

@@ -19,7 +19,8 @@ import { efInit, efRender, efFwd, efBack, efToggle, efReset, efPause,
 import { ebInit, ebRender, ebFwd, ebBack, ebToggle, ebReset, ebPause,
          ebJumpToPos, ebTraceBack, ebChangeDim } from './tab-embed-bwd.js';
 import { qInit, qRender, qReset, qApply, qPause, getQState,
-         qSelectFn, qApplyClassical } from './tab-quantum.js';
+         qSelectFn, qApplyClassical, qSelectStoch, qApplyStoch,
+         qSetSubTab } from './tab-quantum.js';
 import { PRESETS, loadPreset, clearPreset, fullClearPreset, activePreset } from './presets.js';
 import { ipInit, ipRender, ipPause, ipReset, ipToggle, ipFwd, ipBack,
          ipEditCell, ipResize, ipToggleDirac } from './tab-inner.js';
@@ -80,7 +81,7 @@ function setTier(tier) {
   document.getElementById('tier2-blocks').classList.toggle('hidden', tier !== 'blocks');
   document.getElementById('tier2-matmul').classList.add('hidden'); // single tab, always hidden
   document.getElementById('tier2-embed').classList.toggle('hidden', tier !== 'embed');
-  document.getElementById('tier2-quantum').classList.add('hidden'); // single tab, always hidden
+  document.getElementById('tier2-quantum').classList.toggle('hidden', tier !== 'quantum');
   const descEl = document.getElementById('presetDesc');
   if (tier !== 'matmul') descEl.classList.add('hidden');
   else if (activePreset) descEl.classList.remove('hidden');
@@ -166,7 +167,7 @@ function setMode(m) {
     document.getElementById('tier2-blocks').classList.add('hidden');
     document.getElementById('tier2-matmul').classList.add('hidden');
     document.getElementById('tier2-embed').classList.add('hidden');
-    document.getElementById('tier2-quantum').classList.add('hidden'); // single tab, always hidden
+    document.getElementById('tier2-quantum').classList.remove('hidden');
     document.getElementById('presetDesc').classList.add('hidden');
   }
 
@@ -193,7 +194,7 @@ function setMode(m) {
     renderEinsumBadge('einsumEmbedBwd', 'embed-bwd');
   }
   if (m === 'quantum') {
-    qRender();
+    qSetSubTab(getQState().qSubTab);
     renderEinsumBadge('einsumQuantum', 'quantum');
   }
   if (infoOpen) updateShelfContent();
@@ -535,11 +536,14 @@ window.ebReset = ebReset;
 window.ebJumpToPos = ebJumpToPos;
 window.ebTraceBack = ebTraceBack;
 window.ebChangeDim = ebChangeDim;
-// Quantum Gates + classical deterministic ops (Dirac tab)
+// Dirac tab: sub-tab switching + per-section handlers
+window.qSetSubTab = qSetSubTab;
 window.qApply = qApply;
 window.qReset = qReset;
 window.qSelectFn = qSelectFn;
 window.qApplyClassical = qApplyClassical;
+window.qSelectStoch = qSelectStoch;
+window.qApplyStoch = qApplyStoch;
 // Snap-back
 window.snapToDefault = snapToDefault;
 window.toggleAxisLabels = toggleAxisLabels;
