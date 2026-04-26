@@ -20,7 +20,7 @@ import { ebInit, ebRender, ebFwd, ebBack, ebToggle, ebReset, ebPause,
          ebJumpToPos, ebTraceBack, ebChangeDim } from './tab-embed-bwd.js';
 import { qInit, qRender, qReset, qApply, qPause, getQState,
          qSelectFn, qApplyClassical, qSelectStoch, qApplyStoch,
-         qSetSubTab, qCheatsheetHtml } from './tab-quantum.js';
+         qSetSubTab, qCheatsheetHtml, qCsScroll } from './tab-quantum.js';
 import { PRESETS, loadPreset, clearPreset, fullClearPreset, activePreset } from './presets.js';
 import { ipInit, ipRender, ipPause, ipReset, ipToggle, ipFwd, ipBack,
          ipEditCell, ipResize, ipToggleDirac } from './tab-inner.js';
@@ -535,6 +535,7 @@ window.qSelectFn = qSelectFn;
 window.qApplyClassical = qApplyClassical;
 window.qSelectStoch = qSelectStoch;
 window.qApplyStoch = qApplyStoch;
+window.qCsScroll = qCsScroll;
 // Snap-back
 window.snapToDefault = snapToDefault;
 window.toggleAxisLabels = toggleAxisLabels;

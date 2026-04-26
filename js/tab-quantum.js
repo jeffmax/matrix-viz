@@ -699,10 +699,27 @@ export function qCheatsheetHtml() {
   h += `<div class="q-cheatsheet">`;
   h += `<div class="cs-eyebrow">Reference · Quantum Information</div>`;
   h += `<h3>Notation Cheat Sheet</h3>`;
-  h += `<p class="cs-subtitle">Connections between Dirac notation, vectors, and probability — Watrous Lessons 1 &amp; 2.</p>`;
+  h += `<p class="cs-subtitle">Connections between Dirac notation, vectors, and probability.</p>`;
+
+  // Index — clickable TOC; each link scrolls the shelf to its section
+  h += `<nav class="cs-toc">`;
+  const toc = [
+    ['cs-ket',    'Kets & bras'],
+    ['cs-joint',  'Joint states'],
+    ['cs-tensor', 'Tensor ⊗'],
+    ['cs-outer',  'Outer products'],
+    ['cs-prob',   'Probability'],
+    ['cs-det',    'Deterministic'],
+    ['cs-cols',   'M|b⟩ → column'],
+    ['cs-big',    'Classical → Quantum'],
+  ];
+  for (const [id, label] of toc) {
+    h += `<a class="cs-toc-link" onclick="qCsScroll('${id}')">${label}</a>`;
+  }
+  h += `</nav>`;
 
   // ── Ket & Bra Vectors ──
-  h += `<div class="cs-section cs-blue">`;
+  h += `<div class="cs-section cs-blue" id="cs-ket">`;
   h += `<div class="cs-section-label">Ket &amp; Bra Vectors</div>`;
   h += `<div class="cs-card">`
     +  `<span class="cs-tag cs-tag-blue">ket</span>`
@@ -719,7 +736,7 @@ export function qCheatsheetHtml() {
   h += `</div>`;
 
   // ── Joint States ──
-  h += `<div class="cs-section cs-red">`;
+  h += `<div class="cs-section cs-red" id="cs-joint">`;
   h += `<div class="cs-section-label">Joint States</div>`;
   h += `<div class="cs-card">`
     +  `<span class="cs-tag cs-tag-red">joint ket</span>`
@@ -738,7 +755,7 @@ export function qCheatsheetHtml() {
   h += `</div>`;
 
   // ── Tensor Product ──
-  h += `<div class="cs-section cs-amber">`;
+  h += `<div class="cs-section cs-amber" id="cs-tensor">`;
   h += `<div class="cs-section-label">Tensor Product ⊗</div>`;
   h += `<div class="cs-card">`
     +  `<span class="cs-tag cs-tag-amber">vectors</span>`
@@ -755,7 +772,7 @@ export function qCheatsheetHtml() {
   h += `</div>`;
 
   // ── Outer Product & Matrices ──
-  h += `<div class="cs-section cs-red">`;
+  h += `<div class="cs-section cs-red" id="cs-outer">`;
   h += `<div class="cs-section-label">Outer Product &amp; Matrices</div>`;
   h += `<div class="cs-card">`
     +  `<span class="cs-tag cs-tag-red">outer product</span>`
@@ -772,7 +789,7 @@ export function qCheatsheetHtml() {
   h += `</div>`;
 
   // ── Probability Distributions ──
-  h += `<div class="cs-section cs-green">`;
+  h += `<div class="cs-section cs-green" id="cs-prob">`;
   h += `<div class="cs-section-label">Probability Distributions</div>`;
   h += `<div class="cs-card">`
     +  `<span class="cs-tag cs-tag-green">marginal</span>`
@@ -789,7 +806,7 @@ export function qCheatsheetHtml() {
   h += `</div>`;
 
   // ── Deterministic Operations ──
-  h += `<div class="cs-section cs-red">`;
+  h += `<div class="cs-section cs-red" id="cs-det">`;
   h += `<div class="cs-section-label">Deterministic Operations</div>`;
   h += `<div class="cs-card">`
     +  `<div class="cs-meaning">Any function <b>f : Σ → Σ</b> has a unique matrix M. Each term <b>|f(b)⟩⟨b|</b> is an outer product mapping |b⟩ → |f(b)⟩ and zeroing everything else. Summing over all b assembles the full matrix.</div>`
@@ -815,7 +832,7 @@ export function qCheatsheetHtml() {
   h += `</div>`;
 
   // ── M|b⟩ picks a column ──
-  h += `<div class="cs-section cs-blue">`;
+  h += `<div class="cs-section cs-blue" id="cs-cols">`;
   h += `<div class="cs-section-label">M|b⟩ Picks the b-th Column</div>`;
   h += `<div class="cs-card">`
     +  `<div class="cs-meaning">Multiplying a matrix M by basis ket |b⟩ yields the <b>b-th column</b> of M. All ⟨c|b⟩ terms vanish except c = b.</div>`
@@ -830,7 +847,7 @@ export function qCheatsheetHtml() {
   h += `</div>`;
 
   // ── The Big Picture ──
-  h += `<div class="cs-section cs-ink">`;
+  h += `<div class="cs-section cs-ink" id="cs-big">`;
   h += `<div class="cs-section-label">The Big Picture</div>`;
   h += `<div class="cs-card">`
     +  `<div class="cs-meaning">Everything so far is the <b>classical warm-up</b>. When you move to quantum states, probabilities (positive, sum to 1) become <b>amplitudes</b> (complex, squared sum to 1). Almost all the same math applies — tensor product, joint states, and measurement rules carry over directly.</div>`
@@ -838,9 +855,14 @@ export function qCheatsheetHtml() {
     +  `</div>`;
   h += `</div>`;
 
-  h += `<div class="cs-footer"><span>Lessons 1 &amp; 2</span><span>Watrous · IBM/Qiskit</span></div>`;
   h += `</div>`;
   return h;
+}
+
+// Scroll cheat-sheet section into view inside the info shelf scroll container.
+export function qCsScroll(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ── Main render ──

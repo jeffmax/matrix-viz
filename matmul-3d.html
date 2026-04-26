@@ -582,7 +582,24 @@ input[type=range] { width: 88px; accent-color: #333; }
 .q-cheatsheet .cs-subtitle {
   font-size: 0.72rem; color: #777; margin: 0; line-height: 1.5;
 }
-.q-cheatsheet .cs-section { display: flex; flex-direction: column; gap: 8px; }
+.q-cheatsheet .cs-toc {
+  display: flex; flex-wrap: wrap; gap: 5px;
+  padding: 10px 12px; background: #fbfaff;
+  border: 1px solid #ece8f6; border-radius: 7px;
+  margin-bottom: 4px;
+}
+.q-cheatsheet .cs-toc-link {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.66rem; color: #5a4fcf;
+  background: #efe9ff; border: 1px solid #d8cffa;
+  padding: 3px 8px; border-radius: 4px;
+  cursor: pointer; user-select: none;
+  transition: background 0.12s, transform 0.08s;
+}
+.q-cheatsheet .cs-toc-link:hover { background: #ddd0ff; transform: translateY(-1px); }
+.q-cheatsheet .cs-toc-link:active { transform: translateY(0); }
+/* When a section is the scroll target, give it a gentle highlight pulse */
+.q-cheatsheet .cs-section { display: flex; flex-direction: column; gap: 8px; scroll-margin-top: 12px; }
 .q-cheatsheet .cs-section-label {
   font-family: 'SF Mono', Menlo, Consolas, monospace;
   font-size: 0.60rem; letter-spacing: 0.10em; text-transform: uppercase;
@@ -641,12 +658,6 @@ input[type=range] { width: 88px; accent-color: #333; }
   padding: 4px 8px; border-radius: 3px; margin-top: 4px;
 }
 .q-cheatsheet .cs-worked-note.cs-blue { color: #2c4a7c; background: #e8eef7; }
-.q-cheatsheet .cs-footer {
-  font-family: 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 0.62rem; color: #aaa; padding-top: 8px;
-  border-top: 1px solid #ece8f6; display: flex; justify-content: space-between;
-  flex-wrap: wrap; gap: 4px;
-}
 /* "Open cheat sheet" hint inside the Basics tab */
 .q-cs-hint {
   display: inline-flex; align-items: center; gap: 6px;
