@@ -353,7 +353,7 @@ function renderBasicsSection() {
   html += `<div class="q-ref-grid">`;
   html += `<div><b>Deterministic</b> — columns of M are basis kets.</div>`;
   html += `<div><b>Stochastic</b> — columns are probability distributions (sum to 1).</div>`;
-  html += `<div><b>Quantum</b> — columns are orthonormal under squared-sum (<code>U†U = I</code>).</div>`;
+  html += `<div><b>Quantum</b> — columns are <i>orthonormal</i>: each column's squared entries sum to 1 (<i>normal</i> = unit length), and different columns have inner product 0 (<i>ortho</i> = perpendicular). Together: <code>U†U = I</code>.</div>`;
   html += `<div class="q-ref-note">Each layer relaxes one rule on the columns. Pick a tab above to explore.</div>`;
   html += `</div>`;
   html += `</div>`;
