@@ -568,6 +568,95 @@ input[type=range] { width: 88px; accent-color: #333; }
 .q-ok { color: #1a9a40; font-weight: 700; margin-left: 4px; }
 .q-bad { color: #d04080; font-weight: 700; margin-left: 4px; }
 
+/* ── Dirac cheat sheet (left-side info shelf, Dirac tier) ── */
+.q-cheatsheet { display: flex; flex-direction: column; gap: 14px; }
+.q-cheatsheet .cs-eyebrow {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.62rem; letter-spacing: 0.12em; color: #9b95b8;
+  text-transform: uppercase;
+}
+.q-cheatsheet h3 {
+  font-size: 1.05rem; font-weight: 700; color: #2a2540; margin: 0;
+  letter-spacing: -0.01em;
+}
+.q-cheatsheet .cs-subtitle {
+  font-size: 0.72rem; color: #777; margin: 0; line-height: 1.5;
+}
+.q-cheatsheet .cs-section { display: flex; flex-direction: column; gap: 8px; }
+.q-cheatsheet .cs-section-label {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.60rem; letter-spacing: 0.10em; text-transform: uppercase;
+  font-weight: 700; padding-bottom: 4px; border-bottom: 1px solid #ece8f6;
+}
+.q-cheatsheet .cs-section.cs-blue  .cs-section-label { color: #2c4a7c; }
+.q-cheatsheet .cs-section.cs-red   .cs-section-label { color: #7c2c3e; }
+.q-cheatsheet .cs-section.cs-green .cs-section-label { color: #2c6b4a; }
+.q-cheatsheet .cs-section.cs-amber .cs-section-label { color: #6b4a2c; }
+.q-cheatsheet .cs-section.cs-ink   .cs-section-label { color: #555; }
+.q-cheatsheet .cs-card {
+  background: #fbfaff; border: 1px solid #ece8f6; border-radius: 7px;
+  padding: 10px 12px;
+}
+.q-cheatsheet .cs-tag {
+  display: inline-block;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 3px; margin-bottom: 6px; font-weight: 600;
+}
+.q-cheatsheet .cs-tag-blue  { background: #e8eef7; color: #2c4a7c; }
+.q-cheatsheet .cs-tag-red   { background: #f7e8eb; color: #7c2c3e; }
+.q-cheatsheet .cs-tag-green { background: #e8f4ee; color: #2c6b4a; }
+.q-cheatsheet .cs-tag-amber { background: #f4ede8; color: #6b4a2c; }
+.q-cheatsheet .cs-notation {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.95rem; font-weight: 600; color: #1a1814;
+  margin-bottom: 4px;
+}
+.q-cheatsheet .cs-meaning {
+  font-size: 0.72rem; color: #555; line-height: 1.5; margin-bottom: 6px;
+}
+.q-cheatsheet .cs-code {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.66rem; background: #f3effb; border: 1px solid #e6e0f3;
+  padding: 6px 8px; border-radius: 4px; color: #333; line-height: 1.55;
+  white-space: pre-wrap; word-break: break-word; margin: 0;
+}
+.q-cheatsheet .cs-key {
+  margin-top: 6px; padding: 5px 8px;
+  border-left: 2px solid #2c4a7c; background: #e8eef7; color: #2c4a7c;
+  border-radius: 0 3px 3px 0; font-size: 0.68rem; line-height: 1.45;
+}
+.q-cheatsheet .cs-key.cs-key-red   { border-color: #7c2c3e; background: #f7e8eb; color: #7c2c3e; }
+.q-cheatsheet .cs-key.cs-key-green { border-color: #2c6b4a; background: #e8f4ee; color: #2c6b4a; }
+.q-cheatsheet .cs-worked-title {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.60rem; color: #999; letter-spacing: 0.05em;
+  text-transform: uppercase; margin-bottom: 6px;
+}
+.q-cheatsheet .cs-worked-grid {
+  display: grid; grid-template-columns: 1fr; gap: 8px;
+}
+.q-cheatsheet .cs-worked-note {
+  font-size: 0.66rem; color: #7c2c3e; background: #f7e8eb;
+  padding: 4px 8px; border-radius: 3px; margin-top: 4px;
+}
+.q-cheatsheet .cs-worked-note.cs-blue { color: #2c4a7c; background: #e8eef7; }
+.q-cheatsheet .cs-footer {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.62rem; color: #aaa; padding-top: 8px;
+  border-top: 1px solid #ece8f6; display: flex; justify-content: space-between;
+  flex-wrap: wrap; gap: 4px;
+}
+/* "Open cheat sheet" hint inside the Basics tab */
+.q-cs-hint {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.74rem; color: #5a4fcf;
+  background: #f3effb; border: 1px dashed #c9bff3;
+  padding: 6px 12px; border-radius: 5px; cursor: pointer;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+.q-cs-hint:hover { background: #e9e2fb; border-style: solid; }
+
 /* Dirac toggle buttons on Inner / Outer tabs */
 .check-wrap.dirac-toggle {
   border: 1.5px solid #c9bff3; background: #fff; color: #5a4fcf;

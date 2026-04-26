@@ -20,7 +20,7 @@ import { ebInit, ebRender, ebFwd, ebBack, ebToggle, ebReset, ebPause,
          ebJumpToPos, ebTraceBack, ebChangeDim } from './tab-embed-bwd.js';
 import { qInit, qRender, qReset, qApply, qPause, getQState,
          qSelectFn, qApplyClassical, qSelectStoch, qApplyStoch,
-         qSetSubTab } from './tab-quantum.js';
+         qSetSubTab, qCheatsheetHtml } from './tab-quantum.js';
 import { PRESETS, loadPreset, clearPreset, fullClearPreset, activePreset } from './presets.js';
 import { ipInit, ipRender, ipPause, ipReset, ipToggle, ipFwd, ipBack,
          ipEditCell, ipResize, ipToggleDirac } from './tab-inner.js';
@@ -440,16 +440,7 @@ function updateShelfContent() {
       + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic">Each position contributes a rank-1 outer product X[b,t,:]⊗G[b,t,:]. The weight update is a sum of these rank-1 terms — the same structure as the Outer Product View.</p>`
       + `</div>`;
   } else if (currentMode === 'quantum') {
-    el.innerHTML =
-      `<div class="broadcast-rules">`
-      + `<strong>Dirac notation — classical → quantum</strong>`
-      + `<p style="margin-top:6px"><strong>Kets &amp; bras:</strong> <code>|x⟩</code> is a column vector, <code>⟨x|</code> is its row-vector transpose. The basis <code>|0⟩</code>, <code>|1⟩</code> encodes one bit.</p>`
-      + `<p style="margin-top:6px"><strong>Inner product:</strong> <code>⟨a|b⟩ = δ<sub>ab</sub></code> (1 when equal, else 0). Acts as an indicator / dot product.</p>`
-      + `<p style="margin-top:6px"><strong>Outer product:</strong> <code>|a⟩⟨b|</code> is a matrix with a single 1 at (a, b).</p>`
-      + `<p style="margin-top:6px"><strong>Deterministic ops:</strong> any function <code>f: Σ→Σ</code> becomes a matrix <code>M = Σ<sub>b</sub> |f(b)⟩⟨b|</code>. Then <code>M|a⟩ = |f(a)⟩</code> because <code>⟨b|a⟩</code> selects b = a.</p>`
-      + `<p style="margin-top:6px"><strong>Quantum gates:</strong> same outer-product form but coefficients can be negative. <code>Z = |0⟩⟨0| − |1⟩⟨1|</code> — the −1 is where classical ends.</p>`
-      + `<p style="margin-top:6px;font-size:0.68rem;color:#999;font-style:italic">Einsum: <code>U|ψ⟩ = ij,j→i</code>. The Inner and Outer tabs have a "Dirac" toggle for the same operations in bra-ket notation.</p>`
-      + `</div>`;
+    el.innerHTML = qCheatsheetHtml();
   }
 }
 setOnShelfOpen(updateShelfContent);

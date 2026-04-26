@@ -314,6 +314,11 @@ function renderBasicsSection() {
   html += `<div class="q-section-header">Basics: kets, bras, inner &amp; outer products</div>`;
   html += `<div class="q-section-lede">A <b>ket</b> <code>|x⟩</code> is a column vector; a <b>bra</b> <code>⟨x|</code> is its row-vector transpose. `
         + `The two basis states <code>|0⟩</code> and <code>|1⟩</code> encode a classical bit. Everything else in this tier is built from these pieces.</div>`;
+  html += `<div style="display:flex;justify-content:center;width:100%">`
+        + `<button class="q-cs-hint" onclick="toggleInfo()" title="Open cheat sheet">`
+        + `← Open the notation cheat sheet`
+        + `</button>`
+        + `</div>`;
 
   html += `<div class="q-panel">`;
   html += `<div class="q-panel-title">Kets — column vectors</div>`;
@@ -685,6 +690,157 @@ function renderQuantumSection() {
   html += `</div>`;
 
   return html;
+}
+
+// ── Cheat sheet (rendered into the left-side info shelf for the Dirac tier) ──
+// Standalone reference content. Available across all 4 sub-tabs.
+export function qCheatsheetHtml() {
+  let h = '';
+  h += `<div class="q-cheatsheet">`;
+  h += `<div class="cs-eyebrow">Reference · Quantum Information</div>`;
+  h += `<h3>Notation Cheat Sheet</h3>`;
+  h += `<p class="cs-subtitle">Connections between Dirac notation, vectors, and probability — Watrous Lessons 1 &amp; 2.</p>`;
+
+  // ── Ket & Bra Vectors ──
+  h += `<div class="cs-section cs-blue">`;
+  h += `<div class="cs-section-label">Ket &amp; Bra Vectors</div>`;
+  h += `<div class="cs-card">`
+    +  `<span class="cs-tag cs-tag-blue">ket</span>`
+    +  `<div class="cs-notation">|a⟩</div>`
+    +  `<div class="cs-meaning">A column vector for a single definite state — a one-hot vector with a 1 at position a.</div>`
+    +  `<pre class="cs-code">|0⟩ = [1, 0]ᵀ\n|1⟩ = [0, 1]ᵀ</pre>`
+    +  `</div>`;
+  h += `<div class="cs-card">`
+    +  `<span class="cs-tag cs-tag-blue">bra</span>`
+    +  `<div class="cs-notation">⟨a|</div>`
+    +  `<div class="cs-meaning">The row-vector version of |a⟩ — its transpose.</div>`
+    +  `<pre class="cs-code">⟨0| = [1, 0]\n⟨1| = [0, 1]</pre>`
+    +  `</div>`;
+  h += `</div>`;
+
+  // ── Joint States ──
+  h += `<div class="cs-section cs-red">`;
+  h += `<div class="cs-section-label">Joint States</div>`;
+  h += `<div class="cs-card">`
+    +  `<span class="cs-tag cs-tag-red">joint ket</span>`
+    +  `<div class="cs-notation">|ab⟩</div>`
+    +  `<div class="cs-meaning">A one-hot vector over all joint outcomes (a,b). Same as |a⟩ ⊗ |b⟩. Ordered 00, 01, 10, 11.</div>`
+    +  `<pre class="cs-code">|10⟩ = [0, 0, 1, 0]ᵀ\n         ↑ 3rd slot = (X=1, Y=0)</pre>`
+    +  `<div class="cs-key cs-key-red">Not just stacking the vectors — it's a single one-hot over the Cartesian product Σ×Γ.</div>`
+    +  `</div>`;
+  h += `<div class="cs-card">`
+    +  `<span class="cs-tag cs-tag-red">Cartesian product</span>`
+    +  `<div class="cs-notation">Σ×Γ</div>`
+    +  `<div class="cs-meaning">The set of ALL possible (a,b) pairs — the index set for the joint state space.</div>`
+    +  `<pre class="cs-code">Σ = {0,1},  Γ = {0,1}\nΣ×Γ = {00, 01, 10, 11}</pre>`
+    +  `<div class="cs-key cs-key-red">∑ over Σ×Γ means "loop over every pair" — equivalent to the nested double sum ∑ₐ ∑ᵦ.</div>`
+    +  `</div>`;
+  h += `</div>`;
+
+  // ── Tensor Product ──
+  h += `<div class="cs-section cs-amber">`;
+  h += `<div class="cs-section-label">Tensor Product ⊗</div>`;
+  h += `<div class="cs-card">`
+    +  `<span class="cs-tag cs-tag-amber">vectors</span>`
+    +  `<div class="cs-notation">|a⟩ ⊗ |b⟩</div>`
+    +  `<div class="cs-meaning">Multiply each entry of the first vector by the entire second vector. Produces |ab⟩.</div>`
+    +  `<pre class="cs-code">|1⟩ ⊗ |0⟩ = [0,1]ᵀ ⊗ [1,0]ᵀ\n= [0·1, 0·0, 1·1, 1·0]ᵀ\n= [0, 0, 1, 0]ᵀ  =  |10⟩</pre>`
+    +  `</div>`;
+  h += `<div class="cs-card">`
+    +  `<span class="cs-tag cs-tag-amber">matrices</span>`
+    +  `<div class="cs-notation">M ⊗ N</div>`
+    +  `<div class="cs-meaning">Replace each entry of M with (that entry × the full matrix N). Key property: acts on X and Y independently.</div>`
+    +  `<pre class="cs-code">(M⊗N)|φ⟩⊗|ψ⟩ = M|φ⟩ ⊗ N|ψ⟩\n\nCompute each system separately,\nthen combine at the end.</pre>`
+    +  `</div>`;
+  h += `</div>`;
+
+  // ── Outer Product & Matrices ──
+  h += `<div class="cs-section cs-red">`;
+  h += `<div class="cs-section-label">Outer Product &amp; Matrices</div>`;
+  h += `<div class="cs-card">`
+    +  `<span class="cs-tag cs-tag-red">outer product</span>`
+    +  `<div class="cs-notation">|a⟩⟨b|</div>`
+    +  `<div class="cs-meaning">Column × row = a matrix. A basis matrix that maps |b⟩ → |a⟩ and sends every other basis ket to zero.</div>`
+    +  `<pre class="cs-code">|0⟩⟨1| = [1,0]ᵀ · [0,1]\n       = [[0, 1],\n          [0, 0]]</pre>`
+    +  `</div>`;
+  h += `<div class="cs-card">`
+    +  `<span class="cs-tag cs-tag-red">any matrix M</span>`
+    +  `<div class="cs-notation">∑ αₐᵦ |a⟩⟨b|</div>`
+    +  `<div class="cs-meaning">Any matrix written in Dirac notation. The αₐᵦ are just the matrix entries — the sum builds M from basis matrices.</div>`
+    +  `<pre class="cs-code">NOT = 0|0⟩⟨0| + 1|0⟩⟨1|\n         + 1|1⟩⟨0| + 0|1⟩⟨1|\n    = [[0, 1],\n       [1, 0]]</pre>`
+    +  `</div>`;
+  h += `</div>`;
+
+  // ── Probability Distributions ──
+  h += `<div class="cs-section cs-green">`;
+  h += `<div class="cs-section-label">Probability Distributions</div>`;
+  h += `<div class="cs-card">`
+    +  `<span class="cs-tag cs-tag-green">marginal</span>`
+    +  `<div class="cs-notation">Pr(X=a) = ∑ᵦ pₐᵦ</div>`
+    +  `<div class="cs-meaning">Sum an entire row of the joint probability table. "Marginalizes out" Y by adding over all its possible values.</div>`
+    +  `<div class="cs-key cs-key-green">In vector form: the coefficient of |a⟩ after summing the inner sum ∑ᵦ pₐᵦ|b⟩.</div>`
+    +  `</div>`;
+  h += `<div class="cs-card">`
+    +  `<span class="cs-tag cs-tag-green">conditional</span>`
+    +  `<div class="cs-notation">Pr(Y=b|X=a) = pₐᵦ / Pr(X=a)</div>`
+    +  `<div class="cs-meaning">Take the row for X=a and rescale it to sum to 1. The denominator normalizes so Y's state is a valid probability distribution.</div>`
+    +  `<div class="cs-key cs-key-green">In Dirac form: [∑ᵦ pₐᵦ|b⟩] / Pr(X=a) — the inner sum divided by the marginal.</div>`
+    +  `</div>`;
+  h += `</div>`;
+
+  // ── Deterministic Operations ──
+  h += `<div class="cs-section cs-red">`;
+  h += `<div class="cs-section-label">Deterministic Operations</div>`;
+  h += `<div class="cs-card">`
+    +  `<div class="cs-meaning">Any function <b>f : Σ → Σ</b> has a unique matrix M. Each term <b>|f(b)⟩⟨b|</b> is an outer product mapping |b⟩ → |f(b)⟩ and zeroing everything else. Summing over all b assembles the full matrix.</div>`
+    +  `<pre class="cs-code">M = ∑ᵦ |f(b)⟩⟨b|\n\n|f(b)⟩⟨b| · |a⟩ = |f(b)⟩ · ⟨b|a⟩\n              = |f(b)⟩ · (1 if b=a, else 0)\n\nSumming: M|a⟩ = |f(a)⟩  ✓</pre>`
+    +  `<div class="cs-key cs-key-red">⟨b| is the "selector" — it fires only when the input matches b. Summing over all b means every input is handled exactly once.</div>`
+    +  `</div>`;
+  h += `<div class="cs-card">`
+    +  `<div class="cs-worked-title">Worked example — NOT gate: f(0)=1, f(1)=0</div>`
+    +  `<div class="cs-worked-grid">`
+    +    `<div>`
+    +      `<div class="cs-worked-title">term for b=0</div>`
+    +      `<pre class="cs-code">|f(0)⟩⟨0| = |1⟩⟨0|\n= [0,1]ᵀ · [1,0]\n= [[0, 0],\n   [1, 0]]</pre>`
+    +      `<div class="cs-worked-note">Sends |0⟩ → |1⟩, kills |1⟩</div>`
+    +    `</div>`
+    +    `<div>`
+    +      `<div class="cs-worked-title">term for b=1</div>`
+    +      `<pre class="cs-code">|f(1)⟩⟨1| = |0⟩⟨1|\n= [1,0]ᵀ · [0,1]\n= [[0, 1],\n   [0, 0]]</pre>`
+    +      `<div class="cs-worked-note">Sends |1⟩ → |0⟩, kills |0⟩</div>`
+    +    `</div>`
+    +  `</div>`
+    +  `<pre class="cs-code" style="margin-top:8px">M = |1⟩⟨0| + |0⟩⟨1|\n  = [[0,0],[1,0]] + [[0,1],[0,0]]\n  = [[0,1],[1,0]]  ✓</pre>`
+    +  `</div>`;
+  h += `</div>`;
+
+  // ── M|b⟩ picks a column ──
+  h += `<div class="cs-section cs-blue">`;
+  h += `<div class="cs-section-label">M|b⟩ Picks the b-th Column</div>`;
+  h += `<div class="cs-card">`
+    +  `<div class="cs-meaning">Multiplying a matrix M by basis ket |b⟩ yields the <b>b-th column</b> of M. All ⟨c|b⟩ terms vanish except c = b.</div>`
+    +  `<pre class="cs-code">M|b⟩ = (∑ₐ,꜀ αₐ꜀ |a⟩⟨c|) |b⟩\n     = ∑ₐ,꜀ αₐ꜀ |a⟩ ⟨c|b⟩\n     = ∑ₐ αₐᵦ |a⟩    ← only c=b survives</pre>`
+    +  `<div class="cs-key">⟨c|b⟩ = 1 if c = b, else 0. ⟨b| is a "selector" — picks out only matching-index terms.</div>`
+    +  `</div>`;
+  h += `<div class="cs-card">`
+    +  `<div class="cs-worked-title">Worked — NOT columns are NOT|0⟩ and NOT|1⟩</div>`
+    +  `<pre class="cs-code">NOT · |0⟩ = [[0,1],[1,0]] · [1,0]ᵀ\n          = [0, 1]ᵀ  =  |1⟩\n\nNOT · |1⟩ = [[0,1],[1,0]] · [0,1]ᵀ\n          = [1, 0]ᵀ  =  |0⟩</pre>`
+    +  `<div class="cs-worked-note cs-blue">Column 0 of NOT = NOT|0⟩. Column 1 = NOT|1⟩. General rule: M = [ M|0⟩ | M|1⟩ | M|2⟩ | … ]</div>`
+    +  `</div>`;
+  h += `</div>`;
+
+  // ── The Big Picture ──
+  h += `<div class="cs-section cs-ink">`;
+  h += `<div class="cs-section-label">The Big Picture</div>`;
+  h += `<div class="cs-card">`
+    +  `<div class="cs-meaning">Everything so far is the <b>classical warm-up</b>. When you move to quantum states, probabilities (positive, sum to 1) become <b>amplitudes</b> (complex, squared sum to 1). Almost all the same math applies — tensor product, joint states, and measurement rules carry over directly.</div>`
+    +  `<pre class="cs-code">Classical:  state = ∑ pₐ |a⟩    pₐ ≥ 0,   ∑ pₐ = 1\nQuantum:    state = ∑ αₐ |a⟩    αₐ ∈ ℂ,   ∑ |αₐ|² = 1</pre>`
+    +  `</div>`;
+  h += `</div>`;
+
+  h += `<div class="cs-footer"><span>Lessons 1 &amp; 2</span><span>Watrous · IBM/Qiskit</span></div>`;
+  h += `</div>`;
+  return h;
 }
 
 // ── Main render ──
