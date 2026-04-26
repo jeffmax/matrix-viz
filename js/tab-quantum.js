@@ -353,7 +353,7 @@ function renderBasicsSection() {
   html += `<div class="q-ref-grid">`;
   html += `<div><b>Deterministic</b> — columns of M are basis kets.</div>`;
   html += `<div><b>Stochastic</b> — columns are probability distributions (sum to 1).</div>`;
-  html += `<div><b>Quantum</b> — columns are <i>orthonormal</i>: each column's squared entries sum to 1 (<i>normal</i> = unit length), and different columns have inner product 0 (<i>ortho</i> = perpendicular). Together: <code>U†U = I</code>.</div>`;
+  html += `<div><b>Quantum</b> — columns are <i>orthonormal</i>: each column's squared entries sum to 1 (<i>normal</i> = unit length), and the inner product of any two different columns is 0 (<i>ortho</i> = perpendicular, meaning probability can't "leak" between them). A matrix with orthonormal columns is called <b>unitary</b>, written compactly as <code>U†U = I</code>.</div>`;
   html += `<div class="q-ref-note">Each layer relaxes one rule on the columns. Pick a tab above to explore.</div>`;
   html += `</div>`;
   html += `</div>`;
@@ -559,20 +559,44 @@ function renderQuantumSection() {
   // State normalization intro
   html += `<div class="q-panel">`;
   html += `<div class="q-panel-title">Why "squared entries sum to 1" — a gentle intro</div>`;
-  html += `<div class="q-gate-info" style="margin-top:0">For a state <code>|ψ⟩ = α|0⟩ + β|1⟩</code>, the rule of quantum mechanics is:`;
-  html += `<ul style="margin:6px 0 6px 18px;padding:0">`;
-  html += `<li>probability of measuring <code>0</code> is <code>α²</code></li>`;
-  html += `<li>probability of measuring <code>1</code> is <code>β²</code></li>`;
-  html += `</ul>`;
-  html += `These must sum to 1, so <code>α² + β² = 1</code>. If you apply a matrix U and want the result <code>U|ψ⟩</code> to still be a valid state, U has to preserve this squared sum. Writing it out column by column: each column of U must itself satisfy <code>x² + y² = 1</code>, and different columns must be orthogonal (otherwise the squared sum can shift between terms). That's exactly <code>U†U = I</code>.`;
-  html += `</div>`;
-  html += `<div class="q-gate-info">Compare the three layers — each generalizes the previous:`;
-  html += `<ul style="margin:6px 0 0 18px;padding:0">`;
-  html += `<li><b>Deterministic:</b> each column is a basis ket (one 1, rest 0).</li>`;
-  html += `<li><b>Stochastic:</b> each column sums to 1, entries ≥ 0.</li>`;
-  html += `<li><b>Quantum:</b> <i>squared</i> entries of each column sum to 1; columns pairwise orthogonal.</li>`;
-  html += `</ul>`;
-  html += `</div>`;
+
+  // Measurement rule
+  html += `<div class="q-gate-info" style="margin-top:0;text-align:left">`
+        + `For a state <code>|ψ⟩ = α|0⟩ + β|1⟩</code>, the measurement rule is:`
+        + `<ul style="margin:6px 0 0 18px;padding:0">`
+        +   `<li>probability of measuring <code>0</code> is <code>α²</code></li>`
+        +   `<li>probability of measuring <code>1</code> is <code>β²</code></li>`
+        + `</ul>`
+        + `</div>`;
+
+  // Total probability
+  html += `<div class="q-gate-info" style="text-align:left">`
+        + `These probabilities must sum to 1, so <code>α² + β² = 1</code>.`
+        + `</div>`;
+
+  // What U must do
+  html += `<div class="q-gate-info" style="text-align:left">`
+        + `For a matrix U to be a valid quantum operation, <code>U|ψ⟩</code> must still satisfy that same rule. Writing it column by column:`
+        + `<ul style="margin:6px 0 0 18px;padding:0">`
+        +   `<li>each column of U satisfies <code>x² + y² = 1</code> (unit length under squared-sum)</li>`
+        +   `<li>different columns have <b>inner product 0</b> — they're <i>orthogonal</i> — so probability mass cannot leak between them</li>`
+        + `</ul>`
+        + `</div>`;
+
+  // Define unitary
+  html += `<div class="q-gate-info" style="text-align:left">`
+        + `A matrix whose columns are <i>orthonormal</i> (orthogonal + unit length) is called <b>unitary</b>. The compact form is <code>U†U = I</code>, where <code>U†</code> is the conjugate transpose. For real matrices that's just <code>UᵀU = I</code> — multiplying U by its transpose recovers the identity, which is exactly the orthonormality condition packaged into a single equation.`
+        + `</div>`;
+
+  // Compare the three layers
+  html += `<div class="q-gate-info" style="text-align:left">`
+        + `Compare the three layers — each generalizes the previous:`
+        + `<ul style="margin:6px 0 0 18px;padding:0">`
+        +   `<li><b>Deterministic:</b> each column is a basis ket (one 1, rest 0).</li>`
+        +   `<li><b>Stochastic:</b> each column sums to 1, entries ≥ 0.</li>`
+        +   `<li><b>Quantum (unitary):</b> <i>squared</i> entries of each column sum to 1; columns pairwise orthogonal.</li>`
+        + `</ul>`
+        + `</div>`;
   html += `</div>`;
 
   // Gate cheat-sheet + U†U check
