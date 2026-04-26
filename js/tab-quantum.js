@@ -312,8 +312,6 @@ function subTabNavHtml() {
 function renderBasicsSection() {
   let html = '';
   html += `<div class="q-section-header">Basics: kets, bras, inner &amp; outer products</div>`;
-  html += `<div class="q-section-lede">A <b>ket</b> <code>|x⟩</code> is a column vector; a <b>bra</b> <code>⟨x|</code> is its row-vector transpose. `
-        + `The two basis states <code>|0⟩</code> and <code>|1⟩</code> encode a classical bit. Everything else in this tier is built from these pieces.</div>`;
   html += `<div style="display:flex;justify-content:center;width:100%">`
         + `<button class="q-cs-hint" onclick="toggleInfo()" title="Open cheat sheet">`
         + `← Open the notation cheat sheet`
@@ -321,14 +319,10 @@ function renderBasicsSection() {
         + `</div>`;
 
   html += `<div class="q-panel">`;
-  html += `<div class="q-panel-title">Kets — column vectors</div>`;
+  html += `<div class="q-panel-title">Kets &amp; bras — column / row basis vectors</div>`;
   html += `<div class="q-row" style="gap:24px">`;
   html += `<div class="q-kv"><span class="q-label">|0⟩</span><span class="q-sym">=</span>${ketHtml([1, 0], 'u')}</div>`;
   html += `<div class="q-kv"><span class="q-label">|1⟩</span><span class="q-sym">=</span>${ketHtml([0, 1], 'u')}</div>`;
-  html += `</div>`;
-
-  html += `<div class="q-panel-title" style="margin-top:14px">Bras — row vectors (transposes of kets)</div>`;
-  html += `<div class="q-row" style="gap:24px">`;
   html += `<div class="q-kv"><span class="q-label">⟨0|</span><span class="q-sym">=</span>${braHtml([1, 0], 'u')}</div>`;
   html += `<div class="q-kv"><span class="q-label">⟨1|</span><span class="q-sym">=</span>${braHtml([0, 1], 'u')}</div>`;
   html += `</div>`;
@@ -339,7 +333,6 @@ function renderBasicsSection() {
   html += `${braHtml([1, 0], 'u')}<span class="q-sym">·</span>${ketHtml([0, 1], 'u')}`;
   html += `<span class="q-sym">=</span><span class="q-ind">1·0 + 0·1 = 0</span>`;
   html += `</div>`;
-  html += `<div class="q-gate-info">Acts as an <b>indicator</b>: <code>⟨a|b⟩ = 1</code> when a=b, else 0. This is exactly the dot product — the "Inner Product" tab with vectors of length 2.</div>`;
   html += `<div class="q-row" style="gap:14px;margin-top:6px;font-family:'SF Mono',Menlo,monospace;font-size:0.86rem">`;
   html += `<span>⟨0|0⟩ = <span class="q-ind">1</span></span>`;
   html += `<span>⟨0|1⟩ = <span class="q-ind">0</span></span>`;
@@ -353,16 +346,15 @@ function renderBasicsSection() {
   html += `${ketHtml([0, 1], 'u')}<span class="q-sym">·</span>${braHtml([1, 0], 'u')}`;
   html += `<span class="q-sym">=</span>${outerHtml(1, 0)}`;
   html += `</div>`;
-  html += `<div class="q-gate-info">A 2×2 matrix with a single <code>1</code> at row a, column b. Multiplying this matrix by <code>|b⟩</code> yields <code>|a⟩</code>; by any other basis ket yields 0. These are the building blocks of every 1-bit operation.</div>`;
   html += `</div>`;
 
   html += `<div class="q-panel">`;
   html += `<div class="q-panel-title">Where this goes next</div>`;
   html += `<div class="q-ref-grid">`;
-  html += `<div><b>Deterministic</b> — every function <code>f : {0,1} → {0,1}</code> is <code>M = Σ<sub>b</sub> |f(b)⟩⟨b|</code>. Columns of M are basis kets.</div>`;
-  html += `<div><b>Stochastic</b> — columns of M are probability distributions (entries ≥ 0, each column sums to 1). Deterministic is the special case where each column is a basis ket.</div>`;
-  html += `<div><b>Quantum</b> — columns of U are unit vectors under <i>squared</i>-sum, and orthogonal to each other (<code>U†U = I</code>). Allows negative entries, since squaring kills the sign.</div>`;
-  html += `<div class="q-ref-note">Each layer relaxes one rule: "basis ket per column" → "distribution per column" → "orthonormal column under squared norm". Pick a tab above to explore.</div>`;
+  html += `<div><b>Deterministic</b> — columns of M are basis kets.</div>`;
+  html += `<div><b>Stochastic</b> — columns are probability distributions (sum to 1).</div>`;
+  html += `<div><b>Quantum</b> — columns are orthonormal under squared-sum (<code>U†U = I</code>).</div>`;
+  html += `<div class="q-ref-note">Each layer relaxes one rule on the columns. Pick a tab above to explore.</div>`;
   html += `</div>`;
   html += `</div>`;
 
